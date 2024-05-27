@@ -33,7 +33,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun appNavigator(){
     val navController = rememberNavController()
-    NavHost(navController = navController, startDestination = "main"){
+    NavHost(navController = navController, startDestination = "forYou"){
         composable("main"){
             greeting("Android", navController, Modifier)
         }
