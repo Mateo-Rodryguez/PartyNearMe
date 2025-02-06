@@ -1,11 +1,11 @@
 package com.example.partynearme
 
 data class ConversationRequest(
-    val user1: String,
-    val user2: String
+    val senderId: Int,
+    val receiverId: Int,
 )
 data class ConversationResponse(
-    val id: String,
+    val conversationId: String,
 )
 data class MessageResponse(
     val id: String,

@@ -1,5 +1,6 @@
 package com.example.partynearme
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,45 +22,84 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import org.json.JSONObject
 
-data class UIMessage(val id: String, val userAvatar: Int, val userName: String, val lastMessage: String)
+data class UIMessage(val id: Int, val userAvatar: Int, val userName: String, val lastMessage: String)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MessagesScreen(navController: NavController, userId: String, otherUserId: String) {
+fun MessagesScreen(navController: NavController, otherUserId: Int) {
+    val context = LocalContext.current
+    val userId = remember { getUserIdFromPrefs(context) } // Load from SharedPreferences
     val messages = remember { mutableStateListOf<UIMessage>() }
     val coroutineScope = rememberCoroutineScope()
     var newMessageText by remember { mutableStateOf("") }
-    var conversationId by remember { mutableStateOf<String?>(null) }
+    var conversationId by remember { mutableIntStateOf(-1) }
     val focusManager = LocalFocusManager.current
 
-    val socket = remember { IO.socket("https://10.0.2.2:5000") } // Replace with actual server IP
+    val socket = remember { IO.socket("http://10.0.2.2:3000") } // Replace with actual server IP
     val newMessagesFlow = remember { MutableStateFlow<List<UIMessage>>(emptyList()) }
     val listState = rememberLazyListState()
+    val apiService = RetrofitInstance.getApiService(context)
 
+    // Function to find or create a conversation
+    suspend fun findOrCreateConversation(): Int? {
+        return withContext(Dispatchers.IO) {
+            val request = ConversationRequest(userId, otherUserId)
+            val response = apiService.findOrCreateConversation(request).execute()
+
+            if (response.isSuccessful) {
+                val responseBody = response.body()
+                Log.i("findOrCreateConversation", "Response body: $responseBody")
+                val conversationId = responseBody?.conversationId?.toInt()
+                Log.i("findOrCreateConversation", "Successfully created or found conversation with ID: $conversationId")
+                conversationId
+            } else {
+                Log.e("findOrCreateConversation", "API request failed: ${response.errorBody()?.string()}")
+                null
+            }
+        }
+    }
 
     // Connect WebSocket & Join Conversation
-    LaunchedEffect(otherUserId) {
+
+    DisposableEffect(otherUserId) {
         socket.connect()
 
+        socket.on(Socket.EVENT_CONNECT) {
+            Log.i("SocketIO", "Connected to the server")
+        }
+
+        socket.on(Socket.EVENT_DISCONNECT) {
+            Log.i("SocketIO", "Disconnected from the server")
+        }
+
         socket.on("conversationJoined") { args ->
-            val convoId = args[0] as String
+            val convoId = (args[0] as String).toInt()
             conversationId = convoId
 
-            // ✅ Emit join only after receiving the conversationId
+            // Emit join only after receiving the conversationId
             socket.emit("joinConversation", convoId)
         }
 
         socket.on("receiveMessage") { args ->
             val newMessage = args[0] as JSONObject
+            println("Received message: $newMessage")
             val message = UIMessage(
-                id = newMessage.getString("id"),
+                id = newMessage.getInt("id"),
                 userAvatar = R.drawable.ic_profile,
-                userName = newMessage.getString("senderId"),
-                lastMessage = newMessage.getString("content")
+                userName = newMessage.getInt("senderId").toString(),
+                lastMessage = newMessage.getString("message_body")
             )
             coroutineScope.launch {
                 messages.add(message)
             }
+        }
+
+        onDispose {
+            socket.disconnect()
+            socket.off("conversationJoined")
+            socket.off("receiveMessage")
+            socket.off(Socket.EVENT_CONNECT)
+            socket.off(Socket.EVENT_DISCONNECT)
         }
     }
 
@@ -70,6 +110,7 @@ fun MessagesScreen(navController: NavController, userId: String, otherUserId: St
             messages.addAll(updatedMessages)
         }
     }
+
 
     Scaffold(
         topBar = {
@@ -114,20 +155,38 @@ fun MessagesScreen(navController: NavController, userId: String, otherUserId: St
                     )
                     IconButton(
                         onClick = {
-                                // ✅ Ensure UI updates by creating a new list instance
-                                messages.add(
-                                    UIMessage(
-                                        id = System.currentTimeMillis().toString(),
-                                        userAvatar = R.drawable.ic_profile,
-                                        userName = "You",
-                                        lastMessage = newMessageText
-                                    )
-                                )
+                            println("userId: $userId, otherUserId: $otherUserId")
+                            if (newMessageText.isNotBlank()) {
+                                coroutineScope.launch {
+                                    if (conversationId == -1) {
+                                        conversationId = findOrCreateConversation() ?: -1
+                                    }
 
-                                // ✅ Clear text box & remove focus
-                                newMessageText = ""
-                                focusManager.clearFocus()
+                                    if (conversationId != -1) {
+                                        val message = UIMessage(
+                                            id = System.currentTimeMillis().toInt(),
+                                            userAvatar = R.drawable.ic_profile,
+                                            userName = "You",
+                                            lastMessage = newMessageText
+                                        )
+                                        messages.add(message)
 
+                                        val messageJson = JSONObject().apply {
+                                            put("conversationId", conversationId)
+                                            put("senderId", userId) // ✅ Now an integer
+                                            put("receiverId", otherUserId) // ✅ Now an integer
+                                            put("message_body", newMessageText)
+                                        }
+                                        println("Sending message: $messageJson")
+                                        socket.emit("sendMessage", messageJson)
+
+                                        newMessageText = ""
+                                        focusManager.clearFocus()
+                                    } else {
+                                        Log.e("MessagesScreen", "Failed to create or find conversation")
+                                    }
+                                }
+                            }
                         }
                     ) {
                         Icon(painter = painterResource(id = R.drawable.ic_send), contentDescription = "Send")
@@ -164,5 +223,5 @@ fun MessageItem(message: UIMessage, isSentByCurrentUser: Boolean) {
 @Preview(showBackground = true)
 @Composable
 fun PreviewMessagesScreen() {
-    MessagesScreen(navController = NavController(LocalContext.current), userId = "1", otherUserId = "2")
+    MessagesScreen(navController = NavController(LocalContext.current), otherUserId = 2)
 }

@@ -21,7 +21,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             PartyNearMeTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
                     MainContent()
                 }
             }
@@ -30,33 +33,19 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun MainContent() {
-        var userId by remember { mutableStateOf<String?>(null) }
-        val coroutineScope = rememberCoroutineScope()
+        val context = this@MainActivity
+        val userId = remember { getUserIdFromPrefs(context) } // Load from SharedPreferences
 
-        LaunchedEffect(Unit) {
-            coroutineScope.launch {
-                userId = fetchUserIdFromBackend()
-            }
-        }
-
-        userId?.let {
-            appNavigator(userId = it)
-        }
-    }
-
-    private suspend fun fetchUserIdFromBackend(): String {
-        return withContext(Dispatchers.IO) {
-            val apiService = RetrofitInstance.getAuthService(this@MainActivity)
-            val response = apiService.getuserId().execute()
-            response.body()?.id ?:"defaultUserId"
-        }
+        appNavigator(userId)
     }
 }
 
 @Composable
-fun appNavigator(userId: String) {
+fun appNavigator(userId: Int) {
     val navController = rememberNavController()
-    NavHost(navController = navController, startDestination = "forYou") {
+    val startDestination = if (userId > 0) "forYou" else "loginSignup" // If logged in, go to "forYou"
+
+    NavHost(navController = navController, startDestination = startDestination) {
         composable("loginSignup") {
             LoginSignupScreen(navController)
         }
@@ -67,20 +56,17 @@ fun appNavigator(userId: String) {
             ProfileScreen(navController)
         }
         composable("newPost") {
-            NewPostScreen(navController, userId)
+            NewPostScreen(navController)
         }
         composable("conversations") {
             ConversationsScreen(navController, userId)
         }
-        composable("nearby/{userId}") { backStackEntry ->
-            val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
-            NearbyScreen(navController, userId)
+        composable("nearby") { backStackEntry ->
+            NearbyScreen(navController)
         }
-        composable("messages/{userId}/{otherUserId}") { backStackEntry ->
-            val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
-            val otherUserId = backStackEntry.arguments?.getString("otherUserId") ?: return@composable
-            MessagesScreen(navController, userId, otherUserId)
+        composable("messages/{otherUserId}") { backStackEntry ->
+            val otherUserId = backStackEntry.arguments?.getString("otherUserId")?.toIntOrNull() ?: return@composable
+            MessagesScreen(navController, otherUserId)
         }
-
     }
 }

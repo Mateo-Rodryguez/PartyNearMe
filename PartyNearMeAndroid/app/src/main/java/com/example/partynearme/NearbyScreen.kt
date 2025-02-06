@@ -16,16 +16,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-data class NearbyUser(val id: String, val email: String, val username: String, val distance: Double?)
+data class NearbyUser(val id: Int, val email: String, val username: String, val distance: Double?)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NearbyScreen(navController: NavController, userId: String) {
+fun NearbyScreen(navController: NavController) {
+    val context = LocalContext.current
+    val userId = remember { getUserIdFromPrefs(context) } // Load from SharedPreferences
     val nearbyUsers = remember { mutableStateListOf<NearbyUser>() }
     val coroutineScope = rememberCoroutineScope()
 
     // Get ApiService instance
-    val context = LocalContext.current
     val apiService = RetrofitInstance.getAuthService(context)
 
     // Fetch nearby users from API
@@ -70,7 +71,7 @@ fun NearbyScreen(navController: NavController, userId: String) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                navController.navigate("messages/$userId/${user.id}")
+                                navController.navigate("messages/${user.id}")
                             }
                             .padding(16.dp)
                     )
@@ -83,5 +84,5 @@ fun NearbyScreen(navController: NavController, userId: String) {
 @Composable
 fun NearbyScreenPreview() {
     val navController = rememberNavController()
-    NearbyScreen(navController, "sampleUserId")
+    NearbyScreen(navController)
 }

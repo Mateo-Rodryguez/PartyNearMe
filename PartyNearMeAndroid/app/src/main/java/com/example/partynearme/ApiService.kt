@@ -32,7 +32,7 @@ interface ApiService {
     fun createConversation(@Body conversation: ConversationRequest): Call<Conversation>
 
     @GET("/users/{userId}/conversations")
-    fun getUserConversations(@Path("userId") userId: String): Call<List<Conversation>>
+    fun getUserConversations(@Path("userId") userId: Int): Call<List<Conversation>>
 
     @POST("/conversations/{conversationId}/participants")
     fun addParticipant(@Path("conversationId") conversationId: String, @Body participant: ParticipantRequest): Call<Participant>

@@ -5,15 +5,15 @@ data class LoginRequest(
     val password: String
 )
 data class LoginResponse(
-    val email: String,
-    val message: String
+    val token: String,
+    val userId: Int,
 )
 data class RegisterRequest(
     val email: String,
     val password: String
 )
 data class User(
-    val id: String,
+    val id: Int,
     val username: String,
     val email: String,
     val password_hash: String,
@@ -62,8 +62,8 @@ data class Post(
     val id: String,
     val imageUrl: String,
     val description: String,
-    val userId: String
+    val userId: Int
 )
 data class UserIdResponse(
-    val id: String
+    val id: Int
 )

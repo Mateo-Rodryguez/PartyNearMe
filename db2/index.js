@@ -6,30 +6,32 @@ const https = require('https');
 const app = express();
 const { getUserByEmail } = require('./db');
 const socketIo = require('socket.io');
+const generateAuthToken = require('./auth');
+const db = require('./db');
 
 app.use(express.json()); // Middleware to parse JSON requests
 
-app.post('/login', async (req, res) => {
+app.post("/login", async (req, res) => {
     const { email, password } = req.body;
     try {
-        const user = await getUserByEmail(email);
-
+        const user = await db.getUserByEmail(email);
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            return res.status(404).json({ error: "User not found" });
         }
 
-        const isMatch = await bcrypt.compare(password, user.password_hash);
-
-        if (!isMatch) {
-            return res.status(401).json({ message: 'Invalid credentials' });
+        const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+        if (!isPasswordValid) {
+            return res.status(401).json({ error: "Invalid credentials" });
         }
 
-        res.status(200).json({ email: user.email, message: 'Login successful' });
-    } catch (err) {
-        console.error('Error during login:', err.message);
-        res.status(500).send('Server error');
+        const token = generateAuthToken(user);
+        res.json({ token, userId: user.id });
+    } catch (error) {
+        console.error('Error during login:', error); // Log the error details
+        res.status(500).json({ error: "Internal server error" });
     }
 });
+
 // Route to add a user (register user)
 app.post('/users', async (req, res) => {
     const { email, password } = req.body;
@@ -52,7 +54,6 @@ app.post('/users', async (req, res) => {
         res.status(500).send('Server error');
     }
 });
-
 // Route to fetch all users
 app.get('/users', async (req, res) => {
     try {
@@ -63,158 +64,62 @@ app.get('/users', async (req, res) => {
         res.status(500).send('Server error');
     }
 });
-
-// Messages
-app.post('/messages', async (req, res) => {
-    const { conversationId, senderId, messageBody, mediaUrl } = req.body;
-    try {
-        const result = await pool.query(
-            `INSERT INTO messages (conversation_id, sender_id, message_body, media_url, timestamp, is_read) 
-             VALUES ($1, $2, $3, $4, NOW(), FALSE) RETURNING *`,
-            [conversationId, senderId, messageBody, mediaUrl]
-        );
-
-        // Emit message to all clients in the conversation room
-        io.to(conversationId).emit('receiveMessage', result.rows[0]);
-
-        res.status(201).json(result.rows[0]);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
-});
-
-app.get('/conversations/:conversationId/messages', async (req, res) => {
-    const { conversationId } = req.params;
-    try {
-        const result = await pool.query(
-            `SELECT * FROM messages WHERE conversation_id = $1 ORDER BY timestamp ASC`,
-            [conversationId]
-        );
-        res.json(result.rows);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
-});
-
-app.put('/conversations/:conversationId/messages/read', async (req, res) => {
-    const { conversationId } = req.params;
-    const { userId } = req.body; // userId of the message reader
-
-    try {
-        await pool.query(
-            `UPDATE messages SET is_read = TRUE 
-             WHERE conversation_id = $1 AND sender_id != $2`,
-            [conversationId, userId]
-        );
-
-        res.json({ status: "Messages marked as read" });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
-});
-
-
-app.patch('/messages/:messageId/status', async (req, res) => {
-    const { messageId } = req.params;
-    const { status } = req.body;
-    try {
-        const result = await pool.query(
-            'UPDATE messages SET status = $1 WHERE id = $2 RETURNING *',
-            [status, messageId]
-        );
-        res.json(result.rows[0]);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
-});
-// Conversations
+// Conversations find or create
+/*
 app.post('/conversations/find-or-create', async (req, res) => {
-    const { user1, user2 } = req.body;
+    const { senderId, receiverId } = req.body;
     try {
-        // Check if a conversation already exists
+        // Find an existing conversation between these two users
         const existingConversation = await pool.query(
-            'SELECT * FROM conversations WHERE (user1 = $1 AND user2 = $2) OR (user1 = $2 AND user2 = $1)',
-            [user1, user2]
+            'SELECT conversation_id FROM messages WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1) LIMIT 1',
+            [senderId, receiverId]
         );
 
         if (existingConversation.rows.length > 0) {
-            return res.json(existingConversation.rows[0]);
+            return res.json({ conversationId: existingConversation.rows[0].conversation_id });
         }
 
-        // If not, create a new one
+        // If no conversation exists, create a new conversation ID
         const newConversation = await pool.query(
-            'INSERT INTO conversations (user1, user2) VALUES ($1, $2) RETURNING *',
-            [user1, user2]
+            'INSERT INTO messages DEFAULT VALUES RETURNING conversation_id'
         );
 
-        res.json(newConversation.rows[0]);
+        res.json({ conversationId: newConversation.rows[0].conversation_id });
     } catch (err) {
         console.error(err.message);
+        res.status(500).send('Server error');
+    }
+});
+*/
+app.post('/conversations/find-or-create', async (req, res) => {
+    const { senderId, receiverId } = req.body;
+    try {
+        // Find an existing conversation between these two users
+        const existingConversation = await pool.query(
+            'SELECT conversation_id FROM messages WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1) LIMIT 1',
+            [senderId, receiverId]
+        );
+
+        if (existingConversation.rows.length > 0) {
+            return res.json({ conversationId: existingConversation.rows[0].conversation_id });
+        }
+
+        // Find the last used conversation_id and increment it
+        const lastConversation = await pool.query(
+            'SELECT MAX(conversation_id) AS last_id FROM messages'
+        );
+
+        const lastId = lastConversation.rows[0].last_id || 0;
+        const newConversationId = lastId + 1;
+
+        res.json({ conversationId: newConversationId });
+    } catch (err) {
+        console.error('Error creating or finding conversation:', err.message);
         res.status(500).send('Server error');
     }
 });
 
-app.post('/conversations', async (req, res) => {
-    const { name, creatorId } = req.body;
-    try {
-        const result = await pool.query(
-            'INSERT INTO conversations (name, creator_id) VALUES ($1, $2) RETURNING *',
-            [name, creatorId]
-        );
-        res.status(201).json(result.rows[0]);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
-});
-app.get('/users/:userId/conversations', async (req, res) => {
-    const { userId } = req.params;
-    try {
-        const result = await pool.query(
-            'SELECT * FROM conversations WHERE id IN (SELECT conversation_id FROM participants WHERE user_id = $1)',
-            [userId]
-        );
-        res.json(result.rows);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
-});
-app.post('/conversations/:conversationId/participants', async (req, res) => {
-    const { conversationId } = req.params;
-    const { userId } = req.body;
-    try {
-        const result = await pool.query(
-            'INSERT INTO participants (conversation_id, user_id) VALUES ($1, $2) RETURNING *',
-            [conversationId, userId]
-        );
-        io.to(conversationId).emit('participantAdded', result.rows[0]);
-        res.status(201).json(result.rows[0]);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
-});
-// Reactions
-app.post('/messages/:messageId/reactions', async (req, res) => {
-    const { messageId } = req.params;
-    const { userId, reaction } = req.body;
-    try {
-        const result = await pool.query(
-            'INSERT INTO reactions (message_id, user_id, reaction) VALUES ($1, $2, $3) RETURNING *',
-            [messageId, userId, reaction]
-        );
-        io.to(messageId).emit('reactionAdded', result.rows[0]);
-        res.status(201).json(result.rows[0]);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
-});
+
 // Read the SSL certificate and key
 const sslOptions = {
     key: fs.readFileSync('./certs/certs2/server.key'),
@@ -223,6 +128,7 @@ const sslOptions = {
 // Start the server
 const PORT = process.env.PORT || 5000;
 const server = https.createServer(sslOptions, app);
+
 const io = socketIo(server, {
     cors: {
         origin: "*",  // Allow frontend connections
@@ -231,35 +137,28 @@ const io = socketIo(server, {
 });
 
 io.on('connection', (socket) => {
-        console.log('New client connected');
+    console.log('New client connected');
 
-        socket.on('sendMessage', async (data) => {
-            const { conversationId, senderId, content } = data;
-            try {
-                const result = await pool.query(
-                    'INSERT INTO messages (conversation_id, sender_id, content) VALUES ($1, $2, $3) RETURNING *',
-                    [conversationId, senderId, content]
-                );
-                io.to(conversationId).emit('receiveMessage', result.rows[0]);
-            } catch (err) {
-                console.error('Error sending message:', err.message);
-            }
-        });
-
-        socket.on('joinConversation', (conversationId) => {
-            socket.join(conversationId);
-            socket.emit('conversationJoined', conversationId);
-            console.log(`User joined conversation ${conversationId}`);
-        });
-
-        socket.on('disconnect', () => {
-            console.log('Client disconnected');
-        });
+    socket.on('sendMessage', async (data) => {
+        console.log('Received data:', data);
+        const { conversationId, senderId, receiverId, message_body } = data;
+        try {
+            const savedMessage = await db.saveMessage(conversationId, senderId, receiverId, message_body);
+            io.to(conversationId).emit('receiveMessage', savedMessage);
+        } catch (err) {
+            console.error('Error sending message:', err.message);
+        }
+    });
+    socket.on('joinConversation', (conversationId) => {
+        socket.join(conversationId);
+        socket.emit('conversationJoined', conversationId);
+        console.log(`User joined conversation ${conversationId}`);
     });
 
-
-server.listen(PORT, () => {
-    console.log('Server running on port ${PORT}');
+    socket.on('disconnect', () => {
+        console.log('Client disconnected');
+    });
 });
-
-
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});

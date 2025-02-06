@@ -42,7 +42,7 @@ import kotlinx.coroutines.withContext
 
 @OptIn (ExperimentalMaterial3Api::class)
 @Composable
-fun ConversationsScreen(navController: NavController, userId: String) {
+fun ConversationsScreen(navController: NavController, userId: Int) {
     val conversations = remember { mutableStateListOf<Conversation>()}
     val coroutineScope = rememberCoroutineScope()
     var searchText by remember { mutableStateOf("")}
@@ -91,7 +91,7 @@ fun ConversationsScreen(navController: NavController, userId: String) {
                     horizontalArrangement = Arrangement.SpaceBetween
                 ){
                     Button(
-                        onClick = { navController.navigate("nearby/$userId") }){
+                        onClick = { navController.navigate("nearby") }){
                         Text("Nearby")
                     }
                     Button(onClick = { /* */}) {
@@ -159,5 +159,5 @@ fun ConversationItem(conversation: Conversation, navController: NavController) {
 @Preview(showBackground = true)
 @Composable
 fun PreviewConversationsScreen() {
-    ConversationsScreen(navController = NavController(LocalContext.current), userId = "1")
+    ConversationsScreen(navController = NavController(LocalContext.current), userId = 1)
 }

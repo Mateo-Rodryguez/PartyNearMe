@@ -18,11 +18,33 @@ const getUserByEmail = async (email) => {
         );
         return result.rows[0];
     } catch (err) {
-        console.error('Error fetching user by email:', err.message);
+        console.error('Error fetching user by email:', err.message); // Log the error details
         throw err;
     }
 };
+
+const saveMessage = async (conversationId, senderId, receiverId, message_body) => {
+    try {
+         console.log("Saving message with values:", { conversationId, senderId, receiverId, message_body });
+        const result = await pool.query(
+            'INSERT INTO messages (conversation_id, sender_id, receiver_id, message_body) VALUES ($1, $2, $3, $4) RETURNING *',
+            [conversationId, senderId, receiverId, message_body]
+        );
+
+        if (result.rows.length === 0) {
+            throw new Error("Conversation ID does not exist");
+        }
+
+        return result.rows[0];
+    } catch (err) {
+        console.error("Error saving message:", err.message);
+        throw err;
+    }
+};
+
+
 module.exports = {
     getUserByEmail,
+    saveMessage,
     pool,
 };
