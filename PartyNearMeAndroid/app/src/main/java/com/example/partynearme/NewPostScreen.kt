@@ -8,6 +8,7 @@ import androidx.camera.core.Preview as CameraPreview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -18,12 +19,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.compose.ui.tooling.preview.Preview as UiPreview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.tooling.preview.Preview as UiPreview
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 import coil.compose.rememberAsyncImagePainter
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CameraAlt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,50 +58,122 @@ fun NewPostScreen(navController: NavController) {
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(400.dp)
-    ) {
-        AndroidView(
-            factory = { previewView },
-            modifier = Modifier.fillMaxSize()
-        )
-
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(16.dp)
-                .clickable { galleryLauncher.launch("image/*") }
-        ) {
-            Text("📷 Select from Gallery", color = Color.Black)
-        }
-    }
-
-    Column(
         modifier = Modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally
+        contentAlignment = Alignment.BottomCenter
     ) {
-        if (selectedMedia.isNotEmpty()) {
-            LazyRow {
-                items(selectedMedia) { uri ->
-                    Image(
-                        painter = rememberAsyncImagePainter(uri),
-                        contentDescription = "Selected Media",
-                        modifier = Modifier
-                            .size(100.dp)
-                            .padding(4.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Camera Preview
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(250.dp)
+                    .background(Color.Black),
+                contentAlignment = Alignment.Center
+            ) {
+                AndroidView(factory = { previewView }) // ✅ Embeds Camera Preview
+            }
+
+            Spacer(modifier = Modifier.height(30.dp))
+
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                // **Round White Button (Take Picture) - Positioned Above Carousel**
+                FloatingActionButton(
+                    onClick = { /* TODO: Implement taking a picture */ },
+                    containerColor = Color.White,
+                    modifier = Modifier.size(64.dp) // Proper round button
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.CameraAlt, // ✅ Proper camera icon
+                        contentDescription = "Take Picture",
+                        tint = Color.Black
                     )
                 }
             }
-        } else {
-            Text("No media selected", modifier = Modifier.padding(16.dp))
-        }
 
-        Button(
-            onClick = { navController.navigate("PostDetailsScreen") },
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text("Next")
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Row for Gallery Button and Image Carousel
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(80.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // **Gallery Button (Now Showing Last Selected Image Instead of 📷)**
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { galleryLauncher.launch("image/*") },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (selectedMedia.isNotEmpty()) {
+                        Image(
+                            painter = rememberAsyncImagePainter(selectedMedia.last()), // ✅ Shows last selected image
+                            contentDescription = "Gallery",
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Gray),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("📷", color = Color.White, style = MaterialTheme.typography.headlineMedium)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Image Carousel
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(70.dp)
+                ) {
+                    if (selectedMedia.isEmpty()) {
+                        item {
+                            Text(
+                                "No media selected",
+                                modifier = Modifier.padding(16.dp),
+                                color = Color.Gray
+                            )
+                        }
+                    } else {
+                        items(selectedMedia) { uri ->
+                            Image(
+                                painter = rememberAsyncImagePainter(uri),
+                                contentDescription = "Selected Media",
+                                modifier = Modifier
+                                    .size(70.dp)
+                                    .padding(4.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Next Button
+            Button(
+                onClick = { navController.navigate("PostDetailsScreen") },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Next")
+            }
         }
     }
 }
