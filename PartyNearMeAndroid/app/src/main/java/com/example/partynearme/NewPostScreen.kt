@@ -1,6 +1,10 @@
 package com.example.partynearme
 
+import android.content.ContentUris
+import android.content.ContentValues
+import android.content.Context
 import android.net.Uri
+import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
@@ -36,6 +40,13 @@ fun NewPostScreen(navController: NavController) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var selectedMedia by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var lastGalleryImage by remember { mutableStateOf<Uri?>(null) }
+
+    // Fetch last image from gallery
+    LaunchedEffect(Unit) {
+        lastGalleryImage = getLastImageFromGallery(context)
+    }
+
     val galleryLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
         selectedMedia = uris.take(10)
     }
@@ -57,6 +68,15 @@ fun NewPostScreen(navController: NavController) {
         }
     }
 
+    val takePictureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        if (success) {
+            val newImageUri = getLastImageFromGallery(context)
+            if (newImageUri != null) {
+                selectedMedia = selectedMedia + newImageUri
+            }
+        }
+    }
+
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.BottomCenter
@@ -75,7 +95,7 @@ fun NewPostScreen(navController: NavController) {
                     .background(Color.Black),
                 contentAlignment = Alignment.Center
             ) {
-                AndroidView(factory = { previewView }) // ✅ Embeds Camera Preview
+                AndroidView(factory = { previewView })
             }
 
             Spacer(modifier = Modifier.height(30.dp))
@@ -84,14 +104,16 @@ fun NewPostScreen(navController: NavController) {
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                // **Round White Button (Take Picture) - Positioned Above Carousel**
                 FloatingActionButton(
-                    onClick = { /* TODO: Implement taking a picture */ },
+                    onClick = {
+                        val photoUri = createImageUri(context)
+                        takePictureLauncher.launch(photoUri)
+                    },
                     containerColor = Color.White,
-                    modifier = Modifier.size(64.dp) // Proper round button
+                    modifier = Modifier.size(64.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Filled.CameraAlt, // ✅ Proper camera icon
+                        imageVector = Icons.Filled.CameraAlt,
                         contentDescription = "Take Picture",
                         tint = Color.Black
                     )
@@ -108,7 +130,7 @@ fun NewPostScreen(navController: NavController) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // **Gallery Button (Now Showing Last Selected Image Instead of 📷)**
+                // **Gallery Button (Shows last gallery image if available)**
                 Box(
                     modifier = Modifier
                         .size(80.dp)
@@ -116,9 +138,11 @@ fun NewPostScreen(navController: NavController) {
                         .clickable { galleryLauncher.launch("image/*") },
                     contentAlignment = Alignment.Center
                 ) {
-                    if (selectedMedia.isNotEmpty()) {
+                    val galleryImage = selectedMedia.lastOrNull() ?: lastGalleryImage
+
+                    if (galleryImage != null) {
                         Image(
-                            painter = rememberAsyncImagePainter(selectedMedia.last()), // ✅ Shows last selected image
+                            painter = rememberAsyncImagePainter(galleryImage),
                             contentDescription = "Gallery",
                             modifier = Modifier.fillMaxSize()
                         )
@@ -177,6 +201,41 @@ fun NewPostScreen(navController: NavController) {
         }
     }
 }
+
+/**
+ * Helper function to get the last image from the gallery.
+ */
+fun getLastImageFromGallery(context: Context): Uri? {
+    val projection = arrayOf(MediaStore.Images.Media._ID)
+    val sortOrder = "${MediaStore.Images.Media.DATE_ADDED} DESC"
+
+    context.contentResolver.query(
+        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+        projection, null, null, sortOrder
+    )?.use { cursor ->
+        if (cursor.moveToFirst()) {
+            val columnIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
+            val imageId = cursor.getLong(columnIndex)
+            return ContentUris.withAppendedId(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, imageId)
+        }
+    }
+    return null
+}
+
+/**
+ * Helper function to create a new image URI.
+ */
+fun createImageUri(context: Context): Uri {
+    val contentValues = ContentValues().apply {
+        put(MediaStore.Images.Media.DISPLAY_NAME, "new_image_${System.currentTimeMillis()}.jpg")
+        put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+    }
+    return context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)!!
+}
+
+
+
+
 
 @UiPreview(showBackground = true)
 @Composable
