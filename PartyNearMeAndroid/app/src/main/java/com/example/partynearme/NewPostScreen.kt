@@ -33,6 +33,17 @@ import androidx.compose.ui.draw.clip
 import coil.compose.rememberAsyncImagePainter
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.compose.runtime.*
+import androidx.core.content.ContextCompat
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,6 +52,9 @@ fun NewPostScreen(navController: NavController) {
     val lifecycleOwner = LocalLifecycleOwner.current
     var selectedMedia by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var lastGalleryImage by remember { mutableStateOf<Uri?>(null) }
+    var caption by remember { mutableStateOf("") }
+    var location by remember { mutableStateOf<String?>(null) }
+    var showLocationDialog by remember { mutableStateOf(false) }
 
     // Fetch last image from gallery
     LaunchedEffect(Unit) {
@@ -191,16 +205,54 @@ fun NewPostScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Next Button
+            // Add a caption
+            TextField(
+                value = caption,
+                onValueChange = { caption = it },
+                placeholder = { Text("Add a caption...") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Add location button
             Button(
-                onClick = { navController.navigate("PostDetailsScreen") },
+                onClick = { showLocationDialog = true },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Next")
+                Text("Add location")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Display selected location
+            location?.let {
+                Text("Location: $it", style = MaterialTheme.typography.bodyLarge)
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // Next Button
+            Button(
+                onClick = { navController.navigate("forYou") },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Post")
             }
         }
     }
+
+    if (showLocationDialog) {
+        LocationDialog(
+            onDismiss = { showLocationDialog = false },
+            onLocationSelected = { selectedLocation ->
+                location = selectedLocation
+                showLocationDialog = false
+            }
+        )
+    }
 }
+
+
 
 /**
  * Helper function to get the last image from the gallery.
@@ -235,6 +287,76 @@ fun createImageUri(context: Context): Uri {
 
 
 
+/**
+    * Dialog composable function
+ */
+@Composable
+fun LocationDialog(
+    onDismiss: () -> Unit,
+    onLocationSelected: (String) -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    var currentLocation by remember { mutableStateOf("Current Location") }
+    val context = LocalContext.current
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
+    var locationPermissionGranted by remember { mutableStateOf(false) }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted: Boolean ->
+            locationPermissionGranted = isGranted
+        }
+    )
+
+    LaunchedEffect(Unit) {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        } else {
+            locationPermissionGranted = true
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(text = "Select Location") },
+        text = {
+            Column {
+                TextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search for a location...") }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(onClick = {
+                    if (locationPermissionGranted) {
+                        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+                            location?.let {
+                                currentLocation = "Lat: ${it.latitude}, Lon: ${it.longitude}"
+                                onLocationSelected(currentLocation)
+                                onDismiss()
+                            }
+                        }
+                    }
+                }) {
+                    Text("Use Current Location")
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                onLocationSelected(searchQuery)
+                onDismiss()
+            }) {
+                Text("Select")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
 
 
 @UiPreview(showBackground = true)
