@@ -44,6 +44,8 @@ import androidx.compose.runtime.*
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
+import android.location.Geocoder
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -331,9 +333,18 @@ fun LocationDialog(
                     if (locationPermissionGranted) {
                         fusedLocationClient.lastLocation.addOnSuccessListener { location ->
                             location?.let {
-                                currentLocation = "Lat: ${it.latitude}, Lon: ${it.longitude}"
-                                onLocationSelected(currentLocation)
-                                onDismiss()
+                                val geocoder = Geocoder(context, Locale.getDefault())
+                                val addresses = geocoder.getFromLocation(it.latitude, it.longitude, 1)
+                                if (!addresses.isNullOrEmpty()) {
+                                    val address = addresses[0]
+                                    currentLocation = listOfNotNull(
+                                        address.locality,
+                                        address.adminArea,
+                                        address.countryName
+                                    ).joinToString(", ")
+                                    onLocationSelected(currentLocation)
+                                    onDismiss()
+                                }
                             }
                         }
                     }
@@ -357,6 +368,8 @@ fun LocationDialog(
         }
     )
 }
+
+
 
 
 @UiPreview(showBackground = true)
