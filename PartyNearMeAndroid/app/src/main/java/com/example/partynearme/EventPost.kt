@@ -8,3 +8,7 @@ data class EventPost(
     val videos: List<String>?,
     val location: String?
 )
+data class PostResponse(
+    val message: String,
+    val postId: Int,
+)

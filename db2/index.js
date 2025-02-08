@@ -5,11 +5,27 @@ const fs = require('fs');
 const https = require('https');
 const app = express();
 const { getUserByEmail } = require('./db');
-const socketIo = require('socket.io');
 const generateAuthToken = require('./auth');
 const db = require('./db');
 
 app.use(express.json()); // Middleware to parse JSON requests
+
+const multer = require('multer');
+const path = require('path');
+
+// Set up Multer storage configuration
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, path.join(__dirname, '..', 'server', 'uploads', 'posts')); // Save files to server/uploads/posts/
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, uniqueSuffix + path.extname(file.originalname)); // Unique file names
+    }
+});
+
+const upload = multer({ storage: storage });
+
 
 app.post("/login", async (req, res) => {
     const { email, password } = req.body;
@@ -64,33 +80,7 @@ app.get('/users', async (req, res) => {
         res.status(500).send('Server error');
     }
 });
-// Conversations find or create
-/*
-app.post('/conversations/find-or-create', async (req, res) => {
-    const { senderId, receiverId } = req.body;
-    try {
-        // Find an existing conversation between these two users
-        const existingConversation = await pool.query(
-            'SELECT conversation_id FROM messages WHERE (sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1) LIMIT 1',
-            [senderId, receiverId]
-        );
 
-        if (existingConversation.rows.length > 0) {
-            return res.json({ conversationId: existingConversation.rows[0].conversation_id });
-        }
-
-        // If no conversation exists, create a new conversation ID
-        const newConversation = await pool.query(
-            'INSERT INTO messages DEFAULT VALUES RETURNING conversation_id'
-        );
-
-        res.json({ conversationId: newConversation.rows[0].conversation_id });
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server error');
-    }
-});
-*/
 app.post('/conversations/find-or-create', async (req, res) => {
     const { senderId, receiverId } = req.body;
     try {
@@ -119,6 +109,39 @@ app.post('/conversations/find-or-create', async (req, res) => {
     }
 });
 
+// Multer middleware to upload media files
+app.post('/posts', upload.array('media', 10), async (req, res) => {
+    const { userId, caption, location } = req.body;
+    
+    if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ error: "At least one media file is required" });
+    }
+
+    try {
+        // Insert into posts table
+        const postResult = await pool.query(
+            'INSERT INTO posts (user_id, caption, location) VALUES ($1, $2, $3) RETURNING id',
+            [userId, caption || null, location || null]
+        );
+        const postId = postResult.rows[0].id;
+
+        // Insert each media file into post_media table
+        const mediaInserts = req.files.map(file =>
+            pool.query(
+                'INSERT INTO post_media (post_id, media_url) VALUES ($1, $2)',
+                [postId, file.filename] // Save filename, not full path
+            )
+        );
+
+        await Promise.all(mediaInserts);
+
+        res.status(201).json({ message: "Post created successfully", postId });
+    } catch (error) {
+        console.error("Error creating post:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+
 
 // Read the SSL certificate and key
 const sslOptions = {
@@ -129,36 +152,6 @@ const sslOptions = {
 const PORT = process.env.PORT || 5000;
 const server = https.createServer(sslOptions, app);
 
-const io = socketIo(server, {
-    cors: {
-        origin: "*",  // Allow frontend connections
-        methods: ["GET", "POST"]
-    }
-});
-
-io.on('connection', (socket) => {
-    console.log('New client connected');
-
-    socket.on('sendMessage', async (data) => {
-        console.log('Received data:', data);
-        const { conversationId, senderId, receiverId, message_body } = data;
-        try {
-            const savedMessage = await db.saveMessage(conversationId, senderId, receiverId, message_body);
-            io.to(conversationId).emit('receiveMessage', savedMessage);
-        } catch (err) {
-            console.error('Error sending message:', err.message);
-        }
-    });
-    socket.on('joinConversation', (conversationId) => {
-        socket.join(conversationId);
-        socket.emit('conversationJoined', conversationId);
-        console.log(`User joined conversation ${conversationId}`);
-    });
-
-    socket.on('disconnect', () => {
-        console.log('Client disconnected');
-    });
-});
 server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });

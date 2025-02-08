@@ -45,7 +45,21 @@ import androidx.core.content.ContextCompat
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import android.location.Geocoder
+import android.widget.Toast
 import java.util.Locale
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import java.io.File
+import android.util.Log
+import android.content.ContentResolver
+import android.database.Cursor
+import android.provider.OpenableColumns
+import java.io.FileOutputStream
+import java.io.InputStream
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -235,7 +249,24 @@ fun NewPostScreen(navController: NavController) {
 
             // Next Button
             Button(
-                onClick = { navController.navigate("forYou") },
+                onClick = {
+                    val userId = getUserIdFromPrefs(context)
+                    uploadPost(
+                        context = context,
+                        userId = userId,
+                        caption = caption,
+                        location = location,
+                        mediaUris = selectedMedia,
+                        onSuccess = { message ->
+                            // Handle success (e.g., navigate to another screen)
+                            navController.navigate("forYou")
+                        },
+                        onError = { error ->
+                            // Handle error (e.g., show a toast message)
+                            Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+                        }
+                    )
+                },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("Post")
@@ -253,6 +284,79 @@ fun NewPostScreen(navController: NavController) {
         )
     }
 }
+
+
+/**
+ * Function to upload a post to the server.
+ */
+fun uriToFile(context: Context, uri: Uri): File? {
+    val contentResolver: ContentResolver = context.contentResolver
+    val fileName = getFileName(contentResolver, uri)
+    val tempFile = File(context.cacheDir, fileName)
+    tempFile.createNewFile()
+
+    val inputStream: InputStream? = contentResolver.openInputStream(uri)
+    val outputStream = FileOutputStream(tempFile)
+    inputStream?.use { input ->
+        outputStream.use { output ->
+            input.copyTo(output)
+        }
+    }
+    return tempFile
+}
+
+fun getFileName(contentResolver: ContentResolver, uri: Uri): String {
+    var name = ""
+    val returnCursor: Cursor? = contentResolver.query(uri, null, null, null, null)
+    returnCursor?.use {
+        val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+        it.moveToFirst()
+        name = it.getString(nameIndex)
+    }
+    return name
+}
+fun uploadPost(
+    context: Context,
+    userId: Int,
+    caption: String?,
+    location: String?,
+    mediaUris: List<Uri>,
+    onSuccess: (String) -> Unit,
+    onError: (String) -> Unit
+) {
+    val apiService = RetrofitInstance.getApiService(context)
+    val userIdBody = RequestBody.create("text/plain".toMediaTypeOrNull(), userId.toString())
+    val captionBody = caption?.let { RequestBody.create("text/plain".toMediaTypeOrNull(), it) }
+    val locationBody = location?.let { RequestBody.create("text/plain".toMediaTypeOrNull(), it) }
+
+    val mediaParts = mediaUris.mapNotNull { uri ->
+        val file = uriToFile(context, uri)
+        file?.let {
+            val requestBody = RequestBody.create("image/jpeg".toMediaTypeOrNull(), it)
+            MultipartBody.Part.createFormData("media", it.name, requestBody)
+        }
+    }
+
+    val call = apiService.createPost(userIdBody, captionBody, locationBody, mediaParts)
+    call.enqueue(object : Callback<PostResponse> {
+        override fun onResponse(call: Call<PostResponse>, response: Response<PostResponse>) {
+            if (response.isSuccessful) {
+                onSuccess("Post uploaded successfully")
+            } else {
+                val errorMessage = "Failed to upload post: ${response.message()}"
+                Log.e("NewPostScreen", errorMessage)
+                onError(errorMessage)
+            }
+        }
+
+        override fun onFailure(call: Call<PostResponse>, t: Throwable) {
+            val errorMessage = "Failed to upload post: ${t.message}"
+            Log.e("NewPostScreen", errorMessage)
+            onError(errorMessage)
+        }
+    })
+}
+
 
 
 
@@ -368,6 +472,8 @@ fun LocationDialog(
         }
     )
 }
+
+
 
 
 

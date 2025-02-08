@@ -1,10 +1,14 @@
 package com.example.partynearme
 
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
 import retrofit2.Call
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Path
 
 
@@ -40,6 +44,15 @@ interface ApiService {
     //Reactions
     @POST("/messages/{messageId}/reactions")
     fun addReaction(@Path("messageId") messageId: String, @Body reaction: ReactionRequest): Call<Reaction>
+
+    @Multipart
+    @POST("/posts")
+    fun createPost(
+        @Part("userId") userId: RequestBody,
+        @Part("caption") caption: RequestBody?,
+        @Part("location") location: RequestBody?,
+        @Part media: List<MultipartBody.Part>
+    ): Call<PostResponse>
 
 
 }
