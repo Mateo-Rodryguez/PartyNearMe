@@ -10,7 +10,7 @@ import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Part
 import retrofit2.http.Path
-
+import retrofit2.http.Query
 
 
 interface ApiService {
@@ -45,6 +45,7 @@ interface ApiService {
     @POST("/messages/{messageId}/reactions")
     fun addReaction(@Path("messageId") messageId: String, @Body reaction: ReactionRequest): Call<Reaction>
 
+    // Posts
     @Multipart
     @POST("/posts")
     fun createPost(
@@ -53,6 +54,9 @@ interface ApiService {
         @Part("location") location: RequestBody?,
         @Part media: List<MultipartBody.Part>
     ): Call<PostResponse>
+
+    @GET("/user/posts")
+    suspend fun getUserPosts(@Query("userId") userId: Int, @Query("page") page: Int = 1): PostResponse
 
 
 }

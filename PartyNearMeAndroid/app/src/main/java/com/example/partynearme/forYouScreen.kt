@@ -55,9 +55,9 @@ fun forYouScreen(navController: NavController) {
                     .padding(paddingValues)
             ) {
                 val dummyPosts = listOf(
-                    PartyListing("1", "https://example.com/image1.jpg", "Party 1"),
-                    PartyListing("2", "https://example.com/image2.jpg", "Party 2"),
-                    PartyListing("3", "https://example.com/image3.jpg", "Party 3")
+                    PartyListing(1, listOf("https://example.com/image1.jpg"), "Party 1"),
+                    PartyListing(2, listOf("https://example.com/image2.jpg"), "Party 2"),
+                    PartyListing(3, listOf("https://example.com/image3.jpg"), "Party 3")
                 )
                 LazyColumn(
                     modifier = Modifier.fillMaxSize()

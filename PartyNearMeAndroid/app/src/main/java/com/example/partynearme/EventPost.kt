@@ -11,4 +11,17 @@ data class EventPost(
 data class PostResponse(
     val message: String,
     val postId: Int,
+    val posts: List<Post>
+)
+data class Post(
+    val id: Int,
+    val caption: String,
+    val location: String,
+    val createdAt: String,
+    val media: List<String>,
+)
+data class PartyListing(
+    val id: Int,
+    val media: List<String>,
+    val title: String
 )

@@ -7,6 +7,7 @@ const app = express();
 const { getUserByEmail } = require('./db');
 const generateAuthToken = require('./auth');
 const db = require('./db');
+const cors = require('cors');
 
 app.use(express.json()); // Middleware to parse JSON requests
 
@@ -26,7 +27,16 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
+// Serving files from  the uploads directory
+app.use(cors({
+    origin: '*',
+    methods: ['GET'],
+    allowedHeaders: ['Content-Type']
+}));
 
+app.use('/uploads/posts', express.static(path.join(__dirname, '..', 'server', 'uploads', 'posts')));
+
+// Route to login a user
 app.post("/login", async (req, res) => {
     const { email, password } = req.body;
     try {
@@ -142,6 +152,56 @@ app.post('/posts', upload.array('media', 10), async (req, res) => {
     }
 });
 
+// Method to get user posts
+app.get('/user/posts', async (req, res) => {
+    const { userId, page = 1 } = req.query;
+    const postsPerPage = 9;
+    const offset = (page - 1) * postsPerPage;
+
+    try {
+        // Fetch posts from the user, sorted by newest first
+        const postResults = await pool.query(
+            `SELECT * FROM posts WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+            [userId, postsPerPage, offset]
+        );
+
+        const posts = postResults.rows;
+
+        if (posts.length === 0) {
+            return res.json({ posts: [] });
+        }
+
+        // Fetch media for the posts
+        const postIds = posts.map(post => post.id);
+        const mediaResults = await pool.query(
+            `SELECT * FROM post_media WHERE post_id = ANY($1)`,
+            [postIds]
+        );
+
+        const mediaMap = {};
+        mediaResults.rows.forEach(media => {
+            if (!mediaMap[media.post_id]) {
+                mediaMap[media.post_id] = [];
+            }
+            mediaMap[media.post_id].push(`https://10.0.2.2:5000/uploads/posts/${media.media_url}`);
+        });
+
+        // Construct final response
+        const formattedPosts = posts.map(post => ({
+            id: post.id,
+            caption: post.caption,
+            location: post.location,
+            created_at: post.created_at,
+            media: mediaMap[post.id] || []
+        }));
+
+        res.json({ posts: formattedPosts });
+    } catch (err) {
+        console.error('Error fetching user posts:', err.message);
+        res.status(500).json({ error: "Server error" });
+    }
+});
+
 
 // Read the SSL certificate and key
 const sslOptions = {
@@ -152,6 +212,6 @@ const sslOptions = {
 const PORT = process.env.PORT || 5000;
 const server = https.createServer(sslOptions, app);
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
 });

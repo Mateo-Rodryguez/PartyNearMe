@@ -1,71 +1,137 @@
 package com.example.partynearme
 
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.navigation.NavController
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.rememberImagePainter
+import androidx.navigation.NavController
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
+import com.example.partynearme.RetrofitInstance.getApiService
+import com.google.accompanist.pager.ExperimentalPagerApi
+import com.google.accompanist.pager.HorizontalPager
+import com.google.accompanist.pager.rememberPagerState
+import kotlinx.coroutines.launch
+import android.util.Log
+import coil.ImageLoader
+import coil.compose.rememberImagePainter
+import coil.request.ImageRequest
+import coil.util.CoilUtils
+import okhttp3.OkHttpClient
 
-data class PartyListing(
-    val id: String,
-    val imageUrl: String,
-    val title: String
-)
-fun getSamplePartyListings(): List<PartyListing> {
-    return listOf(
-
-        PartyListing("1", "https://example.com/image1.jpg", "Party 1"),
-        PartyListing("2", "https://example.com/image2.jpg", "Party 2"),
-        PartyListing("3", "https://example.com/image3.jpg", "Party 3")
-    )
-}
 @Composable
 fun ProfileScreen(navController: NavController) {
-    val partyListings = getSamplePartyListings()
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var posts by remember { mutableStateOf<List<Post>>(emptyList()) }
+    val userId = getUserIdFromPrefs(context)
 
-    Column{
-        Text(text = "Profile Screen", modifier = Modifier.padding(16.dp))
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
-            contentPadding = PaddingValues(4.dp),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            items(partyListings) { party ->
-                PartyItem(party)
+    LaunchedEffect(Unit) {
+        coroutineScope.launch {
+            try {
+                val response = getApiService(context).getUserPosts(userId)
+                posts = response.posts
+                Log.d("ProfileScreen", "Posts loaded: ${posts.size}")
+            } catch (e: Exception) {
+                Log.e("ProfileScreen", "Error loading posts", e)
             }
         }
     }
 
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+        // Profile Section
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Image(
+                painter = painterResource(id = R.drawable.pfp2),
+                contentDescription = "Profile Image",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(Color.Gray) // Placeholder for profile image
+            )
+            Column {
+                Text(text = "Attended: 0") // Replace with actual data
+                Text(text = "Organised: 0") // Replace with actual data
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Events Grid
+        if (posts.isEmpty()) {
+            Text(text = "No posts", modifier = Modifier.fillMaxSize(), color = Color.Gray)
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                contentPadding = PaddingValues(4.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(posts) { post ->
+                    PartyItem(post)
+                }
+            }
+        }
+    }
 }
+
+@OptIn(ExperimentalPagerApi::class)
 @Composable
-fun PartyItem(party: PartyListing) {
-    Column(
-        modifier = Modifier
-            .padding(4.dp)
-            .fillMaxWidth()
-    ){
-        Image(
-            painter = rememberImagePainter(data = party.imageUrl),
-            contentDescription = party.title,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .aspectRatio(1f)
-                .fillMaxWidth()
-        )
-        Text(text = party.title, modifier = Modifier.padding(4.dp))
+fun PartyItem(post: Post) {
+    val context = LocalContext.current
+    val pagerState = rememberPagerState()
+    Log.d("PartyItem", "Displaying post: ${post.caption}")
+    post.media.forEach { mediaUrl ->
+        Log.d("PartyItem", "Media URL: $mediaUrl")
     }
 
+    val imageLoader = ImageLoader.Builder(context)
+        .okHttpClient {
+            CustomOkHttpClient.getClient(context)
+        }
+        .build()
+
+    HorizontalPager(
+        count = post.media.size,
+        state = pagerState,
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+    ) { page ->
+        Image(
+            painter = rememberImagePainter(
+                data = post.media[page],
+                imageLoader = imageLoader,
+                builder = {
+                    crossfade(true)
+                    error(R.drawable.ic_error) // Placeholder for error
+                    placeholder(R.drawable.ic_placeholder) // Placeholder while loading
+                }
+            ),
+            contentDescription = post.caption,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+    }
 }
+
+
+
+
+
+
+
 @Preview(showBackground = true)
 @Composable
 fun PreviewProfileScreen() {

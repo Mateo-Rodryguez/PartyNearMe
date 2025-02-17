@@ -58,12 +58,7 @@ data class Reaction(
     val userId: String,
     val reaction: String
 )
-data class Post(
-    val id: String,
-    val imageUrl: String,
-    val description: String,
-    val userId: Int
-)
+
 data class UserIdResponse(
     val id: Int
 )
