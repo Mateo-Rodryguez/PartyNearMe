@@ -19,9 +19,19 @@ data class Post(
     val location: String,
     val createdAt: String,
     val media: List<String>,
+    val username: String,
+    val profilePicture: String?,
+    val likeCount: Int,
+    val isLiked: Boolean,
 )
 data class PartyListing(
     val id: Int,
     val media: List<String>,
     val title: String
 )
+data class RecommendationRequest(
+    val userId: Int,
+    )
+data class RecommendationResponse(
+    val posts: List<Post>)
+

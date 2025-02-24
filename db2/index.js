@@ -202,6 +202,107 @@ app.get('/user/posts', async (req, res) => {
     }
 });
 
+// Recommendation endpoint
+const { spawn } = require("child_process");
+
+// Start the recommendation system
+const recommendationProcess = spawn("python", ["ml_recommender.py"], {
+    stdio: ["pipe", "pipe", "pipe"],  // Ensure stdin works
+    detached: false,                  // Keep tied to Node process
+    shell: true
+});
+
+// Log outputs from Python
+recommendationProcess.stdout.on("data", (data) => {
+    console.log(`[ML LOG] ${data.toString().trim()}`);
+});
+
+recommendationProcess.stderr.on("data", (data) => {
+    console.error(`[ML ERROR] ${data.toString().trim()}`);
+});
+
+recommendationProcess.on("exit", (code, signal) => {
+    console.error(`❌ [ML EXIT] Exited with code ${code}, signal ${signal}`);
+});
+
+// API endpoint
+app.post("/recommendations", async (req, res) => {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: "User ID required" });
+
+    console.log(`🟢 [API] Requesting recommendations for user ${userId}`);
+
+    try {
+        // Fetch all posts excluding user's own posts
+        const posts = await pool.query(`
+            SELECT p.id, p.caption, p.location, p.like_count, p.user_id, u.email AS username, u.profile_picture
+            FROM posts p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.user_id != $1
+            ORDER BY p.created_at DESC
+            LIMIT 100
+        `, [userId]);
+
+        console.log(`[API] Found ${posts.rows.length} posts excluding user's own posts`);
+
+        // Fetch posts the user liked
+        const userLikes = await pool.query(`
+            SELECT p.id, p.caption, p.location
+            FROM posts p
+            JOIN likes l ON p.id = l.post_id
+            WHERE l.user_id = $1
+        `, [userId]);
+
+        console.log(`[API] Found ${userLikes.rows.length} liked posts for user ${userId}`);
+
+        // Send posts and user likes to the AI system
+        recommendationProcess.stdin.write(JSON.stringify({
+            user_id: userId,
+            posts: posts.rows,
+            user_likes: userLikes.rows
+        }) + "\n");
+
+        // Listen for AI recommendation response
+        recommendationProcess.stdout.once("data", (data) => {
+            try {
+                const postIds = JSON.parse(data.toString().trim());
+
+                // Enrich the final recommendation response
+                const enrichedRecommendations = postIds.map((postId) => {
+                    const post = posts.rows.find(p => p.id === postId);
+                    if (post) {
+                        return {
+                            id: post.id,
+                            caption: post.caption,
+                            location: post.location,
+                            likeCount: post.like_count,
+                            username: post.username,
+                            profilePicture: post.profile_picture || ''
+                        };
+                    }
+                    return null;
+                }).filter(Boolean);
+
+                console.log(`✅ [API] Final recommendations: ${JSON.stringify(enrichedRecommendations)}`);
+                res.json(enrichedRecommendations);
+
+            } catch (error) {
+                console.error(`❌ [API] Failed to parse recommendation response: ${error}`);
+                res.status(500).json({ error: "Failed to get recommendations" });
+            }
+        });
+
+    } catch (error) {
+        console.error(`❌ [DB] Error fetching data: ${error}`);
+        res.status(500).json({ error: "Database query failed" });
+    }
+});
+
+
+
+
+
+
 
 // Read the SSL certificate and key
 const sslOptions = {

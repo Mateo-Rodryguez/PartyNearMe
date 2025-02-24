@@ -58,6 +58,10 @@ interface ApiService {
     @GET("/user/posts")
     suspend fun getUserPosts(@Query("userId") userId: Int, @Query("page") page: Int = 1): PostResponse
 
+    //Recommendations
+    @POST("/recommendations")
+    fun getRecommendations(@Body request: RecommendationRequest): Call<List<Post>>
+
 
 }
 

@@ -30,6 +30,7 @@ import coil.compose.rememberImagePainter
 import coil.request.ImageRequest
 import coil.util.CoilUtils
 import okhttp3.OkHttpClient
+import androidx.compose.material3.Button
 
 @Composable
 fun ProfileScreen(navController: NavController) {
@@ -68,6 +69,10 @@ fun ProfileScreen(navController: NavController) {
             }
         }
         Spacer(modifier = Modifier.height(16.dp))
+
+        Button(onClick = { logout(context, navController) }) {
+            Text("Logout")
+        }
 
         // Events Grid
         if (posts.isEmpty()) {

@@ -2,6 +2,8 @@ package com.example.partynearme
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.content.Intent
+import androidx.navigation.NavController
 
 private const val PREFS_NAME = "PartyNearMePrefs"
 private const val KEY_USER_ID = "userId"
@@ -20,4 +22,12 @@ fun getUserIdFromPrefs(context: Context): Int {
 fun clearUserIdFromPrefs(context: Context) {
     val sharedPreferences: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     sharedPreferences.edit().remove(KEY_USER_ID).apply()
+}
+fun logout(context: Context, navController: NavController) {
+    clearUserIdFromPrefs(context)
+    navController.navigate("loginSignup") {
+        popUpTo("login"){
+            inclusive = true
+        }
+    }
 }
