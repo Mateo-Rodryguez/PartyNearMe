@@ -263,9 +263,24 @@ app.post("/recommendations", async (req, res) => {
         }) + "\n");
 
         // Listen for AI recommendation response
-        recommendationProcess.stdout.once("data", (data) => {
+        recommendationProcess.stdout.once("data", async (data) => {
             try {
                 const postIds = JSON.parse(data.toString().trim());
+
+                // Fetch media URLs for the recommended posts
+                const mediaResults = await pool.query(`
+                    SELECT post_id, media_url
+                    FROM post_media
+                    WHERE post_id = ANY($1)
+                `, [postIds]);
+
+                const mediaMap = {};
+                mediaResults.rows.forEach(media => {
+                    if (!mediaMap[media.post_id]) {
+                        mediaMap[media.post_id] = [];
+                    }
+                    mediaMap[media.post_id].push(`https://10.0.2.2:5000/uploads/posts/${media.media_url}`);
+                });
 
                 // Enrich the final recommendation response
                 const enrichedRecommendations = postIds.map((postId) => {
@@ -277,7 +292,8 @@ app.post("/recommendations", async (req, res) => {
                             location: post.location,
                             likeCount: post.like_count,
                             username: post.username,
-                            profilePicture: post.profile_picture || ''
+                            profilePicture: post.profile_picture || '',
+                            mediaUrls: mediaMap[post.id] || []
                         };
                     }
                     return null;
@@ -297,12 +313,6 @@ app.post("/recommendations", async (req, res) => {
         res.status(500).json({ error: "Database query failed" });
     }
 });
-
-
-
-
-
-
 
 // Read the SSL certificate and key
 const sslOptions = {

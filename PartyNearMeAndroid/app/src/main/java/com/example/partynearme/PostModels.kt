@@ -1,5 +1,7 @@
 package com.example.partynearme
 
+import com.google.gson.annotations.SerializedName
+
 data class EventPost(
     val id: String,
     val text: String,
@@ -18,6 +20,7 @@ data class Post(
     val caption: String,
     val location: String,
     val createdAt: String,
+    @SerializedName("mediaUrls")
     val media: List<String>,
     val username: String,
     val profilePicture: String?,
