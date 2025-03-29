@@ -43,6 +43,7 @@ fun ProfileScreen(navController: NavController) {
         coroutineScope.launch {
             try {
                 val response = getApiService(context).getUserPosts(userId)
+                Log.d("ProfileScreen", "Response: $response")
                 posts = response.posts
                 Log.d("ProfileScreen", "Posts loaded: ${posts.size}")
             } catch (e: Exception) {
@@ -96,32 +97,33 @@ fun ProfileScreen(navController: NavController) {
 fun PartyItem(post: Post) {
     val context = LocalContext.current
     val pagerState = rememberPagerState()
-    Log.d("PartyItem", "Displaying post: ${post.caption}")
-    post.media.forEach { mediaUrl ->
-        Log.d("PartyItem", "Media URL: $mediaUrl")
+    val mediaList = post.media ?: emptyList()
+
+    // Debug log to inspect media data
+    Log.d("PartyItem", "Media list size: ${mediaList.size}, contents: $mediaList")
+
+    if (mediaList.isEmpty()) {
+        Text("No media available")
+        return
     }
 
-    val imageLoader = ImageLoader.Builder(context)
-        .okHttpClient {
-            CustomOkHttpClient.getClient(context)
-        }
-        .build()
-
     HorizontalPager(
-        count = post.media.size,
+        count = mediaList.size,
         state = pagerState,
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(1f)
+        modifier = Modifier.fillMaxWidth().aspectRatio(1f)
     ) { page ->
         Image(
             painter = rememberImagePainter(
-                data = post.media[page],
-                imageLoader = imageLoader,
+                data = mediaList[page],
+                imageLoader = ImageLoader.Builder(context)
+                    .okHttpClient {
+                        CustomOkHttpClient.getClient(context)
+                    }
+                    .build(),
                 builder = {
                     crossfade(true)
-                    error(R.drawable.ic_error) // Placeholder for error
-                    placeholder(R.drawable.ic_placeholder) // Placeholder while loading
+                    error(R.drawable.ic_error)
+                    placeholder(R.drawable.ic_placeholder)
                 }
             ),
             contentDescription = post.caption,
@@ -130,6 +132,8 @@ fun PartyItem(post: Post) {
         )
     }
 }
+
+
 
 
 

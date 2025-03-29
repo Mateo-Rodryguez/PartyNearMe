@@ -178,22 +178,30 @@ app.get('/user/posts', async (req, res) => {
             [postIds]
         );
 
+        // Debug log to check media results
+        console.log(`[DEBUG] Media query results for posts ${postIds}: found ${mediaResults.rows.length} media items`);
+
         const mediaMap = {};
         mediaResults.rows.forEach(media => {
             if (!mediaMap[media.post_id]) {
                 mediaMap[media.post_id] = [];
             }
             mediaMap[media.post_id].push(`https://10.0.2.2:5000/uploads/posts/${media.media_url}`);
+            // Add debug log for URL construction
+            console.log(`[DEBUG] Adding media URL for post ${media.post_id}: ${media.media_url}`);
         });
 
         // Construct final response
-        const formattedPosts = posts.map(post => ({
-            id: post.id,
-            caption: post.caption,
-            location: post.location,
-            created_at: post.created_at,
-            media: mediaMap[post.id] || []
-        }));
+        const formattedPosts = posts.map(post => {
+            const postMedia = mediaMap[post.id] || [];
+            console.log(`[DEBUG] Post ${post.id} has ${postMedia.length} media items`);
+            return {
+                id: post.id,
+                caption: post.caption,
+                location: post.location,
+                created_at: post.created_at,
+                mediaUrls: postMedia };
+        });
 
         res.json({ posts: formattedPosts });
     } catch (err) {
