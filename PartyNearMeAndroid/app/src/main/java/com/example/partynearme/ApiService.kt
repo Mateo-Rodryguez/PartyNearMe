@@ -62,6 +62,8 @@ interface ApiService {
     @POST("/recommendations")
     fun getRecommendations(@Body request: RecommendationRequest): Call<List<Post>>
 
+    @POST("user/interests")
+    fun updateUserInterests(@Body request: UpdateInterestsRequest): Call<Void>
 
 }
 

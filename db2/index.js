@@ -119,6 +119,32 @@ app.post('/conversations/find-or-create', async (req, res) => {
     }
 });
 
+// Interests endpoint
+app.post('/user/interests', async (req, res) => {
+  const { userId, interests } = req.body;
+
+  if (!userId || !Array.isArray(interests)) {
+    return res.status(400).json({ error: 'Missing userId or interests list' });
+  }
+
+  try {
+    // 1. Remove old selections
+    await pool.query('DELETE FROM user_interests WHERE user_id = $1', [userId]);
+
+    // 2. Insert new selections
+    const insertQuery = `
+      INSERT INTO user_interests (user_id, interest_id)
+      VALUES ${interests.map((_, i) => `($1, $${i + 2})`).join(', ')}
+    `;
+    await pool.query(insertQuery, [userId, ...interests]);
+
+    return res.status(200).json({ message: 'User interests updated successfully' });
+  } catch (err) {
+    console.error('❌ Failed to update interests:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Multer middleware to upload media files
 app.post('/posts', upload.array('media', 10), async (req, res) => {
     const { userId, caption, location } = req.body;

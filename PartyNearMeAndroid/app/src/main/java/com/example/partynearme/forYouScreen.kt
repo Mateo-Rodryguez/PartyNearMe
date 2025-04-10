@@ -32,7 +32,7 @@ import com.google.accompanist.pager.rememberPagerState
 import androidx.compose.ui.layout.ContentScale
 import coil.ImageLoader
 import com.google.accompanist.pager.ExperimentalPagerApi
-
+import com.example.partynearme.InterestDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,6 +41,20 @@ fun forYouScreen(navController: NavController) {
     var posts by remember { mutableStateOf<List<Post>>(emptyList()) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val userId: Int = getUserIdFromPrefs(context)
+    var showInterestDialog by remember { mutableStateOf(false) }
+
+    val interests = listOf(
+        Interest(1, "music"),
+        Interest(2, "sports"),
+        Interest(3, "fitness"),
+        Interest(4, "food"),
+        Interest(5, "travel"),
+        Interest(6, "tech"),
+        Interest(7, "fashion"),
+        Interest(8, "art"),
+        Interest(9, "gaming"),
+        Interest(10, "other")
+    )
 
     LaunchedEffect(Unit) {
         getApiService(context).getRecommendations(RecommendationRequest(userId)).enqueue(object : Callback<List<Post>> {
@@ -74,8 +88,8 @@ fun forYouScreen(navController: NavController) {
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* Handle notifications click */ }) {
-                        Icon(painter = painterResource(id = R.drawable.ic_notification), contentDescription = "Notifications")
+                    IconButton(onClick = { showInterestDialog = true }) {
+                        Icon(painter = painterResource(id = R.drawable.ic_filter_foreground), contentDescription = "Filter")
                     }
                 }
             )
@@ -141,7 +155,33 @@ fun forYouScreen(navController: NavController) {
             }
         }
     )
+
+    if (showInterestDialog) {
+        InterestDialog(
+            interests = interests,
+            onDismiss = { showInterestDialog = false },
+            onConfirm = { selectedInterests ->
+                // Handle interest selection and send to backend
+                val request = UpdateInterestsRequest(userId, selectedInterests)
+                getApiService(context).updateUserInterests(request).enqueue(object : Callback<Void> {
+                    override fun onResponse(call: Call<Void>, response: Response<Void>) {
+                        if (response.isSuccessful) {
+                            Log.d("forYouScreen", "Interests updated successfully")
+                        } else {
+                            Log.e("forYouScreen", "Error updating interests: ${response.errorBody()?.string()}")
+                        }
+                    }
+
+                    override fun onFailure(call: Call<Void>, t: Throwable) {
+                        Log.e("forYouScreen", "Exception updating interests", t)
+                    }
+                })
+                showInterestDialog = false
+            }
+        )
+    }
 }
+
 
 @OptIn(ExperimentalPagerApi::class)
 @Composable
@@ -217,8 +257,6 @@ fun PostItem(post: Post) {
         }
     }
 }
-
-
 
 @Preview(showBackground = true)
 @Composable

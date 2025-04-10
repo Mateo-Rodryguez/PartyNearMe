@@ -37,4 +37,10 @@ data class RecommendationRequest(
     )
 data class RecommendationResponse(
     val posts: List<Post>)
-
+data class Interest(
+    val id: Int,
+    val name: String,)
+data class UpdateInterestsRequest(
+    val userId: Int,
+    val interests: List<Int>,
+)
