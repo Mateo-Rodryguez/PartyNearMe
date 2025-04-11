@@ -16,13 +16,9 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import coil.compose.rememberImagePainter
 import com.example.partynearme.RetrofitInstance.getApiService
-import kotlinx.coroutines.launch
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import com.example.partynearme.Post
-import com.example.partynearme.RecommendationRequest
-import com.example.partynearme.RecommendationResponse
 import android.util.Log
 import retrofit2.Call
 import retrofit2.Callback
@@ -32,7 +28,6 @@ import com.google.accompanist.pager.rememberPagerState
 import androidx.compose.ui.layout.ContentScale
 import coil.ImageLoader
 import com.google.accompanist.pager.ExperimentalPagerApi
-import com.example.partynearme.InterestDialog
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,6 +37,7 @@ fun forYouScreen(navController: NavController) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val userId: Int = getUserIdFromPrefs(context)
     var showInterestDialog by remember { mutableStateOf(false) }
+    var refreshing by remember { mutableStateOf(false) }
 
     val interests = listOf(
         Interest(1, "music"),
@@ -56,9 +52,11 @@ fun forYouScreen(navController: NavController) {
         Interest(10, "other")
     )
 
-    LaunchedEffect(Unit) {
+    fun loadPosts() {
+        refreshing = true
         getApiService(context).getRecommendations(RecommendationRequest(userId)).enqueue(object : Callback<List<Post>> {
             override fun onResponse(call: Call<List<Post>>, response: Response<List<Post>>) {
+                refreshing = false
                 if (response.isSuccessful) {
                     posts = response.body() ?: emptyList()
                     errorMessage = null
@@ -69,10 +67,15 @@ fun forYouScreen(navController: NavController) {
             }
 
             override fun onFailure(call: Call<List<Post>>, t: Throwable) {
+                refreshing = false
                 errorMessage = "Error loading recommendations"
                 Log.e("forYouScreen", "Exception loading recommendations", t)
             }
         })
+    }
+
+    LaunchedEffect(Unit) {
+        loadPosts()
     }
 
     Scaffold(
@@ -88,6 +91,21 @@ fun forYouScreen(navController: NavController) {
                     }
                 },
                 actions = {
+                    // Refresh button
+                    IconButton(onClick = { loadPosts() }) {
+                        if (refreshing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_refresh_foreground),
+                                contentDescription = "Refresh"
+                            )
+                        }
+                    }
+                    // Filter button
                     IconButton(onClick = { showInterestDialog = true }) {
                         Icon(painter = painterResource(id = R.drawable.ic_filter_foreground), contentDescription = "Filter")
                     }
@@ -123,24 +141,7 @@ fun forYouScreen(navController: NavController) {
             ) {
                 if (errorMessage != null) {
                     Text(text = errorMessage!!, color = Color.Red)
-                    Button(onClick = {
-                        getApiService(context).getRecommendations(RecommendationRequest(userId)).enqueue(object : Callback<List<Post>> {
-                            override fun onResponse(call: Call<List<Post>>, response: Response<List<Post>>) {
-                                if (response.isSuccessful) {
-                                    posts = response.body() ?: emptyList()
-                                    errorMessage = null
-                                } else {
-                                    errorMessage = "Error loading recommendations"
-                                    Log.e("forYouScreen", "Error loading recommendations: ${response.errorBody()?.string()}")
-                                }
-                            }
-
-                            override fun onFailure(call: Call<List<Post>>, t: Throwable) {
-                                errorMessage = "Error loading recommendations"
-                                Log.e("forYouScreen", "Exception loading recommendations", t)
-                            }
-                        })
-                    }) {
+                    Button(onClick = { loadPosts() }) {
                         Text("Retry")
                     }
                 } else {
@@ -181,7 +182,6 @@ fun forYouScreen(navController: NavController) {
         )
     }
 }
-
 
 @OptIn(ExperimentalPagerApi::class)
 @Composable
@@ -256,10 +256,4 @@ fun PostItem(post: Post) {
             }
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun PreviewForYouScreen() {
-    forYouScreen(navController = NavController(LocalContext.current))
 }
