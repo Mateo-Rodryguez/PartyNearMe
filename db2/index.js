@@ -240,7 +240,7 @@ app.get('/user/posts', async (req, res) => {
 const { spawn } = require("child_process");
 
 // Start the recommendation system
-const recommendationProcess = spawn("python", ["ml_recommender.py"], {
+const recommendationProcess = spawn("python", ["interests_ML.py"], {
     stdio: ["pipe", "pipe", "pipe"],  // Ensure stdin works
     detached: false,                  // Keep tied to Node process
     shell: true
@@ -286,6 +286,16 @@ app.post("/recommendations", async (req, res) => {
             JOIN likes l ON p.id = l.post_id
             WHERE l.user_id = $1
         `, [userId]);
+        
+        // Fetching user interests
+        const interestResult = await pool.query(`
+            SELECT i.name
+            FROM interests i
+            JOIN user_interests ui ON i.id = ui.interest_id
+            WHERE ui.user_id = $1
+        `, [userId]);
+
+        const userInterests = interestResult.rows.map(row => row.name.toLowerCase());
 
         console.log(`[API] Found ${userLikes.rows.length} liked posts for user ${userId}`);
 
@@ -293,7 +303,8 @@ app.post("/recommendations", async (req, res) => {
         recommendationProcess.stdin.write(JSON.stringify({
             user_id: userId,
             posts: posts.rows,
-            user_likes: userLikes.rows
+            user_likes: userLikes.rows,
+            user_interests: userInterests
         }) + "\n");
 
         // Listen for AI recommendation response

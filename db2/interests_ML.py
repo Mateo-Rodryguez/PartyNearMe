@@ -15,47 +15,64 @@ sys.stderr.flush()
 
 def generate_recommendations(user_id, posts, user_likes, user_interests=None):
     print(f"🔄 [ML] Generating recommendations for user {user_id}...", file=sys.stderr)
-
     if not posts:
         return []
 
-    if not user_likes:
-        return [post['id'] for post in sorted(posts, key=lambda x: x['like_count'], reverse=True)[:5]]
+    # If no likes and no interests, fallback to like_count
+    if not user_likes and not user_interests:
+        return [p['id'] for p in sorted(posts, key=lambda x: x['like_count'], reverse=True)[:5]]
 
+    # Extract text
     def extract_text(data):
-        return [f"{post['caption']} {post['location']}" for post in data]
+        return [f"{post.get('caption', '')} {post.get('location', '')}" for post in data]
 
     liked_texts = extract_text(user_likes)
     post_texts = extract_text(posts)
 
-    vectorizer = TfidfVectorizer(stop_words='english')
-    liked_vectors = vectorizer.fit_transform(liked_texts)
-    post_vectors = vectorizer.transform(post_texts)
+    # Initialize post_scores with a base value of 1 for each post
+    # This ensures we can boost scores even when there are no likes
+    post_scores = [1.0] * len(posts)
 
-    similarity_scores = cosine_similarity(liked_vectors, post_vectors)
-    post_scores = similarity_scores.mean(axis=0)
+    # Add TF-IDF similarity scores if user has likes
+    if liked_texts:
+        vectorizer = TfidfVectorizer(stop_words='english')
+        liked_vectors = vectorizer.fit_transform(liked_texts)
+        post_vectors = vectorizer.transform(post_texts)
+        similarity_scores = cosine_similarity(liked_vectors, post_vectors).mean(axis=0)
+        
+        # Add similarity scores to base scores
+        for i in range(len(post_scores)):
+            post_scores[i] += similarity_scores[i] * 2  # Weight similarity more
 
-    # Boost score for posts matching user's interests
+    # Zero-shot boosting with interests
     if user_interests:
         print(f"🎯 Boosting posts based on user interests: {user_interests}", file=sys.stderr)
         for i, post in enumerate(posts):
             try:
                 caption = post.get("caption", "")
+                if not caption:  # Skip posts without captions
+                    continue
+                    
                 result = classifier(caption, candidate_labels=user_interests)
                 top_label = result['labels'][0]
                 top_score = result['scores'][0]
-
-                if top_label in user_interests and top_score > 0.5:
-                    boost_factor = 1.15  # 15% boost
-                    post_scores[i] *= boost_factor
-                    print(f"✨ Boosted post '{caption[:30]}...' for interest '{top_label}'", file=sys.stderr)
-
+                
+                # Log classification results to debug
+                print(f"📊 Post {post.get('id')}: '{caption[:30]}...' - Label: {top_label}, Score: {top_score:.2f}", file=sys.stderr)
+                
+                if top_score > 0.5:  # If classification is confident enough
+                    # Add a significant boost (3.0) instead of multiplying
+                    post_scores[i] += 3.0 * top_score
+                    print(f"✨ Boosted post {post.get('id')} for interest '{top_label}', new score: {post_scores[i]:.2f}", file=sys.stderr)
             except Exception as e:
-                print(f"⚠️ Error during zero-shot classification: {e}", file=sys.stderr)
+                print(f"⚠️ Zero-shot error: {e}", file=sys.stderr)
 
-    ranked_posts = sorted(zip(posts, post_scores), key=lambda x: x[1], reverse=True)
-    recommendations = [post['id'] for post, score in ranked_posts[:5]]
+    # Log all post scores before ranking
+    for i, post in enumerate(posts):
+        print(f"📈 Post {post.get('id')}: Score {post_scores[i]:.2f} - Caption: {post.get('caption', '')[:30]}", file=sys.stderr)
 
+    ranked = sorted(zip(posts, post_scores), key=lambda x: x[1], reverse=True)
+    recommendations = [post['id'] for post, score in ranked[:5]]
     print(f"✅ [ML] Final recommendations: {recommendations}", file=sys.stderr)
     return recommendations
 
@@ -80,13 +97,21 @@ def main():
 
             if user_id and posts:
                 user_interests = data.get("user_interests", [])
-                recommendations = generate_recommendations(user_id, posts, user_likes)
+                print(f"🔍 [ML] Received user interests: {user_interests}", file=sys.stderr)
+                recommendations = generate_recommendations(user_id, posts, user_likes, user_interests)
                 sys.stdout.write(json.dumps(recommendations) + "\n")
+                sys.stdout.flush()
+            else:
+                # Sending an empty response
+                sys.stdout.write(json.dumps([]) + "\n")
                 sys.stdout.flush()
 
         except Exception as e:
             print(f"❌ [ML] Error: {e}", file=sys.stderr)
             sys.stderr.flush()
+            # Sending an empty response in case of error
+            sys.stdout.write(json.dumps([]) + "\n")
+            sys.stdout.flush()
 
 if __name__ == "__main__":
-    main() 
+    main()
