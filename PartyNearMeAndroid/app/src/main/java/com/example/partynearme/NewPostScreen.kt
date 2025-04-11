@@ -107,172 +107,181 @@ fun NewPostScreen(navController: NavController) {
         }
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.BottomCenter
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // Camera Preview
+    Scaffold(
+        bottomBar = {
+            BottomNavigationBar(navController = navController)
+        },
+        content = { paddingValues ->
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(250.dp)
-                    .background(Color.Black),
-                contentAlignment = Alignment.Center
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.BottomCenter
             ) {
-                AndroidView(factory = { previewView })
-            }
-
-            Spacer(modifier = Modifier.height(30.dp))
-
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) {
-                FloatingActionButton(
-                    onClick = {
-                        val photoUri = createImageUri(context)
-                        takePictureLauncher.launch(photoUri)
-                    },
-                    containerColor = Color.White,
-                    modifier = Modifier.size(64.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.CameraAlt,
-                        contentDescription = "Take Picture",
-                        tint = Color.Black
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Row for Gallery Button and Image Carousel
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(80.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                // **Gallery Button (Shows last gallery image if available)**
-                Box(
+                Column(
                     modifier = Modifier
-                        .size(80.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable { galleryLauncher.launch("image/*") },
-                    contentAlignment = Alignment.Center
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    val galleryImage = selectedMedia.lastOrNull() ?: lastGalleryImage
+                    // Camera Preview
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(250.dp)
+                            .background(Color.Black),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AndroidView(factory = { previewView })
+                    }
 
-                    if (galleryImage != null) {
-                        Image(
-                            painter = rememberAsyncImagePainter(galleryImage),
-                            contentDescription = "Gallery",
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
+                    Spacer(modifier = Modifier.height(30.dp))
+
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        FloatingActionButton(
+                            onClick = {
+                                val photoUri = createImageUri(context)
+                                takePictureLauncher.launch(photoUri)
+                            },
+                            containerColor = Color.White,
+                            modifier = Modifier.size(64.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.CameraAlt,
+                                contentDescription = "Take Picture",
+                                tint = Color.Black
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    // Row for Gallery Button and Image Carousel
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(80.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // **Gallery Button (Shows last gallery image if available)**
                         Box(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Gray),
+                                .size(80.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { galleryLauncher.launch("image/*") },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("📷", color = Color.White, style = MaterialTheme.typography.headlineMedium)
+                            val galleryImage = selectedMedia.lastOrNull() ?: lastGalleryImage
+
+                            if (galleryImage != null) {
+                                Image(
+                                    painter = rememberAsyncImagePainter(galleryImage),
+                                    contentDescription = "Gallery",
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color.Gray),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("📷", color = Color.White, style = MaterialTheme.typography.headlineMedium)
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Image Carousel
+                        LazyRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(70.dp)
+                        ) {
+                            if (selectedMedia.isEmpty()) {
+                                item {
+                                    Text(
+                                        "No media selected",
+                                        modifier = Modifier.padding(16.dp),
+                                        color = Color.Gray
+                                    )
+                                }
+                            } else {
+                                items(selectedMedia) { uri ->
+                                    Image(
+                                        painter = rememberAsyncImagePainter(uri),
+                                        contentDescription = "Selected Media",
+                                        modifier = Modifier
+                                            .size(70.dp)
+                                            .padding(4.dp)
+                                            .clip(RoundedCornerShape(8.dp))
+                                    )
+                                }
+                            }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                // Image Carousel
-                LazyRow(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(70.dp)
-                ) {
-                    if (selectedMedia.isEmpty()) {
-                        item {
-                            Text(
-                                "No media selected",
-                                modifier = Modifier.padding(16.dp),
-                                color = Color.Gray
-                            )
-                        }
-                    } else {
-                        items(selectedMedia) { uri ->
-                            Image(
-                                painter = rememberAsyncImagePainter(uri),
-                                contentDescription = "Selected Media",
-                                modifier = Modifier
-                                    .size(70.dp)
-                                    .padding(4.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Add a caption
-            TextField(
-                value = caption,
-                onValueChange = { caption = it },
-                placeholder = { Text("Add a caption...") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Add location button
-            Button(
-                onClick = { showLocationDialog = true },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Add location")
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Display selected location
-            location?.let {
-                Text("Location: $it", style = MaterialTheme.typography.bodyLarge)
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            // Next Button
-            Button(
-                onClick = {
-                    val userId = getUserIdFromPrefs(context)
-                    uploadPost(
-                        context = context,
-                        userId = userId,
-                        caption = caption,
-                        location = location,
-                        mediaUris = selectedMedia,
-                        onSuccess = { message ->
-                            // Handle success (e.g., navigate to another screen)
-                            navController.navigate("forYou")
-                        },
-                        onError = { error ->
-                            // Handle error (e.g., show a toast message)
-                            Toast.makeText(context, error, Toast.LENGTH_LONG).show()
-                        }
+                    // Add a caption
+                    TextField(
+                        value = caption,
+                        onValueChange = { caption = it },
+                        placeholder = { Text("Add a caption...") },
+                        modifier = Modifier.fillMaxWidth()
                     )
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Post")
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Add location button
+                    Button(
+                        onClick = { showLocationDialog = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Add location")
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Display selected location
+                    location?.let {
+                        Text("Location: $it", style = MaterialTheme.typography.bodyLarge)
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+
+                    // Next Button
+                    Button(
+                        onClick = {
+                            val userId = getUserIdFromPrefs(context)
+                            uploadPost(
+                                context = context,
+                                userId = userId,
+                                caption = caption,
+                                location = location,
+                                mediaUris = selectedMedia,
+                                onSuccess = { message ->
+                                    // Handle success (e.g., navigate to another screen)
+                                    navController.navigate("forYou")
+                                },
+                                onError = { error ->
+                                    // Handle error (e.g., show a toast message)
+                                    Toast.makeText(context, error, Toast.LENGTH_LONG).show()
+                                }
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Post")
+                    }
+                }
             }
         }
-    }
+    )
 
     if (showLocationDialog) {
         LocationDialog(

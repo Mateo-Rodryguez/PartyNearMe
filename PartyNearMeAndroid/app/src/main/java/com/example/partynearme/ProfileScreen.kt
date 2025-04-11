@@ -31,6 +31,9 @@ import coil.request.ImageRequest
 import coil.util.CoilUtils
 import okhttp3.OkHttpClient
 import androidx.compose.material3.Button
+import androidx.compose.material3.*
+
+
 
 @Composable
 fun ProfileScreen(navController: NavController) {
@@ -52,45 +55,61 @@ fun ProfileScreen(navController: NavController) {
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        // Profile Section
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Image(
-                painter = painterResource(id = R.drawable.pfp2),
-                contentDescription = "Profile Image",
-                contentScale = ContentScale.Crop,
+    Scaffold(
+        bottomBar = {
+            BottomNavigationBar(navController = navController)
+        },
+        content = { paddingValues ->
+            Column(
                 modifier = Modifier
-                    .size(64.dp)
-                    .clip(CircleShape)
-                    .background(Color.Gray) // Placeholder for profile image
-            )
-            Column {
-                Text(text = "Attended: 0") // Replace with actual data
-                Text(text = "Organised: 0") // Replace with actual data
-            }
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(onClick = { logout(context, navController) }) {
-            Text("Logout")
-        }
-
-        // Events Grid
-        if (posts.isEmpty()) {
-            Text(text = "No posts", modifier = Modifier.fillMaxSize(), color = Color.Gray)
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                contentPadding = PaddingValues(4.dp),
-                modifier = Modifier.fillMaxSize()
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(16.dp)
             ) {
-                items(posts) { post ->
-                    PartyItem(post)
+                // Profile Section
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.pfp2),
+                        contentDescription = "Profile Image",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .background(Color.Gray) // Placeholder for profile image
+                    )
+                    Column {
+                        Text(text = "Attended: 0") // Replace with actual data
+                        Text(text = "Organised: 0") // Replace with actual data
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(onClick = { logout(context, navController) }) {
+                    Text("Logout")
+                }
+
+                // Events Grid
+                if (posts.isEmpty()) {
+                    Text(text = "No posts", modifier = Modifier.fillMaxSize(), color = Color.Gray)
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        contentPadding = PaddingValues(4.dp),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        items(posts) { post ->
+                            PartyItem(post)
+                        }
+                    }
                 }
             }
         }
-    }
+    )
 }
+
 
 @OptIn(ExperimentalPagerApi::class)
 @Composable

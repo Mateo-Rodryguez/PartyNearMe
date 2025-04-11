@@ -78,6 +78,9 @@ fun ConversationsScreen(navController: NavController, userId: Int) {
                 }
             )
         },
+        bottomBar = {
+            BottomNavigationBar(navController = navController)
+        },
         content = { paddingValues: PaddingValues ->
             Column(
                 modifier = Modifier

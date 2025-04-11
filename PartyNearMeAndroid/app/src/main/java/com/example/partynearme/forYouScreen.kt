@@ -113,23 +113,7 @@ fun forYouScreen(navController: NavController) {
             )
         },
         bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    icon = { Icon(painter = painterResource(id = R.drawable.ic_messages), contentDescription = "Messages") },
-                    selected = false,
-                    onClick = { navController.navigate("conversations") }
-                )
-                NavigationBarItem(
-                    icon = { Icon(painter = painterResource(id = R.drawable.ic_add), contentDescription = "New Post") },
-                    selected = false,
-                    onClick = { navController.navigate("newPost") }
-                )
-                NavigationBarItem(
-                    icon = { Icon(painter = painterResource(id = R.drawable.ic_profile), contentDescription = "Profile") },
-                    selected = false,
-                    onClick = { navController.navigate("profile") }
-                )
-            }
+            BottomNavigationBar(navController)
         },
         content = { paddingValues: PaddingValues ->
             Column(
