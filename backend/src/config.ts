@@ -15,6 +15,8 @@ const configSchema = z.object({
   R2_ACCESS_KEY_ID: z.string().min(1).optional(),
   R2_SECRET_ACCESS_KEY: z.string().min(1).optional(),
   // Public base URL photos are served from (R2 public bucket or custom domain).
+  // Photo and caption moderation, used by the worker.
+  OPENAI_API_KEY: z.string().min(1).optional(),
   MEDIA_BASE_URL: z.url({ protocol: /^https$/ }).transform((url) => url.replace(/\/+$/, "")).optional(),
 });
 
