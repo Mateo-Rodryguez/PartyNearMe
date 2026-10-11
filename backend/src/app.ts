@@ -5,6 +5,7 @@ import { authenticate, type TokenVerifier } from "./auth.js";
 import type { Config } from "./config.js";
 import type { Db } from "./db.js";
 import { registerErrorHandler } from "./errors.js";
+import { eventsRoutes } from "./modules/events/routes.js";
 import { usersRoutes } from "./modules/users/routes.js";
 
 export interface AppDeps {
@@ -37,6 +38,7 @@ export async function buildApp({ config, db, verifyToken }: AppDeps): Promise<Fa
     authed.decorateRequest("userId", "");
     authed.addHook("preHandler", authenticate(verifyToken));
     await authed.register(usersRoutes, { db });
+    await authed.register(eventsRoutes, { db });
   });
 
   return app;
