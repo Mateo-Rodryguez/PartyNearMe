@@ -51,14 +51,16 @@ insert into public.events (id, organiser_id, title, starts_at, location, status)
    now() + interval '1 day', extensions.st_point(2.3522, 48.8566, 4326)::extensions.geography, 'published');
 
 insert into public.posts (id, author_id, caption, status) values
-  ('20000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000b', 'visible post', 'visible');
+  ('20000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000b', 'visible post', 'visible'),
+  ('20000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-00000000000a', 'pending post', 'pending');
 
 -- ---------------------------------------------------------------- as alice
 set local role authenticated;
 select tests.sign_in('00000000-0000-0000-0000-00000000000a');
 
-insert into public.posts (id, author_id, caption)
-values ('20000000-0000-0000-0000-000000000002', '00000000-0000-0000-0000-00000000000a', 'pending post');
+select tests.expect_error(
+  $$insert into public.posts (author_id, caption) values ('00000000-0000-0000-0000-00000000000a', 'x')$$,
+  'posts are created only through create_post()');
 
 select tests.expect_error(
   $$insert into public.posts (author_id, caption, status) values ('00000000-0000-0000-0000-00000000000a', 'x', 'visible')$$,

@@ -32,3 +32,17 @@ describe("loadConfig", () => {
     });
   });
 });
+
+describe("photo uploads without storage configured", () => {
+  it("returns 503", async () => {
+    const { app, sign } = await createTestApp({} as Db, null);
+    const res = await app.inject({
+      method: "POST",
+      url: "/uploads",
+      headers: { authorization: `Bearer ${await sign("6f1c2a3e-5b7d-4c8e-9f00-112233445566")}` },
+      payload: { content_type: "image/jpeg", size_bytes: 10 },
+    });
+    expect(res.statusCode).toBe(503);
+    await app.close();
+  });
+});

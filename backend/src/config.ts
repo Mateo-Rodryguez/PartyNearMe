@@ -9,6 +9,13 @@ const configSchema = z.object({
   // Supabase project URL, e.g. https://abcdefgh.supabase.co
   SUPABASE_URL: z.url({ protocol: /^https?$/ }).transform((url) => url.replace(/\/+$/, "")),
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(120),
+  // Cloudflare R2 photo storage. Uploads are disabled until all four are set.
+  R2_ACCOUNT_ID: z.string().regex(/^[0-9a-f]{32}$/).optional(),
+  R2_BUCKET: z.string().min(3).default("partynearme-media"),
+  R2_ACCESS_KEY_ID: z.string().min(1).optional(),
+  R2_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+  // Public base URL photos are served from (R2 public bucket or custom domain).
+  MEDIA_BASE_URL: z.url({ protocol: /^https$/ }).transform((url) => url.replace(/\/+$/, "")).optional(),
 });
 
 export type Config = z.infer<typeof configSchema>;
