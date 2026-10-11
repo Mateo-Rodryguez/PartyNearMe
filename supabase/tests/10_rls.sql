@@ -109,6 +109,7 @@ select tests.expect_error(
 -- Service-only tables
 select tests.expect_error($$select count(*) from public.outbox$$, 'outbox is not readable');
 select tests.expect_error($$select count(*) from public.interactions$$, 'interactions are not readable');
+select tests.expect_error($$select count(*) from public.feed_snapshots$$, 'feed snapshots are not readable');
 select tests.expect_error(
   $$update public.profiles set id = gen_random_uuid() where id = '00000000-0000-0000-0000-00000000000a'$$,
   'cannot change a profile id');

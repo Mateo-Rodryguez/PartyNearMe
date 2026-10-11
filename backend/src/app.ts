@@ -7,6 +7,7 @@ import type { Db } from "./db.js";
 import { registerErrorHandler } from "./errors.js";
 import type { MediaStorage } from "./storage.js";
 import { eventsRoutes } from "./modules/events/routes.js";
+import { feedRoutes } from "./modules/feed/routes.js";
 import { postsRoutes } from "./modules/posts/routes.js";
 import { usersRoutes } from "./modules/users/routes.js";
 
@@ -44,6 +45,7 @@ export async function buildApp({ config, db, verifyToken, storage }: AppDeps): P
     await authed.register(usersRoutes, { db });
     await authed.register(eventsRoutes, { db });
     await authed.register(postsRoutes, { db, storage, mediaBaseUrl: config.MEDIA_BASE_URL });
+    await authed.register(feedRoutes, { db, mediaBaseUrl: config.MEDIA_BASE_URL });
   });
 
   return app;
