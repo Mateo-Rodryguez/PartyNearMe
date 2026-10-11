@@ -1,11 +1,34 @@
 import { z } from "zod";
 
+/**
+ * Explains what is wrong with a database URL without repeating it, since it
+ * holds the password and errors end up in hosting logs.
+ */
+export function databaseUrlProblem(value: string): string | null {
+  if (/^DATABASE_URL\s*=/.test(value)) return "remove the leading 'DATABASE_URL=': the value is only the link";
+  if (/^["']|["']$/.test(value)) return "remove the quotes around the link";
+  if (!/^postgres(ql)?:\/\//.test(value)) return "must be the whole link, starting with postgresql://";
+  try {
+    const url = new URL(value);
+    if (!url.hostname || url.hash || url.search.includes("@") || url.pathname.includes("@")) throw new Error();
+  } catch {
+    return "not a valid link: if the password contains # / ? write them as %23 %2F %3F";
+  }
+  return null;
+}
+
 const configSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
   // Postgres connection string (Supabase: Project Settings > Database > Connection string).
-  DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+  DATABASE_URL: z
+    .string()
+    .trim()
+    .superRefine((value, ctx) => {
+      const problem = databaseUrlProblem(value);
+      if (problem) ctx.addIssue({ code: "custom", message: problem });
+    }),
   // Supabase project URL, e.g. https://abcdefgh.supabase.co
   SUPABASE_URL: z.url({ protocol: /^https?$/ }).transform((url) => url.replace(/\/+$/, "")),
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(120),
