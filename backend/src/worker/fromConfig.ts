@@ -1,6 +1,7 @@
 import type { Config } from "../config.js";
 import type { Db } from "../db.js";
 import { openAiModerator } from "./moderation.js";
+import { fcmPusher, parseServiceAccount } from "./push.js";
 import { r2ObjectStore } from "./objectStore.js";
 import { startWorker, type WorkerDeps } from "./worker.js";
 
@@ -23,5 +24,6 @@ export function startWorkerFromConfig(config: Config, db: Db, log: WorkerDeps["l
       secretAccessKey: R2_SECRET_ACCESS_KEY,
     }),
     moderator: openAiModerator(OPENAI_API_KEY),
+    pusher: config.FIREBASE_SERVICE_ACCOUNT ? fcmPusher(parseServiceAccount(config.FIREBASE_SERVICE_ACCOUNT)) : null,
   });
 }

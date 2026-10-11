@@ -111,6 +111,9 @@ select tests.expect_error($$select count(*) from public.outbox$$, 'outbox is not
 select tests.expect_error($$select count(*) from public.interactions$$, 'interactions are not readable');
 select tests.expect_error($$select count(*) from public.feed_snapshots$$, 'feed snapshots are not readable');
 select tests.expect_error(
+  $$insert into public.device_tokens (token, user_id, platform) values ('tok-0123456789', '00000000-0000-0000-0000-00000000000b', 'ios')$$,
+  'cannot register a phone for someone else');
+select tests.expect_error(
   $$update public.profiles set id = gen_random_uuid() where id = '00000000-0000-0000-0000-00000000000a'$$,
   'cannot change a profile id');
 update public.profiles set username = 'alice' where id = '00000000-0000-0000-0000-00000000000a';
