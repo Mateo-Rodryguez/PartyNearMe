@@ -40,7 +40,7 @@ export function useDbApp() {
   });
 
   beforeEach(async () => {
-    await ctx.db`truncate auth.users cascade`;
+    await ctx.db`truncate auth.users, public.outbox cascade`;
   });
 
   afterAll(async () => {

@@ -67,8 +67,9 @@ export const IMAGE_TYPES = {
   "image/jpeg": "jpg",
   "image/png": "png",
   "image/webp": "webp",
-  "image/heic": "heic",
 } as const;
+// HEIC isn't accepted: the image library can't decode it, so the app converts
+// iPhone photos to JPEG before uploading.
 export type ImageType = keyof typeof IMAGE_TYPES;
 
 export interface SignedUpload {
