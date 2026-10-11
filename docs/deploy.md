@@ -1,0 +1,35 @@
+# Deploying the backend
+
+The API and the photo worker run on Render, set up from `render.yaml`. The
+database is deployed separately, by the Deploy database workflow on every merge
+that changes `supabase/migrations`.
+
+## First-time setup
+
+1. **Public photo address.** In Cloudflare: R2 > `partynearme-media` > Settings >
+   Public access > R2.dev subdomain > Allow. Copy the `https://pub-….r2.dev`
+   address. This is `MEDIA_BASE_URL`.
+2. **Database connection string.** In Supabase: Connect (top bar) > Connection
+   string > Transaction pooler (port 6543). Put your database password in place
+   of `[YOUR-PASSWORD]`. This is `DATABASE_URL`.
+3. **OpenAI key.** platform.openai.com > API keys > Create new secret key. The
+   moderation endpoint is free, but the account still needs to exist.
+4. **Render.** Sign in with GitHub at dashboard.render.com, then New > Blueprint,
+   pick the PartyNearMe repo and the `PartyApp` branch. Render reads
+   `render.yaml` and asks for the secret values: `DATABASE_URL`,
+   `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `OPENAI_API_KEY`,
+   `MEDIA_BASE_URL`. Paste them there, never into chat or the repo.
+5. Check `https://partynearme-api.onrender.com/health` returns `{"status":"ok"}`.
+
+After that, every merge into `PartyApp` that touches `backend/` redeploys.
+
+## Notes
+
+- The free plan sleeps after 15 minutes without traffic and takes about a minute
+  to wake. Fine for testing; switch the plan to Starter before the public beta.
+- `RUN_WORKER=true` runs the photo worker inside the API process. When traffic
+  grows, set it to `false` and add a Render background worker running
+  `npm run worker` with the same environment.
+- The r2.dev address makes the whole bucket readable. Phone uploads sit under
+  random, unlisted names and are deleted once processed, so this is acceptable
+  for testing. Before launch, move to a custom domain and allow only `media/`.

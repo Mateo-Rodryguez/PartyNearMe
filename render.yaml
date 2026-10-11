@@ -1,0 +1,41 @@
+# Render Blueprint: Dashboard > New > Blueprint, pick this repo and the PartyApp branch.
+# Values marked `sync: false` are secrets: Render asks for them once when the
+# Blueprint is created, and they never live in the repo.
+services:
+  - type: web
+    name: partynearme-api
+    runtime: node
+    plan: free # spins down when idle; switch to starter ($7/mo) before the public beta
+    region: frankfurt
+    branch: PartyApp
+    rootDir: backend
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    buildFilter:
+      paths: ["backend/**"]
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        value: https://vvkckzrhzgdrazhjitse.supabase.co
+      - key: R2_ACCOUNT_ID
+        value: 630c8ac9872f11e09ffed9fe3cb05b0c
+      - key: R2_BUCKET
+        value: partynearme-media
+      # Runs the photo worker in the API process, so one free service is enough
+      # for now. Later: set to false and add a separate background worker.
+      - key: RUN_WORKER
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: MEDIA_BASE_URL
+        sync: false
