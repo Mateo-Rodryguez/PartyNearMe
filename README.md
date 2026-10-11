@@ -19,11 +19,17 @@ Needs Node 22.
 
 ```sh
 cd backend
-cp .env.example .env
+cp .env.example .env      # then fill in DATABASE_URL
 npm install
-npm run dev        # http://localhost:3000/health
-npm test
+npm run dev               # http://localhost:3000/health
+npm test                  # unit tests
+
+# Integration tests against a real Postgres (see below for what it needs):
+TEST_DATABASE_URL="$(../supabase/test-db.sh start)" npm run test:db
+../supabase/test-db.sh stop
 ```
+
+Every route except `/health` needs a Supabase access token (`Authorization: Bearer …`). The user id comes only from that verified token, and queries run as that user so the database's row-level security rules apply to the API too.
 
 ## Testing the database migrations
 
@@ -41,4 +47,4 @@ Nothing secret goes in git. Copy `.env.example` to `.env` locally; in CI and hos
 
 ## Plan
 
-See [docs/plan.md](docs/plan.md). Current milestone: 0, foundations.
+See [docs/plan.md](docs/plan.md). Current milestone: 1, secure backend core.

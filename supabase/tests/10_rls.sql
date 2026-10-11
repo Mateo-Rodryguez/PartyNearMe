@@ -105,7 +105,13 @@ select tests.expect_error(
   'cannot start a chat with yourself');
 
 -- Service-only tables
-select tests.expect_eq((select count(*) from public.outbox), 0, 'outbox is not readable');
+select tests.expect_error($$select count(*) from public.outbox$$, 'outbox is not readable');
+select tests.expect_error($$select count(*) from public.interactions$$, 'interactions are not readable');
+select tests.expect_error(
+  $$update public.profiles set id = gen_random_uuid() where id = '00000000-0000-0000-0000-00000000000a'$$,
+  'cannot change a profile id');
+update public.profiles set username = 'alice' where id = '00000000-0000-0000-0000-00000000000a';
+select tests.expect_eq((select count(*) from public.profiles where username = 'alice'), 1, 'can set own username');
 select tests.expect_error(
   $$insert into public.outbox (topic, payload) values ('x', '{}')$$,
   'outbox is not writable');
@@ -139,14 +145,17 @@ select tests.expect_eq((select count(*) from public.blocks), 0, 'block lists are
 
 insert into public.reports (reporter_id, target_type, target_id, reason)
 values ('00000000-0000-0000-0000-00000000000c', 'post', '20000000-0000-0000-0000-000000000001', 'spam');
-select tests.expect_eq((select count(*) from public.reports), 0, 'reports are not readable by users');
+select tests.expect_error($$select count(*) from public.reports$$, 'reports are not readable by users');
 
 -- ---------------------------------------------------------------- signed out
 reset role;
 set local role anon;
 select tests.sign_in(null);
-select tests.expect_eq((select count(*) from public.profiles), 0, 'signed-out users see no profiles');
-select tests.expect_eq((select count(*) from public.posts), 0, 'signed-out users see no posts');
+select tests.expect_error($$select count(*) from public.profiles$$, 'signed-out users cannot read profiles');
+select tests.expect_error($$select count(*) from public.posts$$, 'signed-out users cannot read posts');
+select tests.expect_error(
+  $$select public.start_direct_conversation('00000000-0000-0000-0000-00000000000b')$$,
+  'signed-out users cannot start chats');
 
 -- ---------------------------------------------------------------- account deletion
 reset role;
