@@ -23,6 +23,19 @@ that changes `supabase/migrations`.
 
 After that, every merge into `PartyApp` that touches `backend/` redeploys.
 
+## Push notifications (optional)
+
+Push stays off until `FIREBASE_SERVICE_ACCOUNT` is set; messages and RSVPs
+still work without it.
+
+1. Create a project at console.firebase.google.com (Analytics can stay off).
+2. Project settings > Service accounts > Generate new private key. This
+   downloads a JSON file.
+3. In Render, add `FIREBASE_SERVICE_ACCOUNT` and paste the whole file contents
+   as the value. It is a secret: never commit it or paste it into chat.
+4. For iPhones, later: Project settings > Cloud Messaging > upload the APNs key
+   from the Apple developer account.
+
 ## Notes
 
 - The free plan sleeps after 15 minutes without traffic and takes about a minute

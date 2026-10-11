@@ -39,6 +39,9 @@ const configSchema = z.object({
   R2_SECRET_ACCESS_KEY: z.string().min(1).optional(),
   // Photo and caption moderation, used by the worker.
   OPENAI_API_KEY: z.string().min(1).optional(),
+  // Push notifications: the Firebase service account JSON (Project settings >
+  // Service accounts > Generate new private key). Push is off until it's set.
+  FIREBASE_SERVICE_ACCOUNT: z.string().trim().min(1).optional(),
   // Also run the photo worker inside the API process. Saves a second paid
   // service while traffic is low; turn off once the worker runs on its own.
   RUN_WORKER: z.stringbool().default(false),

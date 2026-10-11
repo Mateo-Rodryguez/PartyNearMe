@@ -2,16 +2,22 @@ import type { Db } from "../db.js";
 import { processImage, SIZES } from "./images.js";
 import type { Moderator } from "./moderation.js";
 import type { ObjectStore } from "./objectStore.js";
+import type { PushMessage, Pusher } from "./push.js";
 
 export const MAX_ATTEMPTS = 5;
 const LEASE = "5 minutes";
 const MAX_ORIGINAL_BYTES = 15 * 1024 * 1024;
+/** How far ahead of an event its "starting soon" reminder goes out. */
+const REMINDER_LEAD = "2 hours";
+const PREVIEW_CHARS = 100;
 
 export interface WorkerDeps {
   /** Connects as the database owner / service role: the worker is trusted and bypasses RLS. */
   db: Db;
   store: ObjectStore;
   moderator: Moderator;
+  /** Null until Firebase is configured; notifications are then skipped. */
+  pusher: Pusher | null;
   log: { info: (obj: object, msg: string) => void; error: (obj: object, msg: string) => void };
 }
 
@@ -42,6 +48,7 @@ async function claim(db: Db, limit: number): Promise<OutboxRow[]> {
 
 /** Processes one batch; returns how many rows it claimed (0 means idle). */
 export async function processBatch(deps: WorkerDeps, limit = 5): Promise<number> {
+  await queueReminders(deps.db);
   const rows = await claim(deps.db, limit);
   for (const row of rows) {
     try {
@@ -63,6 +70,12 @@ async function handle(deps: WorkerDeps, row: OutboxRow): Promise<void> {
       return processPost(deps, String(row.payload.post_id));
     case "media.deleted":
       return deleteMedia(deps, row.payload as { storage_key: string; variants?: Record<string, string> });
+    case "message.created":
+      return notifyMessage(deps, String(row.payload.message_id));
+    case "rsvp.going":
+      return notifyRsvp(deps, String(row.payload.event_id), String(row.payload.user_id));
+    case "event.reminder":
+      return notifyReminder(deps, String(row.payload.event_id));
     default:
       // Unknown topics are left for a future worker version rather than failing.
       deps.log.info({ id: row.id, topic: row.topic }, "no handler for topic");
@@ -137,6 +150,100 @@ async function processPost({ db, store, moderator }: WorkerDeps, postId: string)
 async function deleteMedia({ store }: WorkerDeps, payload: { storage_key: string; variants?: Record<string, string> }) {
   const keys = new Set([payload.storage_key, ...Object.values(payload.variants ?? {})]);
   for (const key of keys) await store.delete(key);
+}
+
+/** Queues one reminder per published event once it is within REMINDER_LEAD of starting. */
+async function queueReminders(db: Db): Promise<void> {
+  await db`
+    with due as (
+      update public.events set reminder_queued_at = now()
+      where status = 'published' and reminder_queued_at is null
+        and starts_at between now() and now() + ${REMINDER_LEAD}::interval
+      returning id
+    )
+    insert into public.outbox (topic, payload)
+    select 'event.reminder', jsonb_build_object('event_id', id) from due
+  `;
+}
+
+const preview = (text: string) => (text.length > PREVIEW_CHARS ? `${text.slice(0, PREVIEW_CHARS - 1)}…` : text);
+const nameOf = (p: { display_name: string | null; username: string | null }) =>
+  p.display_name ?? p.username ?? "Someone";
+
+/**
+ * Sends to every device of the given users. Push is best effort: a failed
+ * send is logged rather than retried, so nobody gets the same alert twice.
+ */
+async function pushTo({ db, pusher, log }: WorkerDeps, userIds: string[], message: PushMessage): Promise<void> {
+  if (userIds.length === 0) return;
+  if (!pusher) {
+    log.info({ users: userIds.length, type: message.data.type }, "push skipped: Firebase not configured");
+    return;
+  }
+  const devices = await db<{ token: string }[]>`
+    select token from public.device_tokens where user_id = any (${userIds}::uuid[])
+  `;
+  for (const { token } of devices) {
+    try {
+      if (!(await pusher.send(token, message))) {
+        await db`delete from public.device_tokens where token = ${token}`;
+      }
+    } catch (err) {
+      log.error({ err: err instanceof Error ? err.message : String(err), type: message.data.type }, "push failed");
+    }
+  }
+}
+
+async function notifyMessage(deps: WorkerDeps, messageId: string): Promise<void> {
+  const [m] = await deps.db<{ conversation_id: string; sender_id: string; body: string; display_name: string | null; username: string | null }[]>`
+    select m.conversation_id, m.sender_id, m.body, p.display_name, p.username
+    from public.messages m join public.profiles p on p.id = m.sender_id
+    where m.id = ${messageId}
+  `;
+  if (!m) return;
+  const recipients = await deps.db<{ user_id: string }[]>`
+    select user_id from public.conversation_members
+    where conversation_id = ${m.conversation_id} and user_id <> ${m.sender_id}
+  `;
+  await pushTo(deps, recipients.map((r) => r.user_id), {
+    title: nameOf(m),
+    body: preview(m.body),
+    data: { type: "message", conversation_id: m.conversation_id },
+  });
+}
+
+async function notifyRsvp(deps: WorkerDeps, eventId: string, userId: string): Promise<void> {
+  const [row] = await deps.db<{ organiser_id: string; title: string; display_name: string | null; username: string | null }[]>`
+    select e.organiser_id, e.title, p.display_name, p.username
+    from public.events e, public.profiles p
+    where e.id = ${eventId} and p.id = ${userId} and e.organiser_id <> ${userId}
+      and not exists (select 1 from public.blocks b
+                      where (b.blocker_id = e.organiser_id and b.blocked_id = ${userId})
+                         or (b.blocker_id = ${userId} and b.blocked_id = e.organiser_id))
+  `;
+  if (!row) return;
+  await pushTo(deps, [row.organiser_id], {
+    title: row.title,
+    body: `${nameOf(row)} is going`,
+    data: { type: "rsvp", event_id: eventId, user_id: userId },
+  });
+}
+
+async function notifyReminder(deps: WorkerDeps, eventId: string): Promise<void> {
+  const [event] = await deps.db<{ title: string; venue_name: string | null; starts_at: Date }[]>`
+    select title, venue_name, starts_at from public.events where id = ${eventId} and status = 'published'
+  `;
+  if (!event) return;
+  const going = await deps.db<{ user_id: string }[]>`
+    select user_id from public.rsvps where event_id = ${eventId} and status = 'going'
+  `;
+  const minutes = Math.max(0, Math.round((event.starts_at.getTime() - Date.now()) / 60_000));
+  const when = minutes <= 90 ? `in ${minutes} min` : `in about ${Math.round(minutes / 60)} h`;
+  await pushTo(deps, going.map((g) => g.user_id), {
+    title: event.title,
+    body: event.venue_name ? `Starts ${when} at ${event.venue_name}` : `Starts ${when}`,
+    data: { type: "event_reminder", event_id: eventId },
+  });
 }
 
 /** Runs until stopped, polling when there's nothing to do. */
