@@ -14,9 +14,12 @@ const configSchema = z.object({
   R2_BUCKET: z.string().min(3).default("partynearme-media"),
   R2_ACCESS_KEY_ID: z.string().min(1).optional(),
   R2_SECRET_ACCESS_KEY: z.string().min(1).optional(),
-  // Public base URL photos are served from (R2 public bucket or custom domain).
   // Photo and caption moderation, used by the worker.
   OPENAI_API_KEY: z.string().min(1).optional(),
+  // Also run the photo worker inside the API process. Saves a second paid
+  // service while traffic is low; turn off once the worker runs on its own.
+  RUN_WORKER: z.stringbool().default(false),
+  // Public base URL photos are served from (R2 public bucket or custom domain).
   MEDIA_BASE_URL: z.url({ protocol: /^https$/ }).transform((url) => url.replace(/\/+$/, "")).optional(),
 });
 

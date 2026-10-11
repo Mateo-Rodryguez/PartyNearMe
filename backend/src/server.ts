@@ -3,6 +3,7 @@ import { supabaseTokenVerifier } from "./auth.js";
 import { loadConfig } from "./config.js";
 import { createDb } from "./db.js";
 import { r2Storage } from "./storage.js";
+import { startWorkerFromConfig } from "./worker/fromConfig.js";
 
 const config = loadConfig();
 const db = createDb(config.DATABASE_URL);
@@ -17,11 +18,17 @@ const storage =
     : null;
 const app = await buildApp({ config, db, verifyToken: supabaseTokenVerifier(config.SUPABASE_URL), storage });
 if (!storage) app.log.warn("R2 is not configured: photo uploads are disabled");
+const worker = config.RUN_WORKER
+  ? startWorkerFromConfig(config, db, {
+      info: (obj, msg) => app.log.info(obj, msg),
+      error: (obj, msg) => app.log.error(obj, msg),
+    })
+  : null;
+if (worker) app.log.info("photo worker running in this process");
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, () => {
-    void app
-      .close()
+    void Promise.all([app.close(), worker?.stop()])
       .then(() => db.end())
       .then(() => process.exit(0));
   });
