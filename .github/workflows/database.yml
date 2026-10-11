@@ -1,0 +1,25 @@
+name: Database
+
+on:
+  push:
+    branches: [PartyApp]
+    paths: ["supabase/**", ".github/workflows/database.yml"]
+  pull_request:
+    paths: ["supabase/**", ".github/workflows/database.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  migrations:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL 16 with PostGIS and pgvector
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q postgresql-16 postgresql-16-postgis-3 postgresql-16-pgvector
+      - name: Apply migrations and run RLS tests
+        run: ./supabase/test-migrations.sh
+        env:
+          PG_BIN: /usr/lib/postgresql/16/bin

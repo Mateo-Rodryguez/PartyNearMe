@@ -1,2 +1,31 @@
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+build/
+.gradle/
+.kotlin/
+*.iml
+.idea/
+local.properties
+DerivedData/
+xcuserdata/
+
+# Secrets: never commit these
 .env
-server/uploads/posts/
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.p8
+*.jks
+*.keystore
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
+
+# OS and editor
+.DS_Store
+Thumbs.db
+.vscode/
