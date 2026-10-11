@@ -152,7 +152,7 @@ describe("GET /events/nearby", () => {
   const nearby = (userId: string, params: Record<string, string | number>) =>
     ctx.as(userId, {
       method: "GET",
-      url: `/events/nearby?${new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)]))}`,
+      url: `/events/nearby?${new URLSearchParams(Object.entries(params).map(([k, v]): [string, string] => [k, String(v)]))}`,
     });
 
   it("finds published events within the radius, soonest first, with distance", async () => {
