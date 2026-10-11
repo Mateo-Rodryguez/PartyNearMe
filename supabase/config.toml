@@ -1,0 +1,3 @@
+# Supabase CLI settings. Only what the deploy workflow needs; the hosted
+# project's settings live in the Supabase dashboard.
+project_id = "partynearme"

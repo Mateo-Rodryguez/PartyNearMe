@@ -41,9 +41,15 @@ Needs PostgreSQL 16 with PostGIS and pgvector installed locally (CI installs the
 
 This starts a throwaway Postgres, adds stand-ins for the parts of Supabase the schema relies on (`auth.users`, `auth.uid()`, the `authenticated` role), applies every migration and runs the row-level security tests in `supabase/tests/`.
 
+## Deploying the database
+
+Merging a new file in `supabase/migrations/` into `PartyApp` runs the **Deploy database** workflow, which applies it to the Supabase project. It can also be run by hand from the Actions tab. Migrations are never edited after they are merged; changes go in a new migration.
+
 ## Secrets
 
 Nothing secret goes in git. Copy `.env.example` to `.env` locally; in CI and hosting, set the same variables as secrets.
+
+GitHub Actions secrets used: `SUPABASE_ACCESS_TOKEN` (a personal access token from the Supabase dashboard) and `SUPABASE_DB_PASSWORD` (the database password).
 
 ## Plan
 
