@@ -3,37 +3,9 @@ import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { asUser, type Db, type Tx } from "../../db.js";
 import { HttpError } from "../../errors.js";
 import { IMAGE_TYPES, type ImageType, type MediaStorage } from "../../storage.js";
+import { post, postMapper, postSelect, type PostRow } from "./shape.js";
 
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
-
-const media = z.object({
-  position: z.number().int(),
-  url: z.string().nullable(),
-  thumbnails: z.record(z.string(), z.string()),
-  width: z.number().int().nullable(),
-  height: z.number().int().nullable(),
-  blurhash: z.string().nullable(),
-});
-
-const post = z.object({
-  id: z.guid(),
-  author: z.object({ id: z.guid(), username: z.string().nullable(), display_name: z.string().nullable() }),
-  event_id: z.guid().nullable(),
-  caption: z.string().nullable(),
-  place_name: z.string().nullable(),
-  lat: z.number().nullable(),
-  lng: z.number().nullable(),
-  status: z.enum(["pending", "visible", "hidden", "removed"]),
-  like_count: z.number().int(),
-  liked_by_me: z.boolean(),
-  media: z.array(media),
-  created_at: z.date(),
-});
-type Post = z.infer<typeof post>;
-
-interface PostRow extends Omit<Post, "media"> {
-  media: { position: number; storage_key: string; variants: Record<string, string>; width: number | null; height: number | null; blurhash: string | null }[];
-}
 
 const postParams = z.object({ id: z.guid() });
 const noContent = { 204: z.null() };
@@ -48,48 +20,12 @@ const decodeCursor = (cursor: string) => {
   return { createdAt, id };
 };
 
-const postSelect = (tx: Tx, me: string) => tx`
-  p.id, p.event_id, p.caption, p.place_name, p.status, p.like_count, p.created_at,
-  extensions.st_y(p.location::extensions.geometry) as lat,
-  extensions.st_x(p.location::extensions.geometry) as lng,
-  json_build_object('id', a.id, 'username', a.username, 'display_name', a.display_name) as author,
-  exists (select 1 from public.likes l where l.post_id = p.id and l.user_id = ${me}) as liked_by_me,
-  coalesce((
-    select json_agg(json_build_object(
-      'position', m.position, 'storage_key', m.storage_key, 'variants', m.variants,
-      'width', m.width, 'height', m.height, 'blurhash', m.blurhash) order by m.position)
-    from public.post_media m where m.post_id = p.id
-  ), '[]'::json) as media
-`;
-
 export const postsRoutes: FastifyPluginAsyncZod<{
   db: Db;
   storage: MediaStorage | null;
   mediaBaseUrl: string | undefined;
 }> = async (app, { db, storage, mediaBaseUrl }) => {
-  const mediaUrl = (key: string) => (mediaBaseUrl ? `${mediaBaseUrl}/${key}` : null);
-
-  // Photos are only served once the worker has checked them; until then the
-  // author sees their own pending post without image URLs.
-  const toPost = (row: PostRow): Post => ({
-    ...row,
-    media: row.media.map((m) => ({
-      position: m.position,
-      url: row.status === "visible" ? mediaUrl(m.storage_key) : null,
-      thumbnails:
-        row.status === "visible"
-          ? Object.fromEntries(
-              Object.entries(m.variants).flatMap(([size, key]) => {
-                const url = mediaUrl(key);
-                return url ? [[size, url]] : [];
-              }),
-            )
-          : {},
-      width: m.width,
-      height: m.height,
-      blurhash: m.blurhash,
-    })),
-  });
+  const toPost = postMapper(mediaBaseUrl);
 
   const loadPost = async (tx: Tx, me: string, id: string) => {
     const [row] = await tx`
