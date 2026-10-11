@@ -14,11 +14,6 @@ kotlin {
     jvm {
         compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
     }
-    if (!noAndroid) {
-        androidTarget {
-            compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
-        }
-    }
     iosArm64()
     iosSimulatorArm64()
 
