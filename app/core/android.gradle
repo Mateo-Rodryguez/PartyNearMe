@@ -1,0 +1,13 @@
+// Android library setup for :core, applied only when Android is part of the
+// build (not with -Ppnm.noAndroid). Groovy, so it needs no Android classes to compile.
+apply plugin: 'com.android.library'
+
+android {
+    namespace = 'com.partynearme.core'
+    compileSdk = 36
+    defaultConfig { minSdk = 26 }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+}
