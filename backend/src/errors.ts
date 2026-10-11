@@ -18,6 +18,9 @@ const pgErrors: Record<string, [number, string]> = {
   "23514": [400, "Invalid value"],
   "22P02": [400, "Invalid value"],
   "42501": [403, "Not allowed"],
+  // Raised by our own database functions with a message meant for the client.
+  "22023": [400, ""],
+  P0002: [404, ""],
 };
 
 export function registerErrorHandler(app: FastifyInstance): void {
@@ -29,9 +32,12 @@ export function registerErrorHandler(app: FastifyInstance): void {
         issues: err.validation.map((v) => ({ path: v.instancePath, message: v.message })),
       });
     }
+    if (err instanceof HttpError) {
+      return reply.status(err.statusCode).send({ error: "request_failed", message: err.message });
+    }
     const pg = err.code ? pgErrors[err.code] : undefined;
     if (pg) {
-      return reply.status(pg[0]).send({ error: "request_failed", message: pg[1] });
+      return reply.status(pg[0]).send({ error: "request_failed", message: pg[1] || err.message });
     }
     const status = err.statusCode ?? 500;
     if (status >= 500) {
