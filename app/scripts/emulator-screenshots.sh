@@ -30,7 +30,7 @@ shot() {
 shot 00-real-app
 # Sample data (debug builds only), one screen at a time.
 n=1
-for screen in sign_in feed nearby event new_event post inbox chat profile user; do
+for screen in sign_in feed nearby event new_event map_picker post inbox chat profile user; do
   shot "$(printf '%02d' "$n")-$screen" --es demo "$screen"
   n=$((n + 1))
 done

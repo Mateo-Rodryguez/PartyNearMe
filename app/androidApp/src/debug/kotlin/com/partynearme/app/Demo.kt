@@ -47,7 +47,8 @@ object Demo {
         when (screen) {
             "nearby" -> nav.select(Tab.Nearby)
             "event" -> { nav.select(Tab.Nearby); nav.open(Route.Event("e1")) }
-            "new_event" -> { nav.select(Tab.Nearby); nav.open(Route.NewEvent) }
+            "new_event" -> { nav.select(Tab.Nearby); nav.open(Route.NewEvent()) }
+            "map_picker" -> { nav.select(Tab.Nearby); nav.open(Route.NewEvent(pickOnMap = true)) }
             "post" -> nav.select(Tab.Post)
             "inbox" -> nav.select(Tab.Chat)
             "chat" -> { nav.select(Tab.Chat); nav.open(Route.Chat("c1", "@sam")) }

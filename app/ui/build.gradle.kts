@@ -29,6 +29,10 @@ kotlin {
             implementation(libs.coil.network.ktor)
             implementation(libs.kotlinx.datetime)
             implementation(libs.kotlinx.coroutines.core)
+            implementation(libs.maplibre.compose)
+        }
+        androidMain.dependencies {
+            implementation(libs.maplibre.runtime.opengl)
         }
     }
 }
