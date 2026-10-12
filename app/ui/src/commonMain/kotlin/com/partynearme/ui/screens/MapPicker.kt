@@ -18,11 +18,13 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.partynearme.core.model.LatLng
 import org.maplibre.compose.camera.CameraPosition
+import org.maplibre.compose.map.MapUiOptions
 import org.maplibre.compose.map.MaplibreMap
 import org.maplibre.compose.map.rememberMapState
 import org.maplibre.compose.style.BaseStyle
@@ -41,9 +43,16 @@ fun MapPicker(start: LatLng?, onPicked: (LatLng) -> Unit, onCancel: () -> Unit) 
         baseStyle = BaseStyle.Uri(MAP_STYLE),
         initialCameraPosition = CameraPosition(
             center = Position(longitude = start?.lng ?: 0.0, latitude = start?.lat ?: 20.0),
-            zoom = if (start != null) 15.0 else 1.5,
+            zoom = if (start != null) 15.0 else WORLD_ZOOM,
         ),
     )
+    // The phone's location often arrives after the map opens: go there, unless the
+    // user has already zoomed in somewhere themselves.
+    LaunchedEffect(start) {
+        if (start != null && map.cameraPosition.zoom <= WORLD_ZOOM + 0.5) {
+            map.setCameraPosition(CameraPosition(center = Position(longitude = start.lng, latitude = start.lat), zoom = 15.0))
+        }
+    }
     Box(Modifier.fillMaxSize()) {
         MaplibreMap(modifier = Modifier.fillMaxSize(), state = map)
         // The pin's tip marks the centre of the map.
@@ -75,7 +84,12 @@ fun MapPicker(start: LatLng?, onPicked: (LatLng) -> Unit, onCancel: () -> Unit) 
     }
 }
 
-/** A small map with the party's pin, for the event page. */
+private const val WORLD_ZOOM = 1.5
+
+/** Map options for a small map inside a scrolling page; see the platform versions. */
+internal expect fun embeddedMapOptions(): MapUiOptions
+
+/** A small map with the party's pin, for the event page. It doesn't move, so the page scrolls freely. */
 @Composable
 fun PartyMap(spot: LatLng, modifier: Modifier = Modifier) {
     val map = rememberMapState(
@@ -83,7 +97,7 @@ fun PartyMap(spot: LatLng, modifier: Modifier = Modifier) {
         initialCameraPosition = CameraPosition(center = Position(longitude = spot.lng, latitude = spot.lat), zoom = 15.0),
     )
     Box(modifier) {
-        MaplibreMap(modifier = Modifier.fillMaxSize(), state = map)
+        MaplibreMap(modifier = Modifier.fillMaxSize(), state = map, uiOptions = embeddedMapOptions())
         Icon(
             Icons.Filled.Place,
             contentDescription = "The party is here",
