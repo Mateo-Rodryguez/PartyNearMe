@@ -2,12 +2,14 @@ package com.partynearme.core
 
 import com.partynearme.core.api.ApiClient
 import com.partynearme.core.api.InteractionLog
+import com.partynearme.core.api.Realtime
 import com.partynearme.core.auth.AuthClient
 import com.partynearme.core.auth.SessionManager
 import com.partynearme.core.auth.SessionStore
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.HttpTimeout
+import io.ktor.client.plugins.websocket.WebSockets
 import kotlin.time.Clock
 
 /** Wires the shared pieces together once per app. */
@@ -29,4 +31,8 @@ class PartyNearMe(
     val sessions = SessionManager(auth, store, now)
     val api = ApiClient(http, config, sessions)
     val interactions = InteractionLog(api::logInteractions)
+
+    // A separate client: the request timeout above would cut long-lived sockets.
+    private val sockets = HttpClient(engine) { install(WebSockets) }
+    val realtime = Realtime(sockets, config, sessions)
 }
