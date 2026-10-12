@@ -61,8 +61,9 @@ class InboxState(ui: Ui, scope: CoroutineScope) {
 @Composable
 fun InboxScreen(ui: Ui, state: InboxState) {
     val paged = state.paged
-    // Always fresh when you open the tab.
+    // Always fresh when you open the tab, and again whenever a message arrives.
     LaunchedEffect(Unit) { paged.refresh() }
+    LaunchedEffect(Unit) { ui.app.realtime.messages(null).collect { paged.refresh() } }
     Column {
         TitleBar("Messages")
         PullToRefreshBox(
@@ -106,7 +107,7 @@ fun InboxScreen(ui: Ui, state: InboxState) {
     }
 }
 
-/** A conversation. New messages arrive by checking every few seconds while it is open. */
+/** A conversation. New messages arrive live; a slow check also catches anything missed while offline. */
 @Composable
 fun ChatScreen(ui: Ui, conversationId: String, title: String, onLeave: () -> Unit) {
     val scope = rememberCoroutineScope()
@@ -140,7 +141,13 @@ fun ChatScreen(ui: Ui, conversationId: String, title: String, onLeave: () -> Uni
                     first = false
                 }
                 .onFailure { if (first) error = it.userMessage }
-            delay(4_000)
+            delay(30_000)
+        }
+    }
+    LaunchedEffect(conversationId) {
+        ui.app.realtime.messages(conversationId).collect { message ->
+            merge(listOf(message))
+            if (message.senderId != ui.myId) attempt { ui.api.markRead(conversationId) }
         }
     }
     DisposableEffect(conversationId) { onDispose(onLeave) }
