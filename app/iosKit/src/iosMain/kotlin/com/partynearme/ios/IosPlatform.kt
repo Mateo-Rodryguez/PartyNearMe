@@ -27,6 +27,8 @@ import platform.CoreLocation.kCLAuthorizationStatusAuthorizedWhenInUse
 import platform.CoreLocation.kCLAuthorizationStatusNotDetermined
 import platform.CoreLocation.kCLLocationAccuracyHundredMeters
 import platform.Foundation.NSData
+import platform.Foundation.NSDate
+import platform.Foundation.timeIntervalSinceDate
 import platform.Foundation.NSError
 import platform.PhotosUI.PHPickerConfiguration
 import platform.PhotosUI.PHPickerFilter
@@ -148,7 +150,7 @@ private class LocationRequest : NSObject(), CLLocationManagerDelegateProtocol {
         if (status != kCLAuthorizationStatusAuthorizedWhenInUse && status != kCLAuthorizationStatusAuthorizedAlways) {
             return@withContext null
         }
-        val recent = manager.location?.takeIf { -it.timestamp.timeIntervalSinceNow < FRESH_FIX_SECONDS }
+        val recent = manager.location?.takeIf { NSDate().timeIntervalSinceDate(it.timestamp) < FRESH_FIX_SECONDS }
         val fix = recent ?: withTimeoutOrNull(15_000) {
             suspendCancellableCoroutine { cont ->
                 onLocation = { if (cont.isActive) cont.resume(it) }
