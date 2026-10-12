@@ -5,8 +5,8 @@
 - `core`: talking to the API and Supabase sign-in, shared by Android and iOS.
 - `ui`: every screen, in Compose Multiplatform.
 - `androidApp`: the Android wrapper (photo picker, location, app icon).
-
-The iOS wrapper comes with the iOS milestone.
+- `iosKit` and `iosApp`: the iPhone wrapper (photo picker, location) and its Xcode project.
+- `demo`: sample data for screenshots, only in debug builds.
 
 ## Trying it on an Android phone
 
@@ -27,6 +27,20 @@ needed: `adb shell am start -n com.partynearme.app/.MainActivity --es demo feed`
 opens the feed. The other screens are `sign_in`, `nearby`, `event`, `new_event`,
 `map_picker`, `post`, `inbox`, `chat`, `profile` and `user`. Release builds ignore this.
 
+## iPhone
+
+There is no Mac needed: CI builds the iPhone app on a cloud Mac (free for public
+repositories), opens every screen on an iPhone simulator and puts the screenshots
+on the `ios-screenshots` branch. On a simulator,
+`xcrun simctl launch booted com.partynearme.app -demo feed` opens a sample screen.
+
+Installing on a real iPhone without a Mac goes through TestFlight, which needs the
+Apple Developer Program ($99 a year); that comes with the store milestone.
+
+With a Mac: install XcodeGen (`brew install xcodegen`), run `xcodegen generate` in
+`app/iosApp`, open `PartyNearMe.xcodeproj` and press Run. The Xcode build runs Gradle
+to compile the Kotlin code first.
+
 ## Building
 
 GitHub Actions builds the app on every change (`.github/workflows/app.yml`).
@@ -36,5 +50,6 @@ Without the Android SDK, `./gradlew -Ppnm.noAndroid :core:jvmTest` still runs th
 ## Settings in the app
 
 The API address, Supabase URL and Supabase publishable key are in
-`androidApp/src/main/kotlin/com/partynearme/app/PartyApp.kt`. All three are public;
+`androidApp/src/main/kotlin/com/partynearme/app/PartyApp.kt` and
+`iosKit/src/iosMain/kotlin/com/partynearme/ios/MainViewController.kt`. All three are public;
 no secret keys belong in the app.

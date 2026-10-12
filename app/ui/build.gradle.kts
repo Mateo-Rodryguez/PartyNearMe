@@ -8,12 +8,8 @@ plugins {
 apply(from = "android.gradle")
 
 kotlin {
-    listOf(iosArm64(), iosSimulatorArm64()).forEach {
-        it.binaries.framework {
-            baseName = "PartyNearMeUI"
-            isStatic = true
-        }
-    }
+    iosArm64()
+    iosSimulatorArm64()
 
     applyDefaultHierarchyTemplate()
 

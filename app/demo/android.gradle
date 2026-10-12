@@ -1,0 +1,10 @@
+// Android library setup for :demo; see core/android.gradle.
+apply plugin: 'com.android.kotlin.multiplatform.library'
+
+kotlin {
+    android {
+        namespace = 'com.partynearme.demo'
+        compileSdk = 37
+        minSdk = 26
+    }
+}

@@ -86,3 +86,69 @@ jobs:
           git add -A
           git commit -q -m "Screenshots for ${GITHUB_SHA::7}"
           git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" app-screenshots
+
+  # iPhone build on a cloud Mac (free for public repositories), screenshotted on a simulator.
+  ios:
+    runs-on: macos-26
+    permissions:
+      contents: write # publishes the screenshots to the ios-screenshots branch
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/cache@v4
+        with:
+          path: ~/.konan
+          key: konan-${{ runner.os }}-${{ hashFiles('app/gradle/libs.versions.toml') }}
+      - name: Shared code tests on iOS
+        run: ./gradlew --no-configuration-cache :core:iosSimulatorArm64Test
+      - name: Build the iPhone app for the simulator
+        run: |
+          xcodebuild -version
+          brew list xcodegen > /dev/null 2>&1 || brew install xcodegen
+          cd iosApp
+          xcodegen generate
+          xcodebuild -project PartyNearMe.xcodeproj -scheme PartyNearMe -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+      - name: Open every screen on an iPhone simulator
+        run: |
+          udid=$(xcrun simctl list devices available -j \
+            | jq -r '[.devices | to_entries[] | select(.key | test("iOS")) | .value[] | select(.name | startswith("iPhone"))] | last | .udid')
+          xcrun simctl list devices available | grep "$udid"
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b > /dev/null
+          bash scripts/ios-simulator-screenshots.sh iosApp/build/Build/Products/Debug-iphonesimulator/PartyNearMe.app ../screenshots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: partynearme-ios-screenshots
+          path: screenshots
+          retention-days: 14
+      - name: Publish screenshots to the ios-screenshots branch
+        if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE: ${{ github.head_ref || github.ref_name }}
+        run: |
+          [ -d screenshots ] || exit 0
+          cd screenshots
+          {
+            echo "# iPhone screenshots"
+            echo
+            echo "From \`$SOURCE\` at ${GITHUB_SHA::7}, taken on an iPhone simulator."
+            for f in *.png; do echo; echo "## ${f%.png}"; echo; echo "<img src=\"$f\" width=\"320\">"; done
+          } > README.md
+          git init -q -b ios-screenshots
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "iPhone screenshots for ${GITHUB_SHA::7}"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ios-screenshots
