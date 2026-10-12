@@ -78,6 +78,12 @@ class IosPlatform : Platform {
 
     @Composable
     override fun rememberLocationProvider(): LocationProvider = remember { LocationProvider { LocationRequest().run() } }
+
+    // iPhone push needs an APNs key from the paid Apple Developer account; until then, none.
+    @Composable
+    override fun rememberPushTokenProvider(): suspend () -> String? = { null }
+
+    override val pushPlatform = "ios"
 }
 
 private class PhotoPickerDelegate(private val onResults: (List<PHPickerResult>) -> Unit) :

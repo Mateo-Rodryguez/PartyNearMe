@@ -77,7 +77,7 @@ fun MeScreen(ui: Ui) {
                     DropdownMenuItem(text = { Text("Edit profile") }, onClick = { menu = false; editing = true })
                     DropdownMenuItem(text = { Text("Sign out") }, onClick = {
                         menu = false
-                        scope.launch { ui.app.interactions.flush(); ui.app.sessions.signOut() }
+                        scope.launch { ui.app.interactions.flush(); ui.app.signOut() }
                     })
                 }
             }

@@ -47,6 +47,14 @@ GitHub Actions builds the app on every change (`.github/workflows/app.yml`).
 Locally, with the Android SDK installed, run `./gradlew :androidApp:assembleDebug` in `app/`.
 Without the Android SDK, `./gradlew -Ppnm.noAndroid :core:jvmTest` still runs the shared tests.
 
+## Push notifications
+
+Android asks to show notifications once the account is set up, then sends the
+phone's Firebase token to the server. This needs `androidApp/google-services.json`
+from the Firebase console (steps in docs/deploy.md); a build without it works the
+same, just without push. Tapping a notification opens the chat or party it is about.
+iPhone push comes with the Apple Developer account.
+
 ## Settings in the app
 
 The API address, Supabase URL and Supabase publishable key are in
