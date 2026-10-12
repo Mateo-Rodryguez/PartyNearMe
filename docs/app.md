@@ -16,6 +16,17 @@ The iOS wrapper comes with the iOS milestone.
 
 The free server sleeps when nobody uses it, so the first screen can take up to a minute.
 
+## Seeing it without a phone
+
+CI also starts the app on an Android emulator, opens every screen and takes a
+screenshot. They are on the `app-screenshots` branch (open its README on GitHub)
+and in the `partynearme-screenshots` download on each run.
+
+Most screens use sample data built into debug builds, so no server or account is
+needed: `adb shell am start -n com.partynearme.app/.MainActivity --es demo feed`
+opens the feed. The other screens are `sign_in`, `nearby`, `event`, `new_event`,
+`post`, `inbox`, `chat`, `profile` and `user`. Release builds ignore this.
+
 ## Building
 
 GitHub Actions builds the app on every change (`.github/workflows/app.yml`).

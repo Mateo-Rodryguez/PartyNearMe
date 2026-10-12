@@ -14,11 +14,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val platform = AndroidPlatform(this)
+        val demo = Demo.setUp(intent)
+        val core = demo?.core ?: app.core
+        val platform = demo?.platform ?: AndroidPlatform(this)
+        val nav = demo?.navigator ?: app.navigator
         setContent {
-            val nav = app.navigator
             BackHandler(enabled = nav.canGoBack) { nav.back() }
-            App(app.core, platform, nav)
+            App(core, platform, nav)
         }
     }
 

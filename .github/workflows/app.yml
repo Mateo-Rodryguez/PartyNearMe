@@ -32,3 +32,57 @@ jobs:
           name: partynearme-debug-apk
           path: app/androidApp/build/outputs/apk/debug/*.apk
           retention-days: 14
+
+  emulator:
+    needs: android
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # publishes the screenshots to the app-screenshots branch
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: partynearme-debug-apk
+          path: apk
+      - name: Enable hardware acceleration for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Open every screen on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash app/scripts/emulator-screenshots.sh apk/androidApp-debug.apk screenshots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: partynearme-screenshots
+          path: screenshots
+          retention-days: 14
+      # A branch of images, so the screens can be viewed on GitHub without downloading anything.
+      - name: Publish screenshots to the app-screenshots branch
+        if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE: ${{ github.head_ref || github.ref_name }}
+        run: |
+          [ -d screenshots ] || exit 0
+          cd screenshots
+          {
+            echo "# App screenshots"
+            echo
+            echo "From \`$SOURCE\` at ${GITHUB_SHA::7}, taken on an Android emulator."
+            for f in *.png; do echo; echo "## ${f%.png}"; echo; echo "<img src=\"$f\" width=\"320\">"; done
+          } > README.md
+          git init -q -b app-screenshots
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Screenshots for ${GITHUB_SHA::7}"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" app-screenshots
