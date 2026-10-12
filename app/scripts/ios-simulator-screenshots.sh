@@ -14,7 +14,10 @@ xcrun simctl install booted "$app" || exit 1
 xcrun simctl privacy booted grant location "$bundle" || true
 
 running() {
-  xcrun simctl spawn booted launchctl list | grep -q "UIKitApplication:$bundle"
+  # Read the whole list first: `grep -q` stopping early would break the pipe.
+  local list
+  list=$(xcrun simctl spawn booted launchctl list)
+  [[ "$list" == *"UIKitApplication:$bundle"* ]]
 }
 
 shot() {
