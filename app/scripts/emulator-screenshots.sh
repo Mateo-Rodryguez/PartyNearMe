@@ -36,6 +36,8 @@ for screen in sign_in feed nearby event new_event map_picker post inbox chat pro
 done
 
 adb logcat -d -b crash > "$out/crash-log.txt" || true
+# Map messages, to see why a map stays blank.
+adb logcat -d | grep -iE "maplibre|mlnffi" | tail -n 300 > "$out/map-log.txt" || true
 if grep -q "FATAL EXCEPTION" "$out/crash-log.txt"; then
   echo "::error::The app crashed. See crash-log.txt"
   cat "$out/crash-log.txt"
