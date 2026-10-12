@@ -27,5 +27,6 @@ class PartyApp : Application() {
         super.onCreate()
         val prefs = getSharedPreferences("partynearme", Context.MODE_PRIVATE)
         core = PartyNearMe(CONFIG, SettingsSessionStore(SharedPreferencesSettings(prefs)), OkHttp.create())
+        createPushChannel(this)
     }
 }

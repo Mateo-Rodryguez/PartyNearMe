@@ -19,6 +19,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import com.google.firebase.FirebaseApp
+import com.google.firebase.messaging.FirebaseMessaging
 import com.partynearme.core.model.LatLng
 import com.partynearme.ui.LocationProvider
 import com.partynearme.ui.PickedPhoto
@@ -26,6 +28,7 @@ import com.partynearme.ui.Platform
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -75,6 +78,32 @@ class AndroidPlatform(private val context: Context) : Platform {
             }
         }
     }
+
+    @Composable
+    override fun rememberPushTokenProvider(): suspend () -> String? {
+        val pending = remember { arrayOfNulls<CompletableDeferred<Boolean>>(1) }
+        val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            pending[0]?.complete(granted)
+        }
+        return remember(launcher) {
+            suspend {
+                val allowed = Build.VERSION.SDK_INT < 33 ||
+                    context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED ||
+                    CompletableDeferred<Boolean>().also {
+                        pending[0] = it
+                        launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }.await()
+                // No Firebase settings in this build (no google-services.json): no push.
+                if (allowed && FirebaseApp.getApps(context).isNotEmpty()) {
+                    runCatching { FirebaseMessaging.getInstance().token.await() }.getOrNull()
+                } else {
+                    null
+                }
+            }
+        }
+    }
+
+    override val pushPlatform = "android"
 
     private fun hasLocationPermission() = listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
         .any { context.checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }

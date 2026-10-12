@@ -19,4 +19,14 @@ interface Platform {
 
     @Composable
     fun rememberLocationProvider(): LocationProvider
+
+    /**
+     * Returns a function that asks for permission to show notifications if needed and
+     * gives this phone's push token, or null when push isn't available or allowed.
+     */
+    @Composable
+    fun rememberPushTokenProvider(): suspend () -> String?
+
+    /** The platform name the server expects with a push token: "android" or "ios". */
+    val pushPlatform: String
 }

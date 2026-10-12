@@ -29,11 +29,14 @@ Push stays off until `FIREBASE_SERVICE_ACCOUNT` is set; messages and RSVPs
 still work without it.
 
 1. Create a project at console.firebase.google.com (Analytics can stay off).
-2. Project settings > Service accounts > Generate new private key. This
+2. Add an Android app with the package name `com.partynearme.app` and download
+   its `google-services.json`. It holds public IDs only; it goes in
+   `app/androidApp/` so the app can get a push token (see docs/app.md).
+3. Project settings > Service accounts > Generate new private key. This
    downloads a JSON file.
-3. In Render, add `FIREBASE_SERVICE_ACCOUNT` and paste the whole file contents
+4. In Render, add `FIREBASE_SERVICE_ACCOUNT` and paste the whole file contents
    as the value. It is a secret: never commit it or paste it into chat.
-4. For iPhones, later: Project settings > Cloud Messaging > upload the APNs key
+5. For iPhones, later: Project settings > Cloud Messaging > upload the APNs key
    from the Apple developer account.
 
 ## Notes

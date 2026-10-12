@@ -35,4 +35,27 @@ class PartyNearMe(
     // A separate client: the request timeout above would cut long-lived sockets.
     private val sockets = HttpClient(engine) { install(WebSockets) }
     val realtime = Realtime(sockets, config, sessions)
+
+    /** This phone's push token once it is registered, so signing out can remove it. */
+    var pushToken: String? = null
+
+    /** Registers this phone for the signed-in user's notifications. */
+    suspend fun registerForPush(token: String, platform: String) {
+        api.registerDevice(token, platform)
+        pushToken = token
+    }
+
+    /** Signs out, first stopping this phone getting the user's notifications. */
+    suspend fun signOut() {
+        pushToken?.let { token ->
+            // Best effort: signing out must work offline too.
+            try {
+                api.unregisterDevice(token)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+            }
+        }
+        pushToken = null
+        sessions.signOut()
+    }
 }

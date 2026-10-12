@@ -179,4 +179,31 @@ class ClientTest {
         assertEquals("""{"events":[{"kind":"dwell","post_id":"p1","dwell_ms":1200}]}""", bodies[0])
         assertEquals("""{"display_name":"Sam"}""", bodies[1])
     }
+
+    @Test
+    fun signOutUnregistersThePhoneFirst() = runTest {
+        val calls = mutableListOf<String>()
+        val app = app(MemorySessionStore(session())) { request ->
+            calls += "${request.method.value} ${request.url.encodedPath}"
+            respond("", HttpStatusCode.NoContent)
+        }
+        app.registerForPush("tok-123456789", "android")
+        app.signOut()
+        assertEquals(
+            listOf("PUT /devices/tok-123456789", "DELETE /devices/tok-123456789", "POST /auth/v1/logout"),
+            calls,
+        )
+        assertNull(app.sessions.session.value)
+        assertNull(app.pushToken)
+    }
+
+    @Test
+    fun signOutWorksWhenTheServerIsUnreachable() = runTest {
+        val app = app(MemorySessionStore(session())) { request ->
+            if (request.url.encodedPath.startsWith("/devices")) error("offline") else respond("", HttpStatusCode.NoContent)
+        }
+        app.pushToken = "tok-123456789"
+        app.signOut()
+        assertNull(app.sessions.session.value)
+    }
 }

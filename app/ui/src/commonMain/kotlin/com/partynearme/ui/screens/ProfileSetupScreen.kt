@@ -76,6 +76,6 @@ fun ProfileSetupScreen(app: PartyNearMe, profile: OwnProfile, onDone: (OwnProfil
                 }
             },
         ) { Text("Continue") }
-        TextButton(onClick = { scope.launch { app.sessions.signOut() } }) { Text("Sign out") }
+        TextButton(onClick = { scope.launch { app.signOut() } }) { Text("Sign out") }
     }
 }

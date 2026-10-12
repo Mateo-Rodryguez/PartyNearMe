@@ -63,6 +63,11 @@ private object DemoPlatform : Platform {
 
     @Composable
     override fun rememberLocationProvider() = LocationProvider { LatLng(51.5136, -0.1365) }
+
+    @Composable
+    override fun rememberPushTokenProvider(): suspend () -> String? = { null }
+
+    override val pushPlatform = "android"
 }
 
 private const val ME = "00000000-0000-4000-8000-000000000001"

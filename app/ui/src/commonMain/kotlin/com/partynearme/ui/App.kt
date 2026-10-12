@@ -116,6 +116,11 @@ private fun Main(app: PartyNearMe, platform: Platform, nav: Navigator, userId: S
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
     val location = platform.rememberLocationProvider()
+    val pushToken = platform.rememberPushTokenProvider()
+    // Ask for notifications once the account is set up, then tell the server where to send them.
+    LaunchedEffect(userId) {
+        pushToken()?.let { token -> attempt { app.registerForPush(token, platform.pushPlatform) } }
+    }
     val ui = remember(location) {
         Ui(app, nav, userId, location, platform) { text -> scope.launch { snackbar.showSnackbar(text) } }
     }
