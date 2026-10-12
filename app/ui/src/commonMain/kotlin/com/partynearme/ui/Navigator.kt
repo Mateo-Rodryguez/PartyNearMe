@@ -10,7 +10,8 @@ enum class Tab { Feed, Nearby, Post, Chat, Me }
 /** Screens opened on top of a tab. */
 sealed interface Route {
     data class Event(val id: String) : Route
-    data object NewEvent : Route
+    /** [pickOnMap] opens straight onto the map, for screenshots. */
+    data class NewEvent(val pickOnMap: Boolean = false) : Route
     data class User(val id: String) : Route
     data class Chat(val conversationId: String, val title: String) : Route
     data class Post(val id: String) : Route

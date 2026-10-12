@@ -21,6 +21,7 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -29,6 +30,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.partynearme.core.model.LatLng
 import com.partynearme.core.model.NewEvent
 import com.partynearme.ui.Ui
 import com.partynearme.ui.attempt
@@ -49,7 +51,7 @@ private val DURATIONS = listOf(2, 4, 6, 8, 12)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun NewEventScreen(ui: Ui, onCreated: () -> Unit) {
+fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, onCreated: () -> Unit) {
     val scope = rememberCoroutineScope()
     val zone = remember { TimeZone.currentSystemDefault() }
     var title by remember { mutableStateOf("") }
@@ -65,8 +67,21 @@ fun NewEventScreen(ui: Ui, onCreated: () -> Unit) {
     var pickDate by remember { mutableStateOf(false) }
     var pickTime by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
+    // Null means "where I am now", worked out when publishing.
+    var spot by remember { mutableStateOf<LatLng?>(null) }
+    var picking by remember { mutableStateOf(pickOnMap) }
+    var mapStart by remember { mutableStateOf<LatLng?>(null) }
+    LaunchedEffect(Unit) { mapStart = ui.location.current() }
     var error by remember { mutableStateOf<String?>(null) }
 
+    if (picking) {
+        MapPicker(
+            start = spot ?: mapStart,
+            onPicked = { spot = it; picking = false },
+            onCancel = { picking = false },
+        )
+        return
+    }
     if (pickDate) {
         val state = rememberDatePickerState(initialSelectedDateMillis = start.toLocalDateTime(zone).date.utcMillis())
         DatePickerDialog(
@@ -120,10 +135,10 @@ fun NewEventScreen(ui: Ui, onCreated: () -> Unit) {
             OutlinedTextField(description, { description = it.take(2000) }, label = { Text("Details (optional)") },
                 minLines = 3, modifier = Modifier.fillMaxWidth())
             Text(
-                "The party is pinned where you are now. Picking a spot on a map comes later.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                if (spot == null) "Where: where you are now" else "Where: the spot you picked on the map",
+                style = MaterialTheme.typography.titleSmall,
             )
+            OutlinedButton(onClick = { picking = true }) { Text(if (spot == null) "Pick on the map" else "Change on the map") }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             Button(
                 enabled = title.isNotBlank() && !busy,
@@ -132,7 +147,7 @@ fun NewEventScreen(ui: Ui, onCreated: () -> Unit) {
                     busy = true
                     error = null
                     scope.launch {
-                        val here = ui.location.current()
+                        val here = spot ?: ui.location.current()
                         if (here == null) {
                             error = "Turn on location so people can find your party."
                         } else {

@@ -17,8 +17,12 @@ shot() {
   shift
   adb shell am force-stop "$pkg"
   adb shell am start -W -n "$pkg/.MainActivity" "$@" > /dev/null
-  # Time for sample photos to load from the internet.
-  sleep 8
+  # Time for sample photos and map tiles to load from the internet. Maps get
+  # longer: the emulator draws them in software, a few seconds behind a phone.
+  case "$name" in
+    *event*|*map*) sleep 16 ;;
+    *) sleep 8 ;;
+  esac
   adb exec-out screencap -p > "$out/$name.png"
   if ! adb shell pidof "$pkg" > /dev/null; then
     echo "::error::The app was not running after opening $name"
@@ -30,12 +34,14 @@ shot() {
 shot 00-real-app
 # Sample data (debug builds only), one screen at a time.
 n=1
-for screen in sign_in feed nearby event new_event post inbox chat profile user; do
+for screen in sign_in feed nearby event new_event map_picker post inbox chat profile user; do
   shot "$(printf '%02d' "$n")-$screen" --es demo "$screen"
   n=$((n + 1))
 done
 
 adb logcat -d -b crash > "$out/crash-log.txt" || true
+# Map messages, to see why a map stays blank.
+adb logcat -d | grep -iE "maplibre|mlnffi" | tail -n 300 > "$out/map-log.txt" || true
 if grep -q "FATAL EXCEPTION" "$out/crash-log.txt"; then
   echo "::error::The app crashed. See crash-log.txt"
   cat "$out/crash-log.txt"

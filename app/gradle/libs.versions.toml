@@ -11,6 +11,8 @@ datetime = "0.8.0"
 icons = "1.7.3"
 coil = "3.6.3"
 settings = "1.3.0"
+maplibre-compose = "0.20.0"
+maplibre-native = "0.202610.0"
 activity-compose = "1.11.0"
 android-compileSdk = "37"
 android-minSdk = "26"
@@ -40,6 +42,9 @@ compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", v
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose-multiplatform" }
 compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-material3" }
 lifecycle-viewmodel-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
+maplibre-compose = { module = "org.maplibre.compose:maplibre-compose", version.ref = "maplibre-compose" }
+# Android draws maps with OpenGL ES, which every supported phone has (iOS uses Metal, pulled in automatically).
+maplibre-runtime-opengl = { module = "org.maplibre.nativeffi:maplibre-native-ffi-runtime-opengl", version.ref = "maplibre-native" }
 compose-icons = { module = "org.jetbrains.compose.material:material-icons-core", version.ref = "icons" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "datetime" }
 coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" }

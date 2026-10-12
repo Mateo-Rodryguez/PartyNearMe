@@ -155,7 +155,7 @@ private fun Main(app: PartyNearMe, platform: Platform, nav: Navigator, userId: S
         Box(Modifier.padding(padding).consumeWindowInsets(padding)) {
             when (val route = nav.top) {
                 is Route.Event -> EventScreen(ui, route.id)
-                Route.NewEvent -> NewEventScreen(ui) { nearby.paged.refresh() }
+                is Route.NewEvent -> NewEventScreen(ui, route.pickOnMap) { nearby.paged.refresh() }
                 is Route.User -> UserScreen(ui, route.id)
                 is Route.Chat -> ChatScreen(ui, route.conversationId, route.title) { inbox.paged.refresh() }
                 is Route.Post -> PostScreen(ui, route.id)

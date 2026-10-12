@@ -95,7 +95,7 @@ fun NearbyScreen(ui: Ui, state: NearbyState) {
             }
         }
         ExtendedFloatingActionButton(
-            onClick = { ui.nav.open(Route.NewEvent) },
+            onClick = { ui.nav.open(Route.NewEvent()) },
             icon = { Icon(Icons.Filled.Add, null) },
             text = { Text("New party") },
             modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
