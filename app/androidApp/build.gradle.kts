@@ -30,5 +30,5 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.ktor.client.okhttp)
     // Demo mode (debug builds only): sample data for screenshots on an emulator.
-    debugImplementation(libs.ktor.client.mock)
+    debugImplementation(project(":demo"))
 }

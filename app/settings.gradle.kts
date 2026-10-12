@@ -13,4 +13,4 @@ dependencyResolutionManagement {
 
 include(":core")
 // Compose Multiplatform needs Google's Maven repository even for its JVM parts.
-if (!noAndroid) include(":ui", ":androidApp")
+if (!noAndroid) include(":ui", ":demo", ":androidApp", ":iosKit")

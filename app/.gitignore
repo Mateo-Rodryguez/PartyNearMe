@@ -5,3 +5,7 @@ local.properties
 .kotlin/
 *.iml
 captures/
+# Generated from iosApp/project.yml by XcodeGen.
+iosApp/*.xcodeproj
+iosApp/PartyNearMe/Info.plist
+xcuserdata/
