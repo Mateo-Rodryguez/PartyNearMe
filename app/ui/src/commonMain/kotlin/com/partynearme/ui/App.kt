@@ -128,7 +128,15 @@ private fun Main(app: PartyNearMe, platform: Platform, nav: Navigator, userId: S
     LaunchedEffect(Unit) {
         while (true) {
             attempt { app.api.unreadCount() }.onSuccess { unread = it }
-            delay(30_000)
+            delay(60_000)
+        }
+    }
+    LaunchedEffect(Unit) {
+        app.realtime.messages(null).collect { message ->
+            if (message.senderId != userId) {
+                delay(1_500) // Lets an open chat mark it read first.
+                attempt { app.api.unreadCount() }.onSuccess { unread = it }
+            }
         }
     }
 
