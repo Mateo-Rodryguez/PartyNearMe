@@ -111,6 +111,18 @@ export const usersRoutes: FastifyPluginAsyncZod<{ db: Db }> = async (app, { db }
     return row as z.infer<typeof publicProfile>;
   });
 
+  /**
+   * Deletes the account and everything it made: removing the auth user cascades to
+   * the profile, posts, events, messages and the rest, and the worker then deletes
+   * the photo files. Both app stores require this to be possible inside the app.
+   */
+  app.delete("/me", { schema: { response: noContent } }, async (request, reply) => {
+    // Runs as the owner: users can't touch auth.users themselves.
+    await db`delete from auth.users where id = ${request.userId}`;
+    request.log.info("account deleted");
+    return reply.status(204).send(null);
+  });
+
   const relation = (table: "follows" | "blocks", from: "follower_id" | "blocker_id", to: "followee_id" | "blocked_id") => {
     app.put(`/users/:id/${table === "follows" ? "follow" : "block"}`, {
       schema: { params: userParams, response: noContent },

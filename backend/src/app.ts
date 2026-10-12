@@ -9,6 +9,8 @@ import type { MediaStorage } from "./storage.js";
 import { chatRoutes } from "./modules/chat/routes.js";
 import { eventsRoutes } from "./modules/events/routes.js";
 import { feedRoutes } from "./modules/feed/routes.js";
+import { legalRoutes } from "./modules/legal/routes.js";
+import { moderationRoutes } from "./modules/moderation/routes.js";
 import { postsRoutes } from "./modules/posts/routes.js";
 import { usersRoutes } from "./modules/users/routes.js";
 
@@ -37,6 +39,7 @@ export async function buildApp({ config, db, verifyToken, storage }: AppDeps): P
   await app.register(rateLimit, { max: config.RATE_LIMIT_PER_MINUTE, timeWindow: "1 minute" });
 
   app.get("/health", async () => ({ status: "ok" }));
+  await app.register(legalRoutes, { contactEmail: config.CONTACT_EMAIL });
 
   // Everything below requires a signed-in user. The user id comes only from
   // the verified token, never from the request body or query.
@@ -48,6 +51,7 @@ export async function buildApp({ config, db, verifyToken, storage }: AppDeps): P
     await authed.register(postsRoutes, { db, storage, mediaBaseUrl: config.MEDIA_BASE_URL });
     await authed.register(feedRoutes, { db, mediaBaseUrl: config.MEDIA_BASE_URL });
     await authed.register(chatRoutes, { db });
+    await authed.register(moderationRoutes, { db });
   });
 
   return app;
