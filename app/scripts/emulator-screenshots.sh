@@ -17,8 +17,12 @@ shot() {
   shift
   adb shell am force-stop "$pkg"
   adb shell am start -W -n "$pkg/.MainActivity" "$@" > /dev/null
-  # Time for sample photos to load from the internet.
-  sleep 8
+  # Time for sample photos and map tiles to load from the internet. Maps get
+  # longer: the emulator draws them in software, a few seconds behind a phone.
+  case "$name" in
+    *event*|*map*) sleep 16 ;;
+    *) sleep 8 ;;
+  esac
   adb exec-out screencap -p > "$out/$name.png"
   if ! adb shell pidof "$pkg" > /dev/null; then
     echo "::error::The app was not running after opening $name"
