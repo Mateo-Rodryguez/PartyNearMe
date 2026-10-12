@@ -14,7 +14,7 @@ import kotlin.time.Clock
 
 /** Wires the shared pieces together once per app. */
 class PartyNearMe(
-    config: AppConfig,
+    val config: AppConfig,
     store: SessionStore,
     engine: HttpClientEngine,
     now: () -> Long = { Clock.System.now().epochSeconds },
@@ -57,5 +57,12 @@ class PartyNearMe(
         }
         pushToken = null
         sessions.signOut()
+    }
+
+    /** Deletes the account on the server (which also drops its push tokens), then forgets the session here. */
+    suspend fun deleteAccount() {
+        api.deleteAccount()
+        pushToken = null
+        sessions.forget()
     }
 }

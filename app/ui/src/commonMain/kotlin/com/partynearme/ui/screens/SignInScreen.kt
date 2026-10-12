@@ -2,6 +2,7 @@ package com.partynearme.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -23,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.partynearme.core.PartyNearMe
 import com.partynearme.ui.attempt
@@ -93,6 +95,16 @@ fun SignInScreen(app: PartyNearMe) {
         ) { Text(if (busy) "Please wait…" else if (creating) "Create account" else "Sign in") }
         TextButton(onClick = { creating = !creating; error = null }) {
             Text(if (creating) "I already have an account" else "New here? Create an account")
+        }
+        val legal = rememberLegalLinks(app)
+        Text(
+            "PartyNearMe is for people aged 18 and over. By continuing you agree to our Terms and Privacy policy.",
+            style = MaterialTheme.typography.bodySmall,
+            textAlign = TextAlign.Center,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(onClick = legal.terms) { Text("Terms") }
+            TextButton(onClick = legal.privacy) { Text("Privacy policy") }
         }
     }
 }

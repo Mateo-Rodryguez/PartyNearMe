@@ -44,6 +44,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.partynearme.core.api.ReportTarget
 import com.partynearme.core.model.OwnProfile
 import com.partynearme.core.model.Post
 import com.partynearme.core.model.PublicProfile
@@ -62,6 +63,8 @@ fun MeScreen(ui: Ui) {
     var stats by remember { mutableStateOf<PublicProfile?>(null) }
     var editing by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    val legal = rememberLegalLinks(ui.app)
     val posts = remember { Paged<Post>(scope) { c -> ui.api.userPosts(ui.myId, c).let { it.posts to it.nextCursor } } }
     LaunchedEffect(Unit) {
         attempt { ui.api.me() }.onSuccess { me = it }
@@ -79,6 +82,12 @@ fun MeScreen(ui: Ui) {
                         menu = false
                         scope.launch { ui.app.interactions.flush(); ui.app.signOut() }
                     })
+                    DropdownMenuItem(text = { Text("Privacy policy") }, onClick = { menu = false; legal.privacy() })
+                    DropdownMenuItem(text = { Text("Terms") }, onClick = { menu = false; legal.terms() })
+                    DropdownMenuItem(
+                        text = { Text("Delete account", color = MaterialTheme.colorScheme.error) },
+                        onClick = { menu = false; confirmDelete = true },
+                    )
                 }
             }
         }
@@ -95,6 +104,34 @@ fun MeScreen(ui: Ui) {
     if (editing && current != null) {
         EditProfileDialog(ui, current, onDismiss = { editing = false }) { me = it; editing = false }
     }
+    if (confirmDelete) DeleteAccountDialog(ui) { confirmDelete = false }
+}
+
+/** Account deletion, which app stores require inside the app. It can't be undone, so it asks first. */
+@Composable
+private fun DeleteAccountDialog(ui: Ui, onDismiss: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var busy by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = { if (!busy) onDismiss() },
+        title = { Text("Delete your account?") },
+        text = {
+            Text(
+                "This permanently deletes your profile, posts, photos, parties, messages and follows. " +
+                    "It can't be undone."
+            )
+        },
+        confirmButton = {
+            TextButton(enabled = !busy, onClick = {
+                busy = true
+                scope.launch {
+                    // On success the session ends and the app returns to sign-in by itself.
+                    attempt { ui.app.deleteAccount() }.onFailure { ui.toast(it.userMessage); busy = false }
+                }
+            }) { Text(if (busy) "Deleting…" else "Delete", color = MaterialTheme.colorScheme.error) }
+        },
+        dismissButton = { TextButton(enabled = !busy, onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 /** Someone else's profile. */
@@ -105,6 +142,7 @@ fun UserScreen(ui: Ui, id: String) {
     var error by remember { mutableStateOf<String?>(null) }
     var menu by remember { mutableStateOf(false) }
     var confirmBlock by remember { mutableStateOf(false) }
+    var reporting by remember { mutableStateOf(false) }
     val posts = remember { Paged<Post>(scope) { c -> ui.api.userPosts(id, c).let { it.posts to it.nextCursor } } }
     LaunchedEffect(id) {
         attempt { ui.api.user(id) }.onSuccess { profile = it }.onFailure { error = it.userMessage }
@@ -119,7 +157,19 @@ fun UserScreen(ui: Ui, id: String) {
                 Box {
                     IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, "More") }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                        DropdownMenuItem(text = { Text("Block") }, onClick = { menu = false; confirmBlock = true })
+                        DropdownMenuItem(text = { Text("Report") }, onClick = { menu = false; reporting = true })
+                        if (p?.isBlocked == true) {
+                            DropdownMenuItem(text = { Text("Unblock") }, onClick = {
+                                menu = false
+                                scope.launch {
+                                    attempt { ui.api.unblock(id) }
+                                        .onSuccess { profile = profile?.copy(isBlocked = false); ui.toast("Unblocked") }
+                                        .onFailure { ui.toast(it.userMessage) }
+                                }
+                            })
+                        } else {
+                            DropdownMenuItem(text = { Text("Block") }, onClick = { menu = false; confirmBlock = true })
+                        }
                     }
                 }
             }
@@ -171,7 +221,7 @@ fun UserScreen(ui: Ui, id: String) {
                     confirmBlock = false
                     scope.launch {
                         attempt { ui.api.block(id) }
-                            .onSuccess { ui.toast("Blocked"); ui.nav.back() }
+                            .onSuccess { profile = profile?.copy(isBlocked = true); ui.toast("Blocked"); ui.nav.back() }
                             .onFailure { ui.toast(it.userMessage) }
                     }
                 }) { Text("Block") }
@@ -179,6 +229,7 @@ fun UserScreen(ui: Ui, id: String) {
             dismissButton = { TextButton(onClick = { confirmBlock = false }) { Text("Cancel") } },
         )
     }
+    if (reporting) ReportDialog(ui, ReportTarget.User, id) { reporting = false }
 }
 
 @Composable

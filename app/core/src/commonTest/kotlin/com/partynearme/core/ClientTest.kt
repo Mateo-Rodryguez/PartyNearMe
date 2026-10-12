@@ -1,6 +1,7 @@
 package com.partynearme.core
 
 import com.partynearme.core.api.FeedExpiredException
+import com.partynearme.core.api.ReportTarget
 import com.partynearme.core.auth.MemorySessionStore
 import com.partynearme.core.auth.Session
 import com.partynearme.core.model.Interaction
@@ -17,6 +18,7 @@ import io.ktor.http.headersOf
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFails
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
@@ -205,5 +207,46 @@ class ClientTest {
         app.pushToken = "tok-123456789"
         app.signOut()
         assertNull(app.sessions.session.value)
+    }
+
+    @Test
+    fun deletingTheAccountEndsTheSessionWithoutALogoutCall() = runTest {
+        val calls = mutableListOf<String>()
+        val app = app(MemorySessionStore(session())) { request ->
+            calls += "${request.method.value} ${request.url.encodedPath}"
+            respond("", HttpStatusCode.NoContent)
+        }
+        app.pushToken = "tok-123456789"
+        app.deleteAccount()
+        // The server has already dropped the user and its tokens, so there is nothing to log out of.
+        assertEquals(listOf("DELETE /me"), calls)
+        assertNull(app.sessions.session.value)
+        assertNull(app.pushToken)
+    }
+
+    @Test
+    fun failedAccountDeletionKeepsYouSignedIn() = runTest {
+        val app = app(MemorySessionStore(session())) { json("""{"error":"Something went wrong"}""", HttpStatusCode.InternalServerError) }
+        assertFails { app.deleteAccount() }
+        assertEquals("a1", app.sessions.session.value?.accessToken)
+    }
+
+    @Test
+    fun reportSendsTargetAndReason() = runTest {
+        var body = ""
+        val app = app(MemorySessionStore(session())) { request ->
+            body = "${request.method.value} ${request.url.encodedPath} ${request.text()}"
+            respond("", HttpStatusCode.Created)
+        }
+        app.api.report(ReportTarget.Post, "p1", "Spam")
+        assertEquals("""POST /reports {"target_type":"post","target_id":"p1","reason":"Spam"}""", body)
+    }
+
+    @Test
+    fun profileReadsBlockedFlag() = runTest {
+        val app = app(MemorySessionStore(session())) {
+            json("""{"id":"u2","followers":0,"following":0,"is_following":false,"is_blocked":true}""")
+        }
+        assertEquals(true, app.api.user("u2").isBlocked)
     }
 }

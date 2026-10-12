@@ -1,6 +1,7 @@
 package com.partynearme.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -8,9 +9,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -25,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.partynearme.core.api.ReportTarget
 import com.partynearme.core.model.Event
 import com.partynearme.core.model.LatLng
 import com.partynearme.ui.Route
@@ -40,6 +48,8 @@ fun EventScreen(ui: Ui, id: String) {
     var event by remember { mutableStateOf<Event?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var menu by remember { mutableStateOf(false) }
+    var reporting by remember { mutableStateOf(false) }
     LaunchedEffect(id) {
         attempt { ui.api.event(id) }.onSuccess { event = it }.onFailure { error = it.userMessage }
     }
@@ -55,7 +65,16 @@ fun EventScreen(ui: Ui, id: String) {
     }
 
     Column(Modifier.verticalScroll(rememberScrollState())) {
-        BackBar(ui, event?.title ?: "Party")
+        BackBar(ui, event?.title ?: "Party") {
+            if (event != null && event?.organiser?.id != ui.myId) {
+                Box {
+                    IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, "More") }
+                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                        DropdownMenuItem(text = { Text("Report party") }, onClick = { menu = false; reporting = true })
+                    }
+                }
+            }
+        }
         val e = event
         when {
             e != null -> Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -92,4 +111,5 @@ fun EventScreen(ui: Ui, id: String) {
             else -> CircularProgressIndicator(Modifier.padding(32.dp))
         }
     }
+    if (reporting) ReportDialog(ui, ReportTarget.Event, id) { reporting = false }
 }

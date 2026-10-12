@@ -98,6 +98,20 @@ describe("following and blocking", () => {
     expect(after.json()).toMatchObject({ followers: 0, is_following: false });
   });
 
+  it("shows on the profile whether I blocked them, so the app can offer Unblock", async () => {
+    const alice = await ctx.createUser();
+    const bob = await ctx.createUser();
+    expect((await ctx.as(alice, { method: "GET", url: `/users/${bob}` })).json()).toMatchObject({ is_blocked: false });
+
+    await ctx.as(alice, { method: "PUT", url: `/users/${bob}/block` });
+    expect((await ctx.as(alice, { method: "GET", url: `/users/${bob}` })).json()).toMatchObject({ is_blocked: true });
+    // Only the blocker sees it as blocked.
+    expect((await ctx.as(bob, { method: "GET", url: `/users/${alice}` })).json()).toMatchObject({ is_blocked: false });
+
+    expect((await ctx.as(alice, { method: "DELETE", url: `/users/${bob}/block` })).statusCode).toBe(204);
+    expect((await ctx.as(alice, { method: "GET", url: `/users/${bob}` })).json()).toMatchObject({ is_blocked: false });
+  });
+
   it("cannot follow yourself or a user who doesn't exist", async () => {
     const alice = await ctx.createUser();
     expect((await ctx.as(alice, { method: "PUT", url: `/users/${alice}/follow` })).statusCode).toBe(400);

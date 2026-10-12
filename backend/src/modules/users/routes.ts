@@ -22,6 +22,7 @@ const publicProfile = z.object({
   followers: z.number().int(),
   following: z.number().int(),
   is_following: z.boolean(),
+  is_blocked: z.boolean(),
 });
 
 const profileUpdate = z
@@ -101,7 +102,8 @@ export const usersRoutes: FastifyPluginAsyncZod<{ db: Db }> = async (app, { db }
         select p.id, p.username, p.display_name, p.bio, p.avatar_key,
                (select count(*)::int from public.follows where followee_id = p.id) as followers,
                (select count(*)::int from public.follows where follower_id = p.id) as following,
-               exists (select 1 from public.follows where follower_id = ${me} and followee_id = p.id) as is_following
+               exists (select 1 from public.follows where follower_id = ${me} and followee_id = p.id) as is_following,
+               exists (select 1 from public.blocks where blocker_id = ${me} and blocked_id = p.id) as is_blocked
         from public.profiles p
         where p.id = ${request.params.id}
       `;

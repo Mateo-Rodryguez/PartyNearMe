@@ -49,6 +49,7 @@ fun PostCard(
     onLike: (Boolean) -> Unit,
     onDelete: () -> Unit,
     onNotInterested: (() -> Unit)? = null,
+    onReport: () -> Unit = {},
 ) {
     var menu by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
@@ -62,8 +63,11 @@ fun PostCard(
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     if (isMine) {
                         DropdownMenuItem(text = { Text("Delete post") }, onClick = { menu = false; onDelete() })
-                    } else if (onNotInterested != null) {
-                        DropdownMenuItem(text = { Text("Not interested") }, onClick = { menu = false; onNotInterested() })
+                    } else {
+                        if (onNotInterested != null) {
+                            DropdownMenuItem(text = { Text("Not interested") }, onClick = { menu = false; onNotInterested() })
+                        }
+                        DropdownMenuItem(text = { Text("Report") }, onClick = { menu = false; onReport() })
                     }
                     DropdownMenuItem(text = { Text("Close") }, onClick = { menu = false })
                 }
