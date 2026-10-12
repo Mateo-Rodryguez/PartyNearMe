@@ -86,10 +86,11 @@ fun MapPicker(start: LatLng?, onPicked: (LatLng) -> Unit, onCancel: () -> Unit) 
 
 private const val WORLD_ZOOM = 1.5
 
-/** Map options for a small map inside a scrolling page; see the platform versions. */
-internal expect fun embeddedMapOptions(): MapUiOptions
-
-/** A small map with the party's pin, for the event page. It doesn't move, so the page scrolls freely. */
+/**
+ * A small map with the party's pin, for the event page. It ignores touches, so the page
+ * scrolls freely over it. No clipping or rounded corners: Android draws maps through a
+ * SurfaceView, which shows nothing when clipped.
+ */
 @Composable
 fun PartyMap(spot: LatLng, modifier: Modifier = Modifier) {
     val map = rememberMapState(
@@ -97,7 +98,7 @@ fun PartyMap(spot: LatLng, modifier: Modifier = Modifier) {
         initialCameraPosition = CameraPosition(center = Position(longitude = spot.lng, latitude = spot.lat), zoom = 15.0),
     )
     Box(modifier) {
-        MaplibreMap(modifier = Modifier.fillMaxSize(), state = map, uiOptions = embeddedMapOptions())
+        MaplibreMap(modifier = Modifier.fillMaxSize(), state = map, uiOptions = MapUiOptions.None)
         Icon(
             Icons.Filled.Place,
             contentDescription = "The party is here",
