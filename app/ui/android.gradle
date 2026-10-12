@@ -1,0 +1,10 @@
+// Android library setup for :ui; see core/android.gradle.
+apply plugin: 'com.android.kotlin.multiplatform.library'
+
+kotlin {
+    android {
+        namespace = 'com.partynearme.ui'
+        compileSdk = 37
+        minSdk = 26
+    }
+}
