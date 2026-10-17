@@ -79,10 +79,20 @@ export const moderationRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: str
     const me = request.userId;
     await checkLimit(db, me, "report");
     const { target_type, target_id, reason } = request.body;
-    await asUser(db, me, (tx) => tx`
-      insert into public.reports (reporter_id, target_type, target_id, reason)
-      values (${me}, ${target_type}, ${target_id}, ${reason})
-    `);
+    await asUser(db, me, async (tx) => {
+      // People can only report messages from their own chats, so a report never
+      // shows moderators a conversation the reporter wasn't part of.
+      if (target_type === "message") {
+        const [visible] = /^\d{1,18}$/.test(target_id)
+          ? await tx`select 1 from public.messages where id = ${target_id}::bigint`
+          : [];
+        if (!visible) throw new HttpError(404, "Message not found");
+      }
+      await tx`
+        insert into public.reports (reporter_id, target_type, target_id, reason)
+        values (${me}, ${target_type}, ${target_id}, ${reason})
+      `;
+    });
 
     if (target_type === "post") {
       // Runs as the owner: reporters can't read other people's reports.
