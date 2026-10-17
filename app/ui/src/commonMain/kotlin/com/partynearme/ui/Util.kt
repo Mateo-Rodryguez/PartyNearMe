@@ -43,6 +43,9 @@ class Paged<T>(
         private set
     var loadedOnce by mutableStateOf(false)
         private set
+    /** True while [items] is a saved copy shown until the first fresh page arrives. */
+    var saved by mutableStateOf(false)
+        private set
     private var cursor: String? = null
     private var ended = false
     private var job: Job? = null
@@ -52,6 +55,24 @@ class Paged<T>(
         cursor = null
         ended = false
         fetch(replace = true)
+    }
+
+    /** Shows a saved copy straight away; the next refresh replaces it. */
+    fun seed(copy: List<T>) {
+        if (loadedOnce || items.isNotEmpty() || copy.isEmpty()) return
+        items.addAll(copy)
+        saved = true
+        ended = true
+    }
+
+    /** Tries again after an error: the first page again for a saved copy, else the next page. */
+    fun retry() {
+        if (saved) {
+            refresh()
+        } else {
+            error = null
+            loadMore()
+        }
     }
 
     fun loadMore() {
@@ -75,6 +96,7 @@ class Paged<T>(
                 .onSuccess { (page, next) ->
                     if (replace) items.clear()
                     items.addAll(page)
+                    if (replace) saved = false
                     cursor = next
                     ended = next == null
                 }

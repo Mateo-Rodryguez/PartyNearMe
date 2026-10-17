@@ -5,6 +5,7 @@ import android.content.Context
 import com.partynearme.core.AppConfig
 import com.partynearme.core.PartyNearMe
 import com.partynearme.core.auth.SettingsSessionStore
+import com.partynearme.core.cache.SettingsFeedCache
 import com.partynearme.ui.Navigator
 import com.russhwolf.settings.SharedPreferencesSettings
 import io.ktor.client.engine.okhttp.OkHttp
@@ -25,8 +26,8 @@ class PartyApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        val prefs = getSharedPreferences("partynearme", Context.MODE_PRIVATE)
-        core = PartyNearMe(CONFIG, SettingsSessionStore(SharedPreferencesSettings(prefs)), OkHttp.create())
+        val settings = SharedPreferencesSettings(getSharedPreferences("partynearme", Context.MODE_PRIVATE))
+        core = PartyNearMe(CONFIG, SettingsSessionStore(settings), OkHttp.create(), feedCache = SettingsFeedCache(settings))
         createPushChannel(this)
     }
 }

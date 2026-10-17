@@ -6,6 +6,8 @@ import com.partynearme.core.api.Realtime
 import com.partynearme.core.auth.AuthClient
 import com.partynearme.core.auth.SessionManager
 import com.partynearme.core.auth.SessionStore
+import com.partynearme.core.cache.FeedCache
+import com.partynearme.core.cache.NoFeedCache
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.HttpTimeout
@@ -18,6 +20,8 @@ class PartyNearMe(
     store: SessionStore,
     engine: HttpClientEngine,
     now: () -> Long = { Clock.System.now().epochSeconds },
+    /** The saved copy of the feed's first page. */
+    val feedCache: FeedCache = NoFeedCache,
 ) {
     private val http = HttpClient(engine) {
         expectSuccess = false
@@ -56,6 +60,7 @@ class PartyNearMe(
             }
         }
         pushToken = null
+        feedCache.clear()
         sessions.signOut()
     }
 
@@ -63,6 +68,7 @@ class PartyNearMe(
     suspend fun deleteAccount() {
         api.deleteAccount()
         pushToken = null
+        feedCache.clear()
         sessions.forget()
     }
 }
