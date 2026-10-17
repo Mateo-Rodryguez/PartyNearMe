@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { Tx } from "../../db.js";
+import { pictureUrl } from "../media.js";
 
 const media = z.object({
   position: z.number().int(),
@@ -12,7 +13,12 @@ const media = z.object({
 
 export const post = z.object({
   id: z.guid(),
-  author: z.object({ id: z.guid(), username: z.string().nullable(), display_name: z.string().nullable() }),
+  author: z.object({
+    id: z.guid(),
+    username: z.string().nullable(),
+    display_name: z.string().nullable(),
+    avatar_url: z.string().nullable(),
+  }),
   event_id: z.guid().nullable(),
   /** The party the post is from, when it has one the viewer can see. */
   event_title: z.string().nullable(),
@@ -33,11 +39,12 @@ export interface PostRow extends Omit<Post, "media"> {
 }
 
 /** Columns every post response needs; run inside asUser so RLS decides visibility. */
-export const postSelect = (tx: Tx, me: string) => tx`
+export const postSelect = (tx: Tx, me: string, base: string | undefined) => tx`
   p.id, p.event_id, (select e.title from public.events e where e.id = p.event_id) as event_title, p.caption, p.place_name, p.status, p.like_count, p.created_at,
   extensions.st_y(p.location::extensions.geometry) as lat,
   extensions.st_x(p.location::extensions.geometry) as lng,
-  json_build_object('id', a.id, 'username', a.username, 'display_name', a.display_name) as author,
+  json_build_object('id', a.id, 'username', a.username, 'display_name', a.display_name,
+                    'avatar_url', ${pictureUrl(tx, base, "a.avatar_variants", "150")}) as author,
   exists (select 1 from public.likes l where l.post_id = p.id and l.user_id = ${me}) as liked_by_me,
   coalesce((
     select json_agg(json_build_object(

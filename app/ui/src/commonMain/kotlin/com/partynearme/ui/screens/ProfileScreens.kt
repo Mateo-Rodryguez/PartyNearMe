@@ -53,6 +53,7 @@ import com.partynearme.ui.Route
 import com.partynearme.ui.Ui
 import com.partynearme.ui.attempt
 import com.partynearme.ui.userMessage
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** Your own profile: details, your posts, editing and signing out. */
@@ -66,6 +67,18 @@ fun MeScreen(ui: Ui) {
     var confirmDelete by remember { mutableStateOf(false) }
     val legal = rememberLegalLinks(ui.app)
     val posts = remember { Paged<Post>(scope) { c -> ui.api.userPosts(ui.myId, c).let { it.posts to it.nextCursor } } }
+    val pickAvatar = ui.platform.rememberPhotoPicker(1) { picked ->
+        val photo = picked.firstOrNull() ?: return@rememberPhotoPicker
+        scope.launch {
+            attempt { ui.api.setAvatar(ui.api.uploadPhoto(photo.contentType, photo.bytes)) }
+                .onSuccess {
+                    ui.toast("Your new picture shows once it's been checked")
+                    delay(PICTURE_CHECK_DELAY)
+                    attempt { ui.api.me() }.onSuccess { me = it }
+                }
+                .onFailure { ui.toast(it.userMessage) }
+        }
+    }
     LaunchedEffect(Unit) {
         attempt { ui.api.me() }.onSuccess { me = it }
         attempt { ui.api.user(ui.myId) }.onSuccess { stats = it }
@@ -78,6 +91,17 @@ fun MeScreen(ui: Ui) {
                 IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, "More") }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuItem(text = { Text("Edit profile") }, onClick = { menu = false; editing = true })
+                    DropdownMenuItem(text = { Text("Change profile picture") }, onClick = { menu = false; pickAvatar() })
+                    if (me?.avatarUrl != null) {
+                        DropdownMenuItem(text = { Text("Remove profile picture") }, onClick = {
+                            menu = false
+                            scope.launch {
+                                attempt { ui.api.removeAvatar() }
+                                    .onSuccess { me = me?.copy(avatarUrl = null) }
+                                    .onFailure { ui.toast(it.userMessage) }
+                            }
+                        })
+                    }
                     DropdownMenuItem(text = { Text("Sign out") }, onClick = {
                         menu = false
                         scope.launch { ui.app.interactions.flush(); ui.app.signOut() }
@@ -93,7 +117,7 @@ fun MeScreen(ui: Ui) {
         }
         PostGrid(ui, posts) {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                Header(me?.displayName, me?.bio, stats) {
+                Header(me?.displayName ?: me?.username, me?.bio, stats, me?.avatarUrl, onAvatar = pickAvatar) {
                     OutlinedButton(onClick = { editing = true }, modifier = Modifier.fillMaxWidth()) { Text("Edit profile") }
                 }
             }
@@ -177,7 +201,7 @@ fun UserScreen(ui: Ui, id: String) {
         when {
             p != null -> PostGrid(ui, posts) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    Header(p.displayName ?: p.username, p.bio, p) {
+                    Header(p.displayName ?: p.username, p.bio, p, p.avatarUrl) {
                         if (id != ui.myId) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 val follow = {
@@ -233,8 +257,16 @@ fun UserScreen(ui: Ui, id: String) {
 }
 
 @Composable
-private fun Header(name: String?, bio: String?, stats: PublicProfile?, actions: @Composable () -> Unit) {
+private fun Header(
+    name: String?,
+    bio: String?,
+    stats: PublicProfile?,
+    avatarUrl: String?,
+    onAvatar: (() -> Unit)? = null,
+    actions: @Composable () -> Unit,
+) {
     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Avatar(avatarUrl, name ?: "?", 88.dp, if (onAvatar != null) Modifier.clickable(onClick = onAvatar) else Modifier)
         name?.let { Text(it, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold) }
         stats?.let { Text("${it.followers} followers · ${it.following} following") }
         bio?.takeIf { it.isNotBlank() }?.let { Text(it) }

@@ -17,6 +17,7 @@ import com.partynearme.core.model.OwnProfile
 import com.partynearme.core.model.Post
 import com.partynearme.core.model.PostPage
 import com.partynearme.core.model.PublicProfile
+import com.partynearme.core.model.UploadId
 import com.partynearme.core.model.UploadTicket
 import io.ktor.client.HttpClient
 import io.ktor.client.request.HttpRequestBuilder
@@ -74,6 +75,13 @@ class ApiClient(
         if (!response.status.isSuccess()) throw ApiException(response.status.value, "The photo didn't upload. Try again.")
     }
 
+    /** Uploads one photo and returns its upload id. */
+    suspend fun uploadPhoto(contentType: String, bytes: ByteArray): String {
+        val ticket = requestUpload(contentType, bytes.size.toLong())
+        upload(ticket, bytes)
+        return ticket.uploadId
+    }
+
     suspend fun createPost(post: NewPost): Post = call(HttpMethod.Post, "/posts") { json(post) }
     suspend fun post(id: String): Post = call(HttpMethod.Get, "/posts/${id.path()}")
     suspend fun deletePost(id: String) = callUnit(HttpMethod.Delete, "/posts/${id.path()}")
@@ -100,6 +108,11 @@ class ApiClient(
     suspend fun createEvent(event: NewEvent): Event = call(HttpMethod.Post, "/events") { json(event) }
 
     /** [status] is "going" or "interested"; null removes the RSVP. */
+    /** The cover shows once the server has checked the photo. */
+    suspend fun setCover(eventId: String, uploadId: String) =
+        callUnit(HttpMethod.Put, "/events/${eventId.path()}/cover") { json(UploadId(uploadId)) }
+    suspend fun removeCover(eventId: String) = callUnit(HttpMethod.Delete, "/events/${eventId.path()}/cover")
+
     suspend fun rsvp(eventId: String, status: String?): Event =
         if (status == null) {
             callUnit(HttpMethod.Delete, "/events/${eventId.path()}/rsvp")
@@ -113,6 +126,9 @@ class ApiClient(
     suspend fun me(): OwnProfile = call(HttpMethod.Get, "/me")
     suspend fun updateMe(username: String? = null, displayName: String? = null, bio: String? = null): OwnProfile =
         call(HttpMethod.Patch, "/me") { json(ProfileUpdate(username, displayName, bio)) }
+    /** The picture shows once the server has checked the photo. */
+    suspend fun setAvatar(uploadId: String) = callUnit(HttpMethod.Put, "/me/avatar") { json(UploadId(uploadId)) }
+    suspend fun removeAvatar() = callUnit(HttpMethod.Delete, "/me/avatar")
     suspend fun interests(): List<Interest> = call(HttpMethod.Get, "/interests")
     suspend fun setInterests(ids: List<Int>): OwnProfile = call(HttpMethod.Put, "/me/interests") { json(InterestIds(ids)) }
     suspend fun user(id: String): PublicProfile = call(HttpMethod.Get, "/users/${id.path()}")
