@@ -40,5 +40,15 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
             android:resource="@drawable/ic_notification" />
+
+        <!-- Crash reports go to the Sentry project partynearme-app. The DSN is public.
+             Sentry starts itself from these values; screenshots, view hierarchies, tracing
+             and personal data stay off (the defaults, spelled out here). -->
+        <meta-data android:name="io.sentry.dsn" android:value="https://7a9348ef5e13ce90b731507e7b463137@o4512272125394944.ingest.de.sentry.io/4512272236609616" />
+        <meta-data android:name="io.sentry.environment" android:value="${sentryEnvironment}" />
+        <meta-data android:name="io.sentry.send-default-pii" android:value="false" />
+        <meta-data android:name="io.sentry.attach-screenshot" android:value="false" />
+        <meta-data android:name="io.sentry.attach-view-hierarchy" android:value="false" />
+        <meta-data android:name="io.sentry.traces.user-interaction.enable" android:value="false" />
     </application>
 </manifest>

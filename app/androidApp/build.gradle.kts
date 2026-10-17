@@ -40,6 +40,11 @@ android {
         versionName = "0.1.0"
         // The same string resources Google's plugin would generate; Firebase starts from them.
         firebase.forEach { (name, value) -> resValue("string", name, value) }
+        manifestPlaceholders["sentryEnvironment"] = "production"
+    }
+    buildTypes {
+        // Crashes from debug builds (CI, the emulator, test APKs) are kept apart in Sentry.
+        getByName("debug") { manifestPlaceholders["sentryEnvironment"] = "debug" }
     }
     buildFeatures {
         compose = true
@@ -61,6 +66,7 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)
     implementation(libs.kotlinx.coroutines.play.services)
+    implementation(libs.sentry.android)
     // Demo mode (debug builds only): sample data for screenshots on an emulator.
     debugImplementation(project(":demo"))
 }
