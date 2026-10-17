@@ -68,6 +68,8 @@ async function handle(deps: WorkerDeps, row: OutboxRow): Promise<void> {
   switch (row.topic) {
     case "post.created":
       return processPost(deps, String(row.payload.post_id));
+    case "image.uploaded":
+      return processPicture(deps, row.payload as unknown as PicturePayload);
     case "media.deleted":
       return deleteMedia(deps, row.payload as { storage_key: string; variants?: Record<string, string> });
     case "message.created":
@@ -145,6 +147,66 @@ async function processPost({ db, store, moderator }: WorkerDeps, postId: string)
 
   // Originals may carry GPS and camera metadata; only the cleaned sizes are kept.
   for (const p of processed) await store.delete(p.original);
+}
+
+interface PicturePayload {
+  kind: "avatar" | "cover";
+  /** The profile or event the picture is for. */
+  target_id: string;
+  storage_key: string;
+}
+
+/**
+ * Makes the sizes of a new profile picture or party cover and checks it with
+ * the moderator. A clean picture replaces the old one, whose files are then
+ * deleted; a flagged one is thrown away and the old picture stays. Safe to
+ * run again: outputs go to keys named after the upload.
+ */
+async function processPicture({ db, store, moderator, log }: WorkerDeps, p: PicturePayload): Promise<void> {
+  const original = await store.get(p.storage_key);
+  if (!original) throw new Error(`photo not uploaded yet: ${p.storage_key}`);
+  if (original.body.length > MAX_ORIGINAL_BYTES) throw new Error(`photo too large: ${p.storage_key}`);
+
+  const image = await processImage(original.body);
+  const check = await moderator.check({ image: { body: image.variants[640], contentType: "image/webp" } });
+  if (check.flagged) {
+    log.info({ kind: p.kind, target_id: p.target_id, categories: check.categories }, "picture rejected by moderation");
+    await store.delete(p.storage_key);
+    return;
+  }
+
+  const name = (p.storage_key.split("/").pop() ?? "picture").replace(/\.[^.]+$/, "");
+  const prefix = `${p.kind === "avatar" ? "avatars" : "covers"}/${p.target_id}/${name}`;
+  const variants: Record<string, string> = {};
+  for (const size of SIZES) {
+    await store.put(`${prefix}-${size}.webp`, image.variants[size], "image/webp");
+    variants[String(size)] = `${prefix}-${size}.webp`;
+  }
+  // Profiles show the middle size; covers fill the screen width.
+  const key = `${prefix}-${p.kind === "avatar" ? 640 : 1080}.webp`;
+
+  type Old = { key: string | null; variants: Record<string, string> | null };
+  const old = await db.begin(async (tx) => {
+    const [row] = p.kind === "avatar"
+      ? await tx<Old[]>`select avatar_key as key, avatar_variants as variants from public.profiles where id = ${p.target_id} for update`
+      : await tx<Old[]>`select cover_key as key, cover_variants as variants from public.events where id = ${p.target_id} for update`;
+    if (!row) return null;
+    if (p.kind === "avatar") {
+      await tx`update public.profiles set avatar_key = ${key}, avatar_variants = ${tx.json(variants)} where id = ${p.target_id}`;
+    } else {
+      await tx`update public.events set cover_key = ${key}, cover_variants = ${tx.json(variants)} where id = ${p.target_id}`;
+    }
+    return row;
+  });
+
+  const ours = new Set(Object.values(variants));
+  // The account or party was deleted meanwhile, so nothing should keep the new files.
+  const unused = old === null
+    ? [...ours]
+    : [old.key, ...Object.values(old.variants ?? {})].filter((k): k is string => k !== null && !ours.has(k));
+  for (const k of new Set(unused)) await store.delete(k);
+  // Like post photos, the original may carry GPS and camera metadata.
+  await store.delete(p.storage_key);
 }
 
 async function deleteMedia({ store }: WorkerDeps, payload: { storage_key: string; variants?: Record<string, string> }) {

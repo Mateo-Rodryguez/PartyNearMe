@@ -88,6 +88,9 @@ class Paged<T>(
 private val zone get() = TimeZone.currentSystemDefault()
 
 /** "now", "5m", "3h", "2d", then a date: the Instagram style for post times. */
+/** Null for text the server would never send; callers treat it as "unknown". */
+fun parseInstant(iso: String): Instant? = runCatching { Instant.parse(iso) }.getOrNull()
+
 fun timeAgo(iso: String, now: Instant = Clock.System.now()): String {
     val then = runCatching { Instant.parse(iso) }.getOrNull() ?: return ""
     val minutes = (now - then).inWholeMinutes

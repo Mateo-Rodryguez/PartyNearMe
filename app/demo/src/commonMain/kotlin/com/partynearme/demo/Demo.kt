@@ -52,6 +52,7 @@ object Demo {
             "chat" -> { nav.select(Tab.Chat); nav.open(Route.Chat("c1", "@sam")) }
             "profile" -> nav.select(Tab.Me)
             "user" -> nav.open(Route.User(SAM))
+            "moderation" -> { nav.select(Tab.Me); nav.open(Route.Moderation) }
         }
         return DemoSetup(core, DemoPlatform, nav)
     }
@@ -60,6 +61,9 @@ object Demo {
 private object DemoPlatform : Platform {
     @Composable
     override fun rememberPhotoPicker(maxPhotos: Int, onPicked: (List<PickedPhoto>) -> Unit): () -> Unit = {}
+
+    @Composable
+    override fun rememberCamera(onTaken: (PickedPhoto) -> Unit): (() -> Unit)? = null
 
     @Composable
     override fun rememberLocationProvider() = LocationProvider { LatLng(51.5136, -0.1365) }
@@ -111,7 +115,7 @@ private object FakeApi {
                       mine: String?, distance: Int) =
         """{"id":"$id","organiser":$sam,"title":"$title","description":"Bring your friends. Doors at 9, music until late.",
            "starts_at":"${ahead(starts)}","ends_at":"${ahead(starts + 5.hours)}","venue_name":"$venue",
-           "lat":51.51,"lng":-0.13,"cover_key":null,"status":"published","going_count":$going,
+           "lat":51.51,"lng":-0.13,"cover_url":null,"status":"published","going_count":$going,
            "interested_count":$interested,"my_rsvp":${mine?.let { "\"$it\"" }},"created_at":"${ago(2.days)}",
            "distance_m":$distance}"""
 
@@ -142,21 +146,32 @@ private object FakeApi {
 
     fun handle(method: HttpMethod, path: String): Pair<HttpStatusCode, String> = when {
         path == "/me" -> HttpStatusCode.OK to """{"id":"$ME","username":"mateo","display_name":"Mateo",
-            "bio":"Building PartyNearMe","avatar_key":null,"created_at":"${ago(30.days)}","interest_ids":[1,3]}"""
+            "bio":"Building PartyNearMe","avatar_url":null,"created_at":"${ago(30.days)}","interest_ids":[1,3],
+            "is_moderator":true}"""
         path == "/feed" -> HttpStatusCode.OK to """{"posts":[$feedPosts],"next_cursor":null}"""
         path == "/interactions" -> HttpStatusCode.Accepted to ""
         path == "/users/$ME/posts" -> HttpStatusCode.OK to """{"posts":[$myPosts],"next_cursor":null}"""
         path.matches(Regex("/users/[^/]+/posts")) -> HttpStatusCode.OK to """{"posts":[$feedPosts],"next_cursor":null}"""
         path == "/users/$ME" -> HttpStatusCode.OK to """{"id":"$ME","username":"mateo","display_name":"Mateo",
-            "bio":"Building PartyNearMe","avatar_key":null,"followers":214,"following":180,"is_following":false}"""
+            "bio":"Building PartyNearMe","avatar_url":null,"followers":214,"following":180,"is_following":false}"""
         path.startsWith("/users/") -> HttpStatusCode.OK to """{"id":"$SAM","username":"sam","display_name":"Sam Rivera",
-            "bio":"DJ and party host in London","avatar_key":null,"followers":1890,"following":312,"is_following":true}"""
+            "bio":"DJ and party host in London","avatar_url":null,"followers":1890,"following":312,"is_following":true}"""
         path == "/events/nearby" -> HttpStatusCode.OK to """{"events":[${events.joinToString(",")}],"next_cursor":null}"""
+        path.matches(Regex("/events/[^/]+/posts")) -> HttpStatusCode.OK to """{"posts":[$feedPosts],"next_cursor":null}"""
         path.startsWith("/events/") -> HttpStatusCode.OK to events.first()
         path == "/conversations/unread" -> HttpStatusCode.OK to """{"unread_count":1}"""
         path == "/conversations" && method == HttpMethod.Get -> HttpStatusCode.OK to conversations
         path.endsWith("/messages") -> HttpStatusCode.OK to """{"messages":[$messages],"has_more":false}"""
         path.endsWith("/read") -> HttpStatusCode.NoContent to ""
+        path == "/me/avatar" || path.endsWith("/cover") -> HttpStatusCode.Accepted to ""
+        path == "/moderation/queue" -> HttpStatusCode.OK to """{"items":[
+           {"target_type":"post","target_id":"p9","report_count":2,"reasons":["Spam","Spam"],
+            "first_reported_at":"${ago(3.hours)}","preview":{"title":"Post by Alex Chen","body":"Cheap tickets, DM me",
+            "image_url":null,"status":"visible","user_id":"$ALEX"}},
+           {"target_type":"user","target_id":"$ALEX","report_count":1,"reasons":["Fake account"],
+            "first_reported_at":"${ago(1.hours)}","preview":{"title":"Alex Chen","body":null,"image_url":null,
+            "status":null,"user_id":"$ALEX"}}]}"""
+        path == "/moderation/actions" -> HttpStatusCode.NoContent to ""
         else -> HttpStatusCode.NotFound to """{"error":"request_failed","message":"Not in the demo"}"""
     }
 }

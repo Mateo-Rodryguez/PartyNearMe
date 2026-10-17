@@ -2,15 +2,19 @@ import { z } from "zod";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { asUser, type Db } from "../../db.js";
 import { HttpError } from "../../errors.js";
+import { clearPicture, pictureUrl, queuePicture } from "../media.js";
+import { isModerator } from "../moderation/routes.js";
 
 const ownProfile = z.object({
   id: z.guid(),
   username: z.string().nullable(),
   display_name: z.string().nullable(),
   bio: z.string().nullable(),
-  avatar_key: z.string().nullable(),
+  avatar_url: z.string().nullable(),
   created_at: z.date(),
   interest_ids: z.array(z.number().int()),
+  /** Shows the moderator tools in the app. */
+  is_moderator: z.boolean(),
 });
 
 const publicProfile = z.object({
@@ -18,7 +22,7 @@ const publicProfile = z.object({
   username: z.string().nullable(),
   display_name: z.string().nullable(),
   bio: z.string().nullable(),
-  avatar_key: z.string().nullable(),
+  avatar_url: z.string().nullable(),
   followers: z.number().int(),
   following: z.number().int(),
   is_following: z.boolean(),
@@ -38,11 +42,15 @@ const profileUpdate = z
 const userParams = z.object({ id: z.guid() });
 const noContent = { 204: z.null() };
 
-export const usersRoutes: FastifyPluginAsyncZod<{ db: Db }> = async (app, { db }) => {
+export const usersRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string | undefined }> = async (
+  app,
+  { db, mediaBaseUrl },
+) => {
   const loadOwnProfile = (userId: string) =>
     asUser(db, userId, async (tx) => {
       const [row] = await tx`
-        select p.id, p.username, p.display_name, p.bio, p.avatar_key, p.created_at,
+        select p.id, p.username, p.display_name, p.bio, p.created_at,
+               ${pictureUrl(tx, mediaBaseUrl, "p.avatar_variants", "640")} as avatar_url,
                coalesce(array_agg(ui.interest_id order by ui.interest_id)
                         filter (where ui.interest_id is not null), '{}') as interest_ids
         from public.profiles p
@@ -51,8 +59,8 @@ export const usersRoutes: FastifyPluginAsyncZod<{ db: Db }> = async (app, { db }
         group by p.id
       `;
       if (!row) throw new HttpError(404, "Profile not found");
-      return row as z.infer<typeof ownProfile>;
-    });
+      return row;
+    }).then(async (row) => ({ ...row, is_moderator: await isModerator(db, userId) }) as z.infer<typeof ownProfile>);
 
   app.get("/interests", {
     schema: { response: { 200: z.array(z.object({ id: z.number(), slug: z.string(), name: z.string() })) } },
@@ -71,6 +79,22 @@ export const usersRoutes: FastifyPluginAsyncZod<{ db: Db }> = async (app, { db }
       tx`update public.profiles set ${tx(changes, columns)} where id = ${request.userId}`,
     );
     return loadOwnProfile(request.userId);
+  });
+
+  /**
+   * Sets a photo the user uploaded as their profile picture. It shows once the
+   * worker has checked it, usually within seconds; until then the old one stays.
+   */
+  app.put("/me/avatar", {
+    schema: { body: z.object({ upload_id: z.guid() }).strict(), response: { 202: z.null() } },
+  }, async (request, reply) => {
+    await queuePicture(db, request.userId, request.body.upload_id, { kind: "avatar", target_id: request.userId });
+    return reply.status(202).send(null);
+  });
+
+  app.delete("/me/avatar", { schema: { response: noContent } }, async (request, reply) => {
+    await clearPicture(db, { kind: "avatar", target_id: request.userId });
+    return reply.status(204).send(null);
   });
 
   app.put("/me/interests", {
@@ -99,7 +123,8 @@ export const usersRoutes: FastifyPluginAsyncZod<{ db: Db }> = async (app, { db }
     const me = request.userId;
     const row = await asUser(db, me, async (tx) => {
       const [profile] = await tx`
-        select p.id, p.username, p.display_name, p.bio, p.avatar_key,
+        select p.id, p.username, p.display_name, p.bio,
+               ${pictureUrl(tx, mediaBaseUrl, "p.avatar_variants", "640")} as avatar_url,
                (select count(*)::int from public.follows where followee_id = p.id) as followers,
                (select count(*)::int from public.follows where follower_id = p.id) as following,
                exists (select 1 from public.follows where follower_id = ${me} and followee_id = p.id) as is_following,

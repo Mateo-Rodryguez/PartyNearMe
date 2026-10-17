@@ -11,12 +11,15 @@ import com.partynearme.core.model.Interaction
 import com.partynearme.core.model.Interest
 import com.partynearme.core.model.Message
 import com.partynearme.core.model.MessagePage
+import com.partynearme.core.model.ModerationQueue
 import com.partynearme.core.model.NewEvent
 import com.partynearme.core.model.NewPost
 import com.partynearme.core.model.OwnProfile
 import com.partynearme.core.model.Post
 import com.partynearme.core.model.PostPage
 import com.partynearme.core.model.PublicProfile
+import com.partynearme.core.model.ReportedItem
+import com.partynearme.core.model.UploadId
 import com.partynearme.core.model.UploadTicket
 import io.ktor.client.HttpClient
 import io.ktor.client.request.HttpRequestBuilder
@@ -74,6 +77,13 @@ class ApiClient(
         if (!response.status.isSuccess()) throw ApiException(response.status.value, "The photo didn't upload. Try again.")
     }
 
+    /** Uploads one photo and returns its upload id. */
+    suspend fun uploadPhoto(contentType: String, bytes: ByteArray): String {
+        val ticket = requestUpload(contentType, bytes.size.toLong())
+        upload(ticket, bytes)
+        return ticket.uploadId
+    }
+
     suspend fun createPost(post: NewPost): Post = call(HttpMethod.Post, "/posts") { json(post) }
     suspend fun post(id: String): Post = call(HttpMethod.Get, "/posts/${id.path()}")
     suspend fun deletePost(id: String) = callUnit(HttpMethod.Delete, "/posts/${id.path()}")
@@ -94,9 +104,17 @@ class ApiClient(
         call(HttpMethod.Get, "/me/events") { parameter("role", if (organising) "organising" else "going") }
 
     suspend fun event(id: String): Event = call(HttpMethod.Get, "/events/${id.path()}")
+    /** Photos posted at a party, newest first. */
+    suspend fun eventPosts(id: String, cursor: String? = null): PostPage =
+        call(HttpMethod.Get, "/events/${id.path()}/posts") { parameter("cursor", cursor) }
     suspend fun createEvent(event: NewEvent): Event = call(HttpMethod.Post, "/events") { json(event) }
 
     /** [status] is "going" or "interested"; null removes the RSVP. */
+    /** The cover shows once the server has checked the photo. */
+    suspend fun setCover(eventId: String, uploadId: String) =
+        callUnit(HttpMethod.Put, "/events/${eventId.path()}/cover") { json(UploadId(uploadId)) }
+    suspend fun removeCover(eventId: String) = callUnit(HttpMethod.Delete, "/events/${eventId.path()}/cover")
+
     suspend fun rsvp(eventId: String, status: String?): Event =
         if (status == null) {
             callUnit(HttpMethod.Delete, "/events/${eventId.path()}/rsvp")
@@ -110,6 +128,9 @@ class ApiClient(
     suspend fun me(): OwnProfile = call(HttpMethod.Get, "/me")
     suspend fun updateMe(username: String? = null, displayName: String? = null, bio: String? = null): OwnProfile =
         call(HttpMethod.Patch, "/me") { json(ProfileUpdate(username, displayName, bio)) }
+    /** The picture shows once the server has checked the photo. */
+    suspend fun setAvatar(uploadId: String) = callUnit(HttpMethod.Put, "/me/avatar") { json(UploadId(uploadId)) }
+    suspend fun removeAvatar() = callUnit(HttpMethod.Delete, "/me/avatar")
     suspend fun interests(): List<Interest> = call(HttpMethod.Get, "/interests")
     suspend fun setInterests(ids: List<Int>): OwnProfile = call(HttpMethod.Put, "/me/interests") { json(InterestIds(ids)) }
     suspend fun user(id: String): PublicProfile = call(HttpMethod.Get, "/users/${id.path()}")
@@ -122,6 +143,13 @@ class ApiClient(
 
     suspend fun report(targetType: ReportTarget, targetId: String, reason: String) =
         callUnit(HttpMethod.Post, "/reports") { json(ReportBody(targetType.wire, targetId, reason)) }
+
+    /** Open reports, one entry per reported thing. Moderators only. */
+    suspend fun moderationQueue(): List<ReportedItem> = call<ModerationQueue>(HttpMethod.Get, "/moderation/queue").items
+
+    /** Acts on a reported thing and closes its reports. Moderators only. */
+    suspend fun moderate(targetType: String, targetId: String, action: ModerationAction, note: String? = null) =
+        callUnit(HttpMethod.Post, "/moderation/actions") { json(ModerationBody(targetType, targetId, action.wire, note)) }
 
     /** Deletes the signed-in account and everything it owns. */
     suspend fun deleteAccount() = callUnit(HttpMethod.Delete, "/me")
@@ -207,6 +235,12 @@ class ApiClient(
     @Serializable private data class UnreadCount(@SerialName("unread_count") val unreadCount: Int)
     @Serializable private data class SendBody(val body: String)
     @Serializable private data class DeviceBody(val platform: String)
+    @Serializable private data class ModerationBody(
+        @SerialName("target_type") val targetType: String,
+        @SerialName("target_id") val targetId: String,
+        val action: String,
+        val note: String? = null,
+    )
     @Serializable private data class ReportBody(
         @SerialName("target_type") val targetType: String,
         @SerialName("target_id") val targetId: String,
@@ -233,3 +267,7 @@ class ApiClient(
 class FeedExpiredException : Exception("The feed has moved on")
 
 enum class ReportTarget(val wire: String) { Post("post"), Event("event"), User("user"), Message("message") }
+
+enum class ModerationAction(val wire: String) {
+    Remove("remove"), Restore("restore"), Dismiss("dismiss"), RemovePicture("remove_picture"), DeleteAccount("delete_account"),
+}
