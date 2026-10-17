@@ -45,9 +45,11 @@ const configSchema = z.object({
   // Also run the photo worker inside the API process. Saves a second paid
   // service while traffic is low; turn off once the worker runs on its own.
   RUN_WORKER: z.stringbool().default(false),
-  // Public base URL photos are served from (R2 public bucket or custom domain).
   // Shown on the privacy policy and terms pages (/privacy, /terms) as the way to reach us.
   CONTACT_EMAIL: z.email().optional(),
+  // Sentry project DSN (public, not a secret). Unexpected errors are reported there once set.
+  SENTRY_DSN: z.url({ protocol: /^https$/ }).optional(),
+  // Public base URL photos are served from (R2 public bucket or custom domain).
   MEDIA_BASE_URL: z.url({ protocol: /^https$/ }).transform((url) => url.replace(/\/+$/, "")).optional(),
 });
 

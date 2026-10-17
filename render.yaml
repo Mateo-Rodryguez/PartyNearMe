@@ -45,3 +45,6 @@ services:
       # The contact address on the privacy policy and terms pages (/privacy, /terms).
       - key: CONTACT_EMAIL
         sync: false
+      # Where unexpected errors are reported (Sentry project partynearme-api). Public, not a secret.
+      - key: SENTRY_DSN
+        value: https://ee18ca40956d3b4c17c8de8c2612b76f@o4512272125394944.ingest.de.sentry.io/4512272160456784

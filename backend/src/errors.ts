@@ -1,5 +1,6 @@
 import type { FastifyError, FastifyInstance } from "fastify";
 import { hasZodFastifySchemaValidationErrors } from "fastify-type-provider-zod";
+import { noReporter, type ErrorReporter } from "./monitoring.js";
 
 /** Client-facing errors with a status code and a message that is safe to show. */
 export class HttpError extends Error {
@@ -23,7 +24,7 @@ const pgErrors: Record<string, [number, string]> = {
   P0002: [404, ""],
 };
 
-export function registerErrorHandler(app: FastifyInstance): void {
+export function registerErrorHandler(app: FastifyInstance, report: ErrorReporter = noReporter): void {
   app.setErrorHandler((err: FastifyError & { code?: string }, request, reply) => {
     if (hasZodFastifySchemaValidationErrors(err)) {
       return reply.status(400).send({
@@ -42,6 +43,8 @@ export function registerErrorHandler(app: FastifyInstance): void {
     const status = err.statusCode ?? 500;
     if (status >= 500) {
       request.log.error({ err }, "request failed");
+      // The route pattern (e.g. /posts/:id), not the URL, so no ids or query strings leave the server.
+      report(err, { method: request.method, route: request.routeOptions.url, userId: request.userId || undefined });
       return reply.status(500).send({ error: "internal", message: "Something went wrong" });
     }
     return reply.status(status).send({ error: "request_failed", message: err.message });

@@ -5,6 +5,7 @@ import { authenticate, type TokenVerifier } from "./auth.js";
 import type { Config } from "./config.js";
 import type { Db } from "./db.js";
 import { registerErrorHandler } from "./errors.js";
+import type { ErrorReporter } from "./monitoring.js";
 import type { MediaStorage } from "./storage.js";
 import { chatRoutes } from "./modules/chat/routes.js";
 import { eventsRoutes } from "./modules/events/routes.js";
@@ -20,10 +21,12 @@ export interface AppDeps {
   verifyToken: TokenVerifier;
   /** Null when R2 isn't configured; uploads then return 503. */
   storage: MediaStorage | null;
+  /** Gets unexpected (500) errors, e.g. to send them to Sentry. */
+  reportError?: ErrorReporter;
 }
 
 /** Builds the API without starting it, so tests can drive it with inject(). */
-export async function buildApp({ config, db, verifyToken, storage }: AppDeps): Promise<FastifyInstance> {
+export async function buildApp({ config, db, verifyToken, storage, reportError }: AppDeps): Promise<FastifyInstance> {
   const app = Fastify({
     logger: {
       level: config.LOG_LEVEL,
@@ -34,7 +37,7 @@ export async function buildApp({ config, db, verifyToken, storage }: AppDeps): P
 
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
-  registerErrorHandler(app);
+  registerErrorHandler(app, reportError);
 
   await app.register(rateLimit, { max: config.RATE_LIMIT_PER_MINUTE, timeWindow: "1 minute" });
 

@@ -4,7 +4,7 @@
  * have them checked before launch. The contact address comes from CONTACT_EMAIL.
  */
 
-export const LAST_UPDATED = "12 October 2026";
+export const LAST_UPDATED = "17 October 2026";
 export const MINIMUM_AGE = 18;
 
 const page = (title: string, body: string) => `<!doctype html>
@@ -74,6 +74,7 @@ community safe.</p>
   <li>Cloudflare R2 (photo storage and delivery).</li>
   <li>OpenAI (automatic moderation of photos and captions; not used to train their models through this API).</li>
   <li>Google Firebase Cloud Messaging (delivering notifications).</li>
+  <li>Sentry (crash and error reports, stored in the EU; these hold technical details and your account ID, not your posts or messages).</li>
 </ul>
 <p>They process data only on our behalf. Some may process it outside the EU under standard contractual clauses.</p>
 
