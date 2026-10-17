@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { asUser, type Db, type Tx } from "../../db.js";
 import { HttpError } from "../../errors.js";
+import { checkLimit } from "../../limits.js";
 import { pictureUrl } from "../media.js";
 
 const person = z.object({
@@ -178,6 +179,7 @@ export const chatRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string | 
     },
   }, async (request, reply) => {
     const me = request.userId;
+    await checkLimit(db, me, "message");
     const sent = await asUser(db, me, async (tx) => {
       await loadConversation(tx, me, request.params.id);
       const [row] = await tx<z.infer<typeof message>[]>`

@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { asUser, type Db, type Tx } from "../../db.js";
 import { HttpError } from "../../errors.js";
+import { checkLimit } from "../../limits.js";
 import { clearPicture, pictureUrl, queuePicture } from "../media.js";
 
 const MAX_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
@@ -140,6 +141,7 @@ export const eventsRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string 
 
   app.post("/events", { schema: { body: createEvent, response: { 201: event } } }, async (request, reply) => {
     const me = request.userId;
+    await checkLimit(db, me, "event");
     const b = request.body;
     const created = await asUser(db, me, async (tx) => {
       const [row] = await tx`
