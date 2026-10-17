@@ -4,8 +4,8 @@
 
 - `core`: talking to the API and Supabase sign-in, shared by Android and iOS.
 - `ui`: every screen, in Compose Multiplatform.
-- `androidApp`: the Android wrapper (photo picker, location, app icon).
-- `iosKit` and `iosApp`: the iPhone wrapper (photo picker, location) and its Xcode project.
+- `androidApp`: the Android wrapper (photo picker, camera, location, app icon).
+- `iosKit` and `iosApp`: the iPhone wrapper (photo picker, camera, location) and its Xcode project.
 - `demo`: sample data for screenshots, only in debug builds.
 
 ## Trying it on an Android phone
@@ -46,6 +46,13 @@ to compile the Kotlin code first.
 GitHub Actions builds the app on every change (`.github/workflows/app.yml`).
 Locally, with the Android SDK installed, run `./gradlew :androidApp:assembleDebug` in `app/`.
 Without the Android SDK, `./gradlew -Ppnm.noAndroid :core:jvmTest` still runs the shared tests.
+
+## Taking photos
+
+New post has **Take a photo** next to **Choose photos** on phones with a camera. Android
+hands over to the phone's camera app, so the app needs no camera permission of its
+own; iPhone asks for camera access the first time. Photos are shrunk and stripped of
+location data on the phone like picked ones.
 
 ## Party photos
 

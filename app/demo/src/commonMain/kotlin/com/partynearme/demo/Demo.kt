@@ -62,6 +62,9 @@ private object DemoPlatform : Platform {
     override fun rememberPhotoPicker(maxPhotos: Int, onPicked: (List<PickedPhoto>) -> Unit): () -> Unit = {}
 
     @Composable
+    override fun rememberCamera(onTaken: (PickedPhoto) -> Unit): (() -> Unit)? = null
+
+    @Composable
     override fun rememberLocationProvider() = LocationProvider { LatLng(51.5136, -0.1365) }
 
     @Composable
