@@ -64,6 +64,7 @@ data class Post(
     val id: String,
     val author: Person,
     @SerialName("event_id") val eventId: String? = null,
+    @SerialName("event_title") val eventTitle: String? = null,
     val caption: String? = null,
     @SerialName("place_name") val placeName: String? = null,
     val lat: Double? = null,

@@ -157,3 +157,60 @@ describe("likes", () => {
     expect(unliked.json()).toMatchObject({ like_count: 0, liked_by_me: false });
   });
 });
+
+describe("a party's photos", () => {
+  const party = async (organiser: string) => {
+    const res = await ctx.as(organiser, {
+      method: "POST",
+      url: "/events",
+      payload: { title: "Rooftop", starts_at: new Date(Date.now() + 86400000).toISOString(), lat: 51.5, lng: -0.1, publish: true },
+    });
+    expect(res.statusCode, res.body).toBe(201);
+    return res.json().id as string;
+  };
+
+  it("lists approved posts from the party newest first, with the party's name", async () => {
+    const host = await ctx.createUser();
+    const guest = await ctx.createUser();
+    const viewer = await ctx.createUser();
+    const eventId = await party(host);
+    const first = await createPost(guest, { event_id: eventId });
+    const second = await createPost(host, { event_id: eventId });
+    const pending = await createPost(guest, { event_id: eventId });
+    await createPost(guest); // not at the party
+    await approve(first.id);
+    await approve(second.id);
+    expect(pending.event_title).toBe("Rooftop");
+
+    const res = await ctx.as(viewer, { method: "GET", url: `/events/${eventId}/posts` });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().posts.map((p: { id: string }) => p.id)).toEqual([second.id, first.id]);
+    expect(res.json().posts[0]).toMatchObject({ event_id: eventId, event_title: "Rooftop" });
+
+    // The author also sees their own photo that is still being checked.
+    const own = await ctx.as(guest, { method: "GET", url: `/events/${eventId}/posts` });
+    expect(own.json().posts.map((p: { id: string }) => p.id)).toEqual([pending.id, second.id, first.id]);
+  });
+
+  it("leaves out people blocked either way, and 404s for parties you can't see", async () => {
+    const host = await ctx.createUser();
+    const guest = await ctx.createUser();
+    const viewer = await ctx.createUser();
+    const eventId = await party(host);
+    const post = await createPost(guest, { event_id: eventId });
+    await approve(post.id);
+
+    await ctx.as(guest, { method: "PUT", url: `/users/${viewer}/block` });
+    expect((await ctx.as(viewer, { method: "GET", url: `/events/${eventId}/posts` })).json().posts).toEqual([]);
+    await ctx.as(guest, { method: "DELETE", url: `/users/${viewer}/block` });
+    await ctx.as(viewer, { method: "PUT", url: `/users/${guest}/block` });
+    expect((await ctx.as(viewer, { method: "GET", url: `/events/${eventId}/posts` })).json().posts).toEqual([]);
+
+    const draft = await ctx.as(host, {
+      method: "POST",
+      url: "/events",
+      payload: { title: "Secret", starts_at: new Date(Date.now() + 86400000).toISOString(), lat: 0, lng: 0 },
+    });
+    expect((await ctx.as(viewer, { method: "GET", url: `/events/${draft.json().id}/posts` })).statusCode).toBe(404);
+  });
+});

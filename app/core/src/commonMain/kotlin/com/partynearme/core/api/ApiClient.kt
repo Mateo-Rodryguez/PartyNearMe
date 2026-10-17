@@ -94,6 +94,9 @@ class ApiClient(
         call(HttpMethod.Get, "/me/events") { parameter("role", if (organising) "organising" else "going") }
 
     suspend fun event(id: String): Event = call(HttpMethod.Get, "/events/${id.path()}")
+    /** Photos posted at a party, newest first. */
+    suspend fun eventPosts(id: String, cursor: String? = null): PostPage =
+        call(HttpMethod.Get, "/events/${id.path()}/posts") { parameter("cursor", cursor) }
     suspend fun createEvent(event: NewEvent): Event = call(HttpMethod.Post, "/events") { json(event) }
 
     /** [status] is "going" or "interested"; null removes the RSVP. */

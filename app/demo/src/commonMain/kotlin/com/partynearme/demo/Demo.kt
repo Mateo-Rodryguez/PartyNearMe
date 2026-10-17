@@ -152,6 +152,7 @@ private object FakeApi {
         path.startsWith("/users/") -> HttpStatusCode.OK to """{"id":"$SAM","username":"sam","display_name":"Sam Rivera",
             "bio":"DJ and party host in London","avatar_key":null,"followers":1890,"following":312,"is_following":true}"""
         path == "/events/nearby" -> HttpStatusCode.OK to """{"events":[${events.joinToString(",")}],"next_cursor":null}"""
+        path.matches(Regex("/events/[^/]+/posts")) -> HttpStatusCode.OK to """{"posts":[$feedPosts],"next_cursor":null}"""
         path.startsWith("/events/") -> HttpStatusCode.OK to events.first()
         path == "/conversations/unread" -> HttpStatusCode.OK to """{"unread_count":1}"""
         path == "/conversations" && method == HttpMethod.Get -> HttpStatusCode.OK to conversations
