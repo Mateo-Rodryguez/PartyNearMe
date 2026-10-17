@@ -15,6 +15,8 @@ sealed interface Route {
     data class User(val id: String) : Route
     data class Chat(val conversationId: String, val title: String) : Route
     data class Post(val id: String) : Route
+    /** The new-post screen opened from a party, with that party already picked. */
+    data class NewPost(val eventId: String, val eventTitle: String) : Route
 }
 
 /** A back stack per tab, like Instagram: switching tabs keeps where you were. */

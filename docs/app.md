@@ -47,6 +47,13 @@ GitHub Actions builds the app on every change (`.github/workflows/app.yml`).
 Locally, with the Android SDK installed, run `./gradlew :androidApp:assembleDebug` in `app/`.
 Without the Android SDK, `./gradlew -Ppnm.noAndroid :core:jvmTest` still runs the shared tests.
 
+## Party photos
+
+A party's page shows the photos people posted there, newest first, with **Add photos**
+once the party is published. The New post tab can also attach a photo to a party you
+host or said you're going to, from the last three days onwards. Posts from a party
+say "At <party>" and open it. The server lists them at `GET /events/:id/posts`.
+
 ## Push notifications
 
 Android asks to show notifications once the account is set up, then sends the

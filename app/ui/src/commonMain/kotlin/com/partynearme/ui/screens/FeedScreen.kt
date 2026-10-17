@@ -124,6 +124,7 @@ fun FeedScreen(ui: Ui, state: FeedState) {
                             onDelete = { state.delete(post) },
                             onNotInterested = { state.notInterested(post) },
                             onReport = { reporting = post.id },
+                            onEvent = { ui.nav.open(Route.Event(it)) },
                         )
                     }
                     if (paged.error != null) {

@@ -52,6 +52,7 @@ fun PostScreen(ui: Ui, id: String) {
                     }
                 },
                 onReport = { reporting = true },
+                onEvent = { ui.nav.open(Route.Event(it)) },
             )
             error != null -> Message(error!!, null)
         }

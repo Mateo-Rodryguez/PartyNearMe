@@ -14,6 +14,8 @@ export const post = z.object({
   id: z.guid(),
   author: z.object({ id: z.guid(), username: z.string().nullable(), display_name: z.string().nullable() }),
   event_id: z.guid().nullable(),
+  /** The party the post is from, when it has one the viewer can see. */
+  event_title: z.string().nullable(),
   caption: z.string().nullable(),
   place_name: z.string().nullable(),
   lat: z.number().nullable(),
@@ -32,7 +34,7 @@ export interface PostRow extends Omit<Post, "media"> {
 
 /** Columns every post response needs; run inside asUser so RLS decides visibility. */
 export const postSelect = (tx: Tx, me: string) => tx`
-  p.id, p.event_id, p.caption, p.place_name, p.status, p.like_count, p.created_at,
+  p.id, p.event_id, (select e.title from public.events e where e.id = p.event_id) as event_title, p.caption, p.place_name, p.status, p.like_count, p.created_at,
   extensions.st_y(p.location::extensions.geometry) as lat,
   extensions.st_x(p.location::extensions.geometry) as lng,
   json_build_object('id', a.id, 'username', a.username, 'display_name', a.display_name) as author,
