@@ -10,6 +10,8 @@ data class Person(
     val id: String,
     val username: String? = null,
     @SerialName("display_name") val displayName: String? = null,
+    /** Small profile picture, once one is set and checked. */
+    @SerialName("avatar_url") val avatarUrl: String? = null,
 ) {
     val name: String get() = displayName ?: username?.let { "@$it" } ?: "Someone"
 }
@@ -20,9 +22,10 @@ data class OwnProfile(
     val username: String? = null,
     @SerialName("display_name") val displayName: String? = null,
     val bio: String? = null,
-    @SerialName("avatar_key") val avatarKey: String? = null,
+    @SerialName("avatar_url") val avatarUrl: String? = null,
     @SerialName("created_at") val createdAt: String,
     @SerialName("interest_ids") val interestIds: List<Int> = emptyList(),
+    @SerialName("is_moderator") val isModerator: Boolean = false,
 )
 
 @Serializable
@@ -31,12 +34,39 @@ data class PublicProfile(
     val username: String? = null,
     @SerialName("display_name") val displayName: String? = null,
     val bio: String? = null,
-    @SerialName("avatar_key") val avatarKey: String? = null,
+    @SerialName("avatar_url") val avatarUrl: String? = null,
     val followers: Int,
     val following: Int,
     @SerialName("is_following") val isFollowing: Boolean,
     @SerialName("is_blocked") val isBlocked: Boolean = false,
 )
+
+/** Something people reported, with all its open reports, for moderators. */
+@Serializable
+data class ReportedItem(
+    @SerialName("target_type") val targetType: String,
+    @SerialName("target_id") val targetId: String,
+    @SerialName("report_count") val reportCount: Int,
+    val reasons: List<String> = emptyList(),
+    @SerialName("first_reported_at") val firstReportedAt: String,
+    /** Null when it was deleted after being reported. */
+    val preview: ReportedPreview? = null,
+)
+
+@Serializable
+data class ReportedPreview(
+    val title: String,
+    val body: String? = null,
+    @SerialName("image_url") val imageUrl: String? = null,
+    val status: String? = null,
+    @SerialName("user_id") val userId: String? = null,
+)
+
+@Serializable
+data class ModerationQueue(val items: List<ReportedItem>)
+
+@Serializable
+data class UploadId(@SerialName("upload_id") val uploadId: String)
 
 @Serializable
 data class Interest(val id: Int, val slug: String, val name: String)
@@ -90,7 +120,7 @@ data class Event(
     @SerialName("venue_name") val venueName: String? = null,
     val lat: Double,
     val lng: Double,
-    @SerialName("cover_key") val coverKey: String? = null,
+    @SerialName("cover_url") val coverUrl: String? = null,
     val status: String,
     @SerialName("going_count") val goingCount: Int,
     @SerialName("interested_count") val interestedCount: Int,

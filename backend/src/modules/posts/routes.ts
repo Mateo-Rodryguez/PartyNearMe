@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { asUser, type Db, type Tx } from "../../db.js";
 import { HttpError } from "../../errors.js";
+import { checkLimit } from "../../limits.js";
 import { IMAGE_TYPES, type ImageType, type MediaStorage } from "../../storage.js";
 import { post, postMapper, postSelect, type PostRow } from "./shape.js";
 
@@ -29,7 +30,7 @@ export const postsRoutes: FastifyPluginAsyncZod<{
 
   const loadPost = async (tx: Tx, me: string, id: string) => {
     const [row] = await tx`
-      select ${postSelect(tx, me)}
+      select ${postSelect(tx, me, mediaBaseUrl)}
       from public.posts p join public.profiles a on a.id = p.author_id
       where p.id = ${id}
     `;
@@ -57,6 +58,7 @@ export const postsRoutes: FastifyPluginAsyncZod<{
     if (!storage) throw new HttpError(503, "Photo uploads are not configured yet");
     const me = request.userId;
     const { content_type, size_bytes } = request.body;
+    await checkLimit(db, me, "upload");
     const signed = storage.signUpload(me, content_type, size_bytes);
     const [row] = await asUser(db, me, (tx) => tx`
       insert into public.uploads (user_id, storage_key, content_type, size_bytes)
@@ -87,6 +89,7 @@ export const postsRoutes: FastifyPluginAsyncZod<{
   }, async (request, reply) => {
     const me = request.userId;
     const b = request.body;
+    await checkLimit(db, me, "post");
     const created = await asUser(db, me, async (tx) => {
       const [row] = await tx`
         select public.create_post(
@@ -145,7 +148,7 @@ export const postsRoutes: FastifyPluginAsyncZod<{
     const { limit, cursor } = request.query;
     const after = cursor ? decodeCursor(cursor) : null;
     const rows = await asUser(db, me, (tx) => tx`
-      select ${postSelect(tx, me)}
+      select ${postSelect(tx, me, mediaBaseUrl)}
       from public.posts p join public.profiles a on a.id = p.author_id
       where p.author_id = ${request.params.id}
         and p.status in ('pending', 'visible')
@@ -182,7 +185,7 @@ export const postsRoutes: FastifyPluginAsyncZod<{
       const [visible] = await tx`select 1 from public.events where id = ${request.params.id}`;
       if (!visible) throw new HttpError(404, "Event not found");
       return tx`
-        select ${postSelect(tx, me)}
+        select ${postSelect(tx, me, mediaBaseUrl)}
         from public.posts p join public.profiles a on a.id = p.author_id
         where p.event_id = ${request.params.id}
           and p.status in ('pending', 'visible')

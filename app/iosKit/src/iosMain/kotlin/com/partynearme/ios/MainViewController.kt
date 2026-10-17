@@ -4,6 +4,7 @@ import androidx.compose.ui.window.ComposeUIViewController
 import com.partynearme.core.AppConfig
 import com.partynearme.core.PartyNearMe
 import com.partynearme.core.auth.SettingsSessionStore
+import com.partynearme.core.cache.SettingsFeedCache
 import com.partynearme.demo.Demo
 import com.partynearme.ui.App
 import com.partynearme.ui.Navigator
@@ -30,7 +31,9 @@ private val CONFIG = AppConfig(
 fun MainViewController(): UIViewController {
     val defaults = NSUserDefaults.standardUserDefaults
     val demo = demoScreen(defaults)?.let { Demo.setUp(it) }
-    val core = demo?.core ?: PartyNearMe(CONFIG, SettingsSessionStore(NSUserDefaultsSettings(defaults)), Darwin.create())
+    val core = demo?.core ?: NSUserDefaultsSettings(defaults).let { settings ->
+        PartyNearMe(CONFIG, SettingsSessionStore(settings), Darwin.create(), feedCache = SettingsFeedCache(settings))
+    }
     val platform = demo?.platform ?: IosPlatform()
     val nav = demo?.navigator ?: Navigator()
 
