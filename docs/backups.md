@@ -10,6 +10,10 @@ Photos are not in it: they already live in R2 (`partynearme-media`).
 
 ## One-time setup
 
+GitHub only runs scheduled workflows from the repository's default branch, so
+**PartyApp** has to be the default (GitHub **Settings > General > Default branch**).
+Until then the workflow can still be started by hand.
+
 1. In Cloudflare, go to **R2 > Create bucket**, name it `partynearme-backups` and
    leave public access off. (The media bucket has a public URL; backups must not.)
 2. In **R2 > Manage API tokens**, create a token with **Object Read & Write** limited
