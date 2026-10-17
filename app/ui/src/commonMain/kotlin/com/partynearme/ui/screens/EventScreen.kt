@@ -49,6 +49,7 @@ import com.partynearme.ui.Ui
 import com.partynearme.ui.attempt
 import com.partynearme.ui.eventTime
 import com.partynearme.ui.userMessage
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -65,6 +66,19 @@ fun EventScreen(ui: Ui, id: String) {
         attempt { ui.api.eventPosts(id).posts }.onSuccess { photos = it }
     }
 
+    val pickCover = ui.platform.rememberPhotoPicker(1) { picked ->
+        val photo = picked.firstOrNull() ?: return@rememberPhotoPicker
+        scope.launch {
+            attempt { ui.api.setCover(id, ui.api.uploadPhoto(photo.contentType, photo.bytes)) }
+                .onSuccess {
+                    ui.toast("The cover shows once it's been checked")
+                    delay(PICTURE_CHECK_DELAY)
+                    attempt { ui.api.event(id) }.onSuccess { event = it }
+                }
+                .onFailure { ui.toast(it.userMessage) }
+        }
+    }
+
     fun rsvp(status: String?) {
         busy = true
         scope.launch {
@@ -77,16 +91,35 @@ fun EventScreen(ui: Ui, id: String) {
 
     Column(Modifier.verticalScroll(rememberScrollState())) {
         BackBar(ui, event?.title ?: "Party") {
-            if (event != null && event?.organiser?.id != ui.myId) {
+            val shown = event
+            if (shown != null) {
                 Box {
                     IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, "More") }
                     DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                        DropdownMenuItem(text = { Text("Report party") }, onClick = { menu = false; reporting = true })
+                        if (shown.organiser.id == ui.myId) {
+                            DropdownMenuItem(text = { Text("Change cover photo") }, onClick = { menu = false; pickCover() })
+                            if (shown.coverUrl != null) {
+                                DropdownMenuItem(text = { Text("Remove cover photo") }, onClick = {
+                                    menu = false
+                                    scope.launch {
+                                        attempt { ui.api.removeCover(id) }
+                                            .onSuccess { event = event?.copy(coverUrl = null) }
+                                            .onFailure { ui.toast(it.userMessage) }
+                                    }
+                                })
+                            }
+                        } else {
+                            DropdownMenuItem(text = { Text("Report party") }, onClick = { menu = false; reporting = true })
+                        }
                     }
                 }
             }
         }
         val e = event
+        e?.coverUrl?.let { cover ->
+            AsyncImage(cover, contentDescription = "Cover photo", contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(MaterialTheme.colorScheme.surfaceVariant))
+        }
         when {
             e != null -> Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(eventTime(e.startsAt), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
@@ -94,6 +127,7 @@ fun EventScreen(ui: Ui, id: String) {
                 Text(e.title, style = MaterialTheme.typography.headlineSmall)
                 e.venueName?.let { Text(it, style = MaterialTheme.typography.titleSmall) }
                 TextButton(onClick = { ui.nav.open(Route.User(e.organiser.id)) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(0.dp)) {
+                    Avatar(e.organiser.avatarUrl, e.organiser.name, 28.dp, Modifier.padding(end = 8.dp))
                     Text("Hosted by ${e.organiser.name}")
                 }
                 Text("${e.goingCount} going · ${e.interestedCount} interested")

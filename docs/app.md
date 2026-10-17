@@ -54,6 +54,14 @@ once the party is published. The New post tab can also attach a photo to a party
 host or said you're going to, from the last three days onwards. Posts from a party
 say "At <party>" and open it. The server lists them at `GET /events/:id/posts`.
 
+## Profile pictures and party covers
+
+Tap your picture on the Profile tab, or use **Change profile picture** in its ⋮ menu.
+Hosts set a party's cover from the party's ⋮ menu. Both are checked by moderation
+on the server first, so the new picture appears a few seconds after uploading.
+Pictures show on profiles, posts, the party page and the inbox; without one, the
+first letter of the name shows instead.
+
 ## Push notifications
 
 Android asks to show notifications once the account is set up, then sends the

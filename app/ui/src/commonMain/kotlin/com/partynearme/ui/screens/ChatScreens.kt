@@ -82,6 +82,7 @@ fun InboxScreen(ui: Ui, state: InboxState) {
                             Modifier.fillMaxWidth().clickable { ui.nav.open(Route.Chat(c.id, name)) }.padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
+                            Avatar(c.other?.avatarUrl, name, 44.dp, Modifier.padding(end = 12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(name, fontWeight = if (c.unreadCount > 0) FontWeight.Bold else FontWeight.Normal)
                                 c.lastMessage?.let {

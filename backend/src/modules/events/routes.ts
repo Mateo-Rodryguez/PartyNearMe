@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { asUser, type Db, type Tx } from "../../db.js";
 import { HttpError } from "../../errors.js";
+import { clearPicture, pictureUrl, queuePicture } from "../media.js";
 
 const MAX_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -11,7 +12,12 @@ const timestamp = z.iso.datetime({ offset: true });
 
 const event = z.object({
   id: z.guid(),
-  organiser: z.object({ id: z.guid(), username: z.string().nullable(), display_name: z.string().nullable() }),
+  organiser: z.object({
+    id: z.guid(),
+    username: z.string().nullable(),
+    display_name: z.string().nullable(),
+    avatar_url: z.string().nullable(),
+  }),
   title: z.string(),
   description: z.string().nullable(),
   starts_at: z.date(),
@@ -19,7 +25,7 @@ const event = z.object({
   venue_name: z.string().nullable(),
   lat: z.number(),
   lng: z.number(),
-  cover_key: z.string().nullable(),
+  cover_url: z.string().nullable(),
   status: z.enum(["draft", "published", "cancelled", "removed"]),
   going_count: z.number().int(),
   interested_count: z.number().int(),
@@ -98,25 +104,38 @@ const point = (tx: Tx, latitude: number, longitude: number) =>
   tx`extensions.st_setsrid(extensions.st_makepoint(${longitude}, ${latitude}), 4326)::extensions.geography`;
 
 /** Columns every event response needs; RLS decides which events are visible. */
-const eventSelect = (tx: Tx, me: string) => tx`
-  e.id, e.title, e.description, e.starts_at, e.ends_at, e.venue_name, e.cover_key, e.status, e.created_at,
+const eventSelect = (tx: Tx, me: string, base: string | undefined) => tx`
+  e.id, e.title, e.description, e.starts_at, e.ends_at, e.venue_name, e.status, e.created_at,
+  ${pictureUrl(tx, base, "e.cover_variants", "1080")} as cover_url,
   extensions.st_y(e.location::extensions.geometry) as lat,
   extensions.st_x(e.location::extensions.geometry) as lng,
-  json_build_object('id', p.id, 'username', p.username, 'display_name', p.display_name) as organiser,
+  json_build_object('id', p.id, 'username', p.username, 'display_name', p.display_name,
+                    'avatar_url', ${pictureUrl(tx, base, "p.avatar_variants", "150")}) as organiser,
   (select count(*)::int from public.rsvps r where r.event_id = e.id and r.status = 'going') as going_count,
   (select count(*)::int from public.rsvps r where r.event_id = e.id and r.status = 'interested') as interested_count,
   (select r.status from public.rsvps r where r.event_id = e.id and r.user_id = ${me}) as my_rsvp
 `;
 
-export const eventsRoutes: FastifyPluginAsyncZod<{ db: Db }> = async (app, { db }) => {
+export const eventsRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string | undefined }> = async (
+  app,
+  { db, mediaBaseUrl },
+) => {
   const loadEvent = async (tx: Tx, me: string, id: string): Promise<Event> => {
     const [row] = await tx`
-      select ${eventSelect(tx, me)}
+      select ${eventSelect(tx, me, mediaBaseUrl)}
       from public.events e join public.profiles p on p.id = e.organiser_id
       where e.id = ${id}
     `;
     if (!row) throw new HttpError(404, "Event not found");
     return row as Event;
+  };
+
+  /** 404s unless the user organises the event and moderators haven't removed it. */
+  const ownEvent = async (me: string, id: string) => {
+    const [row] = await asUser(db, me, (tx) => tx`
+      select 1 from public.events where id = ${id} and organiser_id = ${me} and status <> 'removed'
+    `);
+    if (!row) throw new HttpError(404, "Event not found");
   };
 
   app.post("/events", { schema: { body: createEvent, response: { 201: event } } }, async (request, reply) => {
@@ -151,7 +170,7 @@ export const eventsRoutes: FastifyPluginAsyncZod<{ db: Db }> = async (app, { db 
     const rows = await asUser(db, me, async (tx) => {
       const here = point(tx, q.lat, q.lng);
       return tx`
-        select ${eventSelect(tx, me)},
+        select ${eventSelect(tx, me, mediaBaseUrl)},
                extensions.st_distance(e.location, ${here})::int as distance_m
         from public.events e join public.profiles p on p.id = e.organiser_id
         where e.status = 'published'
@@ -179,7 +198,7 @@ export const eventsRoutes: FastifyPluginAsyncZod<{ db: Db }> = async (app, { db 
   }, async (request) => {
     const me = request.userId;
     const rows = await asUser(db, me, (tx) => tx`
-      select ${eventSelect(tx, me)}
+      select ${eventSelect(tx, me, mediaBaseUrl)}
       from public.events e join public.profiles p on p.id = e.organiser_id
       where ${request.query.role === "organising"
         ? tx`e.organiser_id = ${me}`
@@ -233,6 +252,22 @@ export const eventsRoutes: FastifyPluginAsyncZod<{ db: Db }> = async (app, { db 
       delete from public.events where id = ${request.params.id} and organiser_id = ${me} returning id
     `);
     if (deleted.length === 0) throw new HttpError(404, "Event not found");
+    return reply.status(204).send(null);
+  });
+
+  /** Sets an uploaded photo as the party's cover once the worker has checked it. Organiser only. */
+  app.put("/events/:id/cover", {
+    schema: { params: eventParams, body: z.object({ upload_id: z.guid() }).strict(), response: { 202: z.null() } },
+  }, async (request, reply) => {
+    const me = request.userId;
+    await ownEvent(me, request.params.id);
+    await queuePicture(db, me, request.body.upload_id, { kind: "cover", target_id: request.params.id });
+    return reply.status(202).send(null);
+  });
+
+  app.delete("/events/:id/cover", { schema: { params: eventParams, response: noContent } }, async (request, reply) => {
+    await ownEvent(request.userId, request.params.id);
+    await clearPicture(db, { kind: "cover", target_id: request.params.id });
     return reply.status(204).send(null);
   });
 
