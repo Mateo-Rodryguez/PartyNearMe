@@ -1,6 +1,7 @@
 package com.partynearme.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,6 +13,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -20,6 +23,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -37,14 +41,40 @@ import com.partynearme.ui.PickedPhoto
 import com.partynearme.ui.Tab
 import com.partynearme.ui.Ui
 import com.partynearme.ui.attempt
+import com.partynearme.ui.parseInstant
 import com.partynearme.ui.userMessage
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
 
 private const val MAX_PHOTOS = 10
+/** Parties you can post to: ones that started up to this long ago, or haven't started yet. */
+private val RECENT_PARTY = 3.days
 
+/** A party a post can be attached to. */
+data class PartyRef(val id: String, val title: String)
+
+/**
+ * [preset] is set when the screen was opened from a party's page; the post goes to that party
+ * and the screen closes afterwards. From the Post tab, people pick one of their parties or none.
+ */
 @Composable
-fun NewPostScreen(ui: Ui, onPosted: () -> Unit) {
+fun NewPostScreen(ui: Ui, preset: PartyRef? = null, onPosted: () -> Unit) {
     val scope = rememberCoroutineScope()
+    var party by remember { mutableStateOf(preset) }
+    var parties by remember { mutableStateOf(emptyList<PartyRef>()) }
+    var partyMenu by remember { mutableStateOf(false) }
+    LaunchedEffect(preset) {
+        if (preset != null) return@LaunchedEffect
+        attempt {
+            val cutoff = Clock.System.now() - RECENT_PARTY
+            (ui.api.myEvents(organising = false) + ui.api.myEvents(organising = true))
+                .filter { it.status == "published" && (parseInstant(it.startsAt) ?: cutoff) >= cutoff }
+                .distinctBy { it.id }
+                .sortedBy { it.startsAt }
+                .map { PartyRef(it.id, it.title) }
+        }.onSuccess { parties = it }
+    }
     val photos = remember { mutableStateListOf<PickedPhoto>() }
     var caption by remember { mutableStateOf("") }
     var place by remember { mutableStateOf("") }
@@ -52,6 +82,7 @@ fun NewPostScreen(ui: Ui, onPosted: () -> Unit) {
     var progress by remember { mutableStateOf<Float?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     val pick = ui.platform.rememberPhotoPicker(MAX_PHOTOS - photos.size) { photos.addAll(it.take(MAX_PHOTOS - photos.size)) }
+    val camera = ui.platform.rememberCamera { if (photos.size < MAX_PHOTOS) photos.add(it) }
 
     fun share() {
         error = null
@@ -69,6 +100,7 @@ fun NewPostScreen(ui: Ui, onPosted: () -> Unit) {
                     NewPost(
                         uploadIds = ids,
                         caption = caption.trim().ifEmpty { null },
+                        eventId = party?.id,
                         lat = here?.lat,
                         lng = here?.lng,
                         placeName = place.trim().ifEmpty { null },
@@ -80,17 +112,18 @@ fun NewPostScreen(ui: Ui, onPosted: () -> Unit) {
                 place = ""
                 ui.toast("Posted. It shows up for everyone once the photo is checked.")
                 onPosted()
-                ui.nav.select(Tab.Feed)
+                if (preset != null) ui.nav.back() else { party = null; ui.nav.select(Tab.Feed) }
             }.onFailure { error = it.userMessage }
             progress = null
         }
     }
 
     Column(Modifier.verticalScroll(rememberScrollState())) {
-        TitleBar("New post")
+        if (preset != null) BackBar(ui, "Add photos") else TitleBar("New post")
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (photos.isEmpty()) {
                 Button(onClick = pick, modifier = Modifier.fillMaxWidth()) { Text("Choose photos") }
+                camera?.let { OutlinedButton(onClick = it, modifier = Modifier.fillMaxWidth()) { Text("Take a photo") } }
             } else {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     itemsIndexed(photos) { index, photo ->
@@ -105,10 +138,30 @@ fun NewPostScreen(ui: Ui, onPosted: () -> Unit) {
                         }
                     }
                 }
-                if (photos.size < MAX_PHOTOS) OutlinedButton(onClick = pick, enabled = progress == null) { Text("Add more") }
+                if (photos.size < MAX_PHOTOS) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = pick, enabled = progress == null) { Text("Add more") }
+                        camera?.let { OutlinedButton(onClick = it, enabled = progress == null) { Text("Take a photo") } }
+                    }
+                }
             }
             OutlinedTextField(caption, { caption = it.take(2200) }, label = { Text("Write a caption") },
                 minLines = 2, modifier = Modifier.fillMaxWidth())
+            if (preset != null) {
+                Text("At ${preset.title}", style = MaterialTheme.typography.titleSmall)
+            } else if (parties.isNotEmpty()) {
+                Box {
+                    OutlinedButton(onClick = { partyMenu = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text(party?.let { "At ${it.title}" } ?: "Add to a party (optional)")
+                    }
+                    DropdownMenu(expanded = partyMenu, onDismissRequest = { partyMenu = false }) {
+                        DropdownMenuItem(text = { Text("No party") }, onClick = { party = null; partyMenu = false })
+                        parties.forEach { p ->
+                            DropdownMenuItem(text = { Text(p.title) }, onClick = { party = p; partyMenu = false })
+                        }
+                    }
+                }
+            }
             OutlinedTextField(place, { place = it.take(120) }, label = { Text("Place name (optional)") },
                 singleLine = true, modifier = Modifier.fillMaxWidth())
             Row(verticalAlignment = Alignment.CenterVertically) {

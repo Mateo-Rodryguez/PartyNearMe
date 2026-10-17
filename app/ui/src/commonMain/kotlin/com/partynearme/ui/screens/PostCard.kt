@@ -23,6 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +35,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.partynearme.core.model.Media
@@ -50,13 +52,20 @@ fun PostCard(
     onDelete: () -> Unit,
     onNotInterested: (() -> Unit)? = null,
     onReport: () -> Unit = {},
+    onEvent: (String) -> Unit = {},
 ) {
     var menu by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
         Row(Modifier.fillMaxWidth().padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Avatar(post.author.avatarUrl, post.author.name, 36.dp, Modifier.padding(end = 8.dp).clickable(onClick = onAuthor))
             Column(Modifier.weight(1f).clickable(onClick = onAuthor).padding(vertical = 8.dp)) {
                 Text(post.author.name, fontWeight = FontWeight.SemiBold)
                 post.placeName?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            }
+            val eventId = post.eventId
+            val eventTitle = post.eventTitle
+            if (eventId != null && eventTitle != null) {
+                TextButton(onClick = { onEvent(eventId) }) { Text("At $eventTitle", maxLines = 1, overflow = TextOverflow.Ellipsis) }
             }
             Box {
                 IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, "More") }

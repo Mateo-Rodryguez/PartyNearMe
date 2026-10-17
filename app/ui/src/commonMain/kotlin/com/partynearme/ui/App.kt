@@ -48,10 +48,12 @@ import com.partynearme.ui.screens.FeedState
 import com.partynearme.ui.screens.InboxScreen
 import com.partynearme.ui.screens.InboxState
 import com.partynearme.ui.screens.MeScreen
+import com.partynearme.ui.screens.ModerationScreen
 import com.partynearme.ui.screens.NearbyScreen
 import com.partynearme.ui.screens.NearbyState
 import com.partynearme.ui.screens.NewEventScreen
 import com.partynearme.ui.screens.NewPostScreen
+import com.partynearme.ui.screens.PartyRef
 import com.partynearme.ui.screens.PostScreen
 import com.partynearme.ui.screens.ProfileSetupScreen
 import com.partynearme.ui.screens.SignInScreen
@@ -164,6 +166,8 @@ private fun Main(app: PartyNearMe, platform: Platform, nav: Navigator, userId: S
                 is Route.User -> UserScreen(ui, route.id)
                 is Route.Chat -> ChatScreen(ui, route.conversationId, route.title) { inbox.paged.refresh() }
                 is Route.Post -> PostScreen(ui, route.id)
+                is Route.NewPost -> NewPostScreen(ui, PartyRef(route.eventId, route.eventTitle)) { feed.paged.refresh() }
+                Route.Moderation -> ModerationScreen(ui)
                 null -> when (nav.tab) {
                     Tab.Feed -> FeedScreen(ui, feed)
                     Tab.Nearby -> NearbyScreen(ui, nearby)

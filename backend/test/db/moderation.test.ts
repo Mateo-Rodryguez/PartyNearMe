@@ -81,3 +81,88 @@ describe("DELETE /me", () => {
     expect((await ctx.as(bob, { method: "GET", url: "/me" })).statusCode).toBe(200);
   });
 });
+
+describe("moderator tools", () => {
+  const makeModerator = (userId: string) => ctx.db`insert into public.moderators (user_id) values (${userId})`;
+  const queue = async (userId: string) => ctx.as(userId, { method: "GET", url: "/moderation/queue" });
+  const act = (userId: string, payload: Record<string, unknown>) =>
+    ctx.as(userId, { method: "POST", url: "/moderation/actions", payload });
+
+  it("is only for moderators, and /me says who is one", async () => {
+    const alice = await ctx.createUser();
+    const mod = await ctx.createUser();
+    await makeModerator(mod);
+    expect((await queue(alice)).statusCode).toBe(403);
+    expect((await act(alice, { target_type: "user", target_id: mod, action: "dismiss" })).statusCode).toBe(403);
+    expect((await ctx.as(alice, { method: "GET", url: "/me" })).json().is_moderator).toBe(false);
+    expect((await ctx.as(mod, { method: "GET", url: "/me" })).json().is_moderator).toBe(true);
+  });
+
+  it("lists open reports once per thing, with a preview, including hidden posts", async () => {
+    const author = await ctx.createUser();
+    const mod = await ctx.createUser();
+    await makeModerator(mod);
+    const post = await visiblePost(author);
+    const carol = await ctx.createUser();
+    await report(carol, { target_type: "post", target_id: post, reason: "Spam" });
+    await report(mod, { target_type: "post", target_id: post, reason: "Nudity" });
+    await report(carol, { target_type: "user", target_id: author, reason: "Fake" });
+    await report(carol, { target_type: "message", target_id: "999", reason: "Rude" });
+    await ctx.db`update public.posts set status = 'hidden' where id = ${post}`;
+
+    const res = await queue(mod);
+    expect(res.statusCode, res.body).toBe(200);
+    const items = res.json().items as { target_type: string; report_count: number; reasons: string[]; preview: { title: string; body: string; status: string; user_id: string } | null }[];
+    expect(items.map((i) => i.target_type)).toEqual(["post", "user", "message"]);
+    expect(items[0]).toMatchObject({ report_count: 2, reasons: ["Spam", "Nudity"], preview: { body: "hi", status: "hidden", user_id: author } });
+    expect(items[1]?.preview?.user_id).toBe(author);
+    expect(items[2]?.preview).toBeNull(); // no such message
+  });
+
+  it("removes and restores a post, closes its reports and logs it", async () => {
+    const author = await ctx.createUser();
+    const mod = await ctx.createUser();
+    await makeModerator(mod);
+    const post = await visiblePost(author);
+    await report(mod, { target_type: "post", target_id: post, reason: "Spam" });
+
+    expect((await act(mod, { target_type: "post", target_id: post, action: "remove", note: "spam link" })).statusCode).toBe(204);
+    expect((await ctx.db`select status from public.posts where id = ${post}`)[0]?.status).toBe("removed");
+    expect((await ctx.db`select status from public.reports`)[0]?.status).toBe("actioned");
+    expect((await queue(mod)).json().items).toEqual([]);
+
+    expect((await act(mod, { target_type: "post", target_id: post, action: "restore" })).statusCode).toBe(204);
+    expect((await ctx.db`select status from public.posts where id = ${post}`)[0]?.status).toBe("visible");
+    const log = await ctx.db`select moderator_id, action, note from public.moderation_actions order by id`;
+    expect(log).toEqual([
+      { moderator_id: mod, action: "remove", note: "spam link" },
+      { moderator_id: mod, action: "restore", note: null },
+    ]);
+  });
+
+  it("removes parties and messages, and deletes accounts but not your own", async () => {
+    const host = await ctx.createUser();
+    const mod = await ctx.createUser();
+    await makeModerator(mod);
+    const event = await ctx.as(host, {
+      method: "POST",
+      url: "/events",
+      payload: { title: "Party", starts_at: new Date(Date.now() + 86400000).toISOString(), lat: 0, lng: 0, publish: true },
+    });
+    const eventId = event.json().id as string;
+    expect((await act(mod, { target_type: "event", target_id: eventId, action: "remove" })).statusCode).toBe(204);
+    expect((await ctx.as(host, { method: "GET", url: `/events/${eventId}` })).json().status).toBe("removed");
+
+    const chat = await ctx.as(host, { method: "POST", url: "/conversations", payload: { user_id: mod } });
+    const sent = await ctx.as(host, { method: "POST", url: `/conversations/${chat.json().id}/messages`, payload: { body: "rude" } });
+    expect(sent.statusCode, sent.body).toBe(201);
+    expect((await act(mod, { target_type: "message", target_id: sent.json().id, action: "remove" })).statusCode).toBe(204);
+    expect((await ctx.db`select count(*)::int as n from public.messages`)[0]?.n).toBe(0);
+
+    expect((await act(mod, { target_type: "post", target_id: eventId, action: "delete_account" })).statusCode).toBe(400);
+    expect((await act(mod, { target_type: "user", target_id: mod, action: "delete_account" })).statusCode).toBe(400);
+    expect((await act(mod, { target_type: "user", target_id: host, action: "delete_account" })).statusCode).toBe(204);
+    expect((await ctx.db`select count(*)::int as n from auth.users where id = ${host}`)[0]?.n).toBe(0);
+    expect((await act(mod, { target_type: "user", target_id: host, action: "delete_account" })).statusCode).toBe(404);
+  });
+});

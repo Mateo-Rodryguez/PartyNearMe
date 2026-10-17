@@ -2,14 +2,17 @@ package com.partynearme.app
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
+import android.graphics.Matrix
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.media.ExifInterface
 import android.net.Uri
 import android.os.Build
 import android.os.Looper
@@ -19,6 +22,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.core.content.FileProvider
 import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
 import com.partynearme.core.model.LatLng
@@ -33,6 +38,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.ByteArrayOutputStream
+import java.io.File
 import kotlin.coroutines.resume
 import kotlin.math.max
 
@@ -58,6 +64,35 @@ class AndroidPlatform(private val context: Context) : Platform {
             }
         }
         return { launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+    }
+
+    /**
+     * Opens the phone's camera app, which saves the photo to a private file this app
+     * shares with it. The camera app has its own permission, so this app needs none.
+     */
+    @Composable
+    override fun rememberCamera(onTaken: (PickedPhoto) -> Unit): (() -> Unit)? {
+        if (!context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)) return null
+        val scope = rememberCoroutineScope()
+        val latest = rememberUpdatedState(onTaken)
+        val target = remember {
+            val file = File(context.cacheDir, "camera/photo.jpg").apply { parentFile?.mkdirs() }
+            FileProvider.getUriForFile(context, "${context.packageName}.files", file)
+        }
+        val launcher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { saved ->
+            if (!saved) return@rememberLauncherForActivityResult
+            scope.launch {
+                val photo = withContext(Dispatchers.IO) { runCatching { shrink(target) }.getOrNull() }
+                photo?.let { latest.value(it) }
+            }
+        }
+        return {
+            try {
+                launcher.launch(target)
+            } catch (_: ActivityNotFoundException) {
+                // No camera app installed after all.
+            }
+        }
     }
 
     @Composable
@@ -158,7 +193,25 @@ class AndroidPlatform(private val context: Context) : Platform {
                 BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
             } ?: error("Could not read the photo")
             val scale = MAX_EDGE.toFloat() / max(decoded.width, decoded.height)
-            if (scale < 1f) Bitmap.createScaledBitmap(decoded, (decoded.width * scale).toInt(), (decoded.height * scale).toInt(), true) else decoded
+            val scaled = if (scale < 1f) {
+                Bitmap.createScaledBitmap(decoded, (decoded.width * scale).toInt(), (decoded.height * scale).toInt(), true)
+            } else {
+                decoded
+            }
+            // ImageDecoder turns photos upright by itself; BitmapFactory needs the camera's EXIF hint.
+            val degrees = context.contentResolver.openInputStream(uri).use { stream ->
+                when (stream?.let { ExifInterface(it).getAttributeInt(ExifInterface.TAG_ORIENTATION, 0) }) {
+                    ExifInterface.ORIENTATION_ROTATE_90 -> 90
+                    ExifInterface.ORIENTATION_ROTATE_180 -> 180
+                    ExifInterface.ORIENTATION_ROTATE_270 -> 270
+                    else -> 0
+                }
+            }
+            if (degrees == 0) {
+                scaled
+            } else {
+                Bitmap.createBitmap(scaled, 0, 0, scaled.width, scaled.height, Matrix().apply { postRotate(degrees.toFloat()) }, true)
+            }
         }
         val out = ByteArrayOutputStream()
         bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
