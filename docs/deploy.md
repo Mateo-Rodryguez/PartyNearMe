@@ -46,6 +46,14 @@ https://partynearme-api.onrender.com/privacy); the store listings link there.
 Set `CONTACT_EMAIL` in Render to the address people should write to; until then
 the pages point to the store listing instead. Moderation is in docs/moderation.md.
 
+## Error reports (Sentry)
+
+Unexpected server errors (anything that returns a 500) and worker failures go to
+the Sentry project `partynearme-api` (organisation PartyNearMe, EU region). The DSN is
+in `render.yaml`; it is public, so it is fine in git. Only errors are sent: no tracing,
+and no request headers, bodies, query strings or database data, just the route
+pattern (like `/posts/:id`) and the user's id. Without `SENTRY_DSN` nothing is sent.
+
 ## Notes
 
 - The free plan sleeps after 15 minutes without traffic and takes about a minute
