@@ -11,6 +11,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.partynearme.core.api.ReportTarget
 import com.partynearme.core.model.Post
 import com.partynearme.ui.Route
 import com.partynearme.ui.Ui
@@ -23,6 +24,7 @@ fun PostScreen(ui: Ui, id: String) {
     val scope = rememberCoroutineScope()
     var post by remember { mutableStateOf<Post?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    var reporting by remember { mutableStateOf(false) }
     LaunchedEffect(id) {
         attempt { ui.api.post(id) }.onSuccess { post = it }.onFailure { error = it.userMessage }
         ui.app.interactions.open(id)
@@ -49,8 +51,10 @@ fun PostScreen(ui: Ui, id: String) {
                             .onFailure { ui.toast(it.userMessage) }
                     }
                 },
+                onReport = { reporting = true },
             )
             error != null -> Message(error!!, null)
         }
     }
+    if (reporting) ReportDialog(ui, ReportTarget.Post, id) { reporting = false }
 }

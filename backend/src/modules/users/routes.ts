@@ -22,6 +22,7 @@ const publicProfile = z.object({
   followers: z.number().int(),
   following: z.number().int(),
   is_following: z.boolean(),
+  is_blocked: z.boolean(),
 });
 
 const profileUpdate = z
@@ -101,7 +102,8 @@ export const usersRoutes: FastifyPluginAsyncZod<{ db: Db }> = async (app, { db }
         select p.id, p.username, p.display_name, p.bio, p.avatar_key,
                (select count(*)::int from public.follows where followee_id = p.id) as followers,
                (select count(*)::int from public.follows where follower_id = p.id) as following,
-               exists (select 1 from public.follows where follower_id = ${me} and followee_id = p.id) as is_following
+               exists (select 1 from public.follows where follower_id = ${me} and followee_id = p.id) as is_following,
+               exists (select 1 from public.blocks where blocker_id = ${me} and blocked_id = p.id) as is_blocked
         from public.profiles p
         where p.id = ${request.params.id}
       `;
@@ -109,6 +111,18 @@ export const usersRoutes: FastifyPluginAsyncZod<{ db: Db }> = async (app, { db }
     });
     if (!row) throw new HttpError(404, "User not found");
     return row as z.infer<typeof publicProfile>;
+  });
+
+  /**
+   * Deletes the account and everything it made: removing the auth user cascades to
+   * the profile, posts, events, messages and the rest, and the worker then deletes
+   * the photo files. Both app stores require this to be possible inside the app.
+   */
+  app.delete("/me", { schema: { response: noContent } }, async (request, reply) => {
+    // Runs as the owner: users can't touch auth.users themselves.
+    await db`delete from auth.users where id = ${request.userId}`;
+    request.log.info("account deleted");
+    return reply.status(204).send(null);
   });
 
   const relation = (table: "follows" | "blocks", from: "follower_id" | "blocker_id", to: "followee_id" | "blocked_id") => {

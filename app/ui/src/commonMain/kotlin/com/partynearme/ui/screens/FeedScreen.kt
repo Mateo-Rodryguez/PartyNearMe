@@ -19,12 +19,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.partynearme.core.api.FeedExpiredException
+import com.partynearme.core.api.ReportTarget
 import com.partynearme.core.model.LatLng
 import com.partynearme.core.model.Post
 import com.partynearme.ui.Paged
@@ -89,6 +92,7 @@ fun deletePost(ui: Ui, scope: CoroutineScope, paged: Paged<Post>, post: Post) {
 @Composable
 fun FeedScreen(ui: Ui, state: FeedState) {
     val paged = state.paged
+    var reporting by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) { if (!paged.loadedOnce && !paged.loading) paged.refresh() }
     val nearEnd by remember {
         derivedStateOf {
@@ -119,6 +123,7 @@ fun FeedScreen(ui: Ui, state: FeedState) {
                             onLike = { state.like(post, it) },
                             onDelete = { state.delete(post) },
                             onNotInterested = { state.notInterested(post) },
+                            onReport = { reporting = post.id },
                         )
                     }
                     if (paged.error != null) {
@@ -128,6 +133,7 @@ fun FeedScreen(ui: Ui, state: FeedState) {
             }
         }
     }
+    reporting?.let { ReportDialog(ui, ReportTarget.Post, it) { reporting = null } }
 }
 
 /** Records that a post was on screen, and for how long, while it stays composed. */

@@ -35,6 +35,7 @@ data class PublicProfile(
     val followers: Int,
     val following: Int,
     @SerialName("is_following") val isFollowing: Boolean,
+    @SerialName("is_blocked") val isBlocked: Boolean = false,
 )
 
 @Serializable

@@ -42,3 +42,6 @@ services:
       # Optional: push notifications stay off until this is set (see docs/deploy.md).
       - key: FIREBASE_SERVICE_ACCOUNT
         sync: false
+      # The contact address on the privacy policy and terms pages (/privacy, /terms).
+      - key: CONTACT_EMAIL
+        sync: false

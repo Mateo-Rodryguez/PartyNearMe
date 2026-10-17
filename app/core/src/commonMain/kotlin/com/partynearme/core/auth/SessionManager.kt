@@ -35,6 +35,9 @@ class SessionManager(
         auth.signOut(current.accessToken)
     }
 
+    /** Drops the local session without telling the server, e.g. after the account was deleted. */
+    fun forget() = set(null)
+
     /** A token that is valid for at least another minute. */
     suspend fun accessToken(): String {
         val current = _session.value ?: throw SignedOutException()

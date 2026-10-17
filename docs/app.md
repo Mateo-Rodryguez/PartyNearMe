@@ -55,6 +55,14 @@ from the Firebase console (steps in docs/deploy.md); a build without it works th
 same, just without push. Tapping a notification opens the chat or party it is about.
 iPhone push comes with the Apple Developer account.
 
+## Safety and store requirements
+
+The ⋮ menus let people report a post, party or person and block or unblock someone;
+reports land in `public.reports` for review (docs/moderation.md). The profile ⋮ menu
+has the privacy policy, terms and **Delete account**, which deletes the account on the
+server and returns to sign-in. The sign-in screen says the app is 18+ and links the
+terms and privacy policy, which the server hosts at `/privacy` and `/terms`.
+
 ## Settings in the app
 
 The API address, Supabase URL and Supabase publishable key are in

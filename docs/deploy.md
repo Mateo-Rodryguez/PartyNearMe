@@ -39,6 +39,13 @@ still work without it.
 5. For iPhones, later: Project settings > Cloud Messaging > upload the APNs key
    from the Apple developer account.
 
+## Privacy policy and terms
+
+The server publishes them at `/privacy` and `/terms` (for example
+https://partynearme-api.onrender.com/privacy); the store listings link there.
+Set `CONTACT_EMAIL` in Render to the address people should write to; until then
+the pages point to the store listing instead. Moderation is in docs/moderation.md.
+
 ## Notes
 
 - The free plan sleeps after 15 minutes without traffic and takes about a minute

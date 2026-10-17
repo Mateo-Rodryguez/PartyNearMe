@@ -116,6 +116,15 @@ class ApiClient(
     suspend fun follow(id: String) = callUnit(HttpMethod.Put, "/users/${id.path()}/follow")
     suspend fun unfollow(id: String) = callUnit(HttpMethod.Delete, "/users/${id.path()}/follow")
     suspend fun block(id: String) = callUnit(HttpMethod.Put, "/users/${id.path()}/block")
+    suspend fun unblock(id: String) = callUnit(HttpMethod.Delete, "/users/${id.path()}/block")
+
+    // Safety
+
+    suspend fun report(targetType: ReportTarget, targetId: String, reason: String) =
+        callUnit(HttpMethod.Post, "/reports") { json(ReportBody(targetType.wire, targetId, reason)) }
+
+    /** Deletes the signed-in account and everything it owns. */
+    suspend fun deleteAccount() = callUnit(HttpMethod.Delete, "/me")
 
     // Chat
 
@@ -198,6 +207,11 @@ class ApiClient(
     @Serializable private data class UnreadCount(@SerialName("unread_count") val unreadCount: Int)
     @Serializable private data class SendBody(val body: String)
     @Serializable private data class DeviceBody(val platform: String)
+    @Serializable private data class ReportBody(
+        @SerialName("target_type") val targetType: String,
+        @SerialName("target_id") val targetId: String,
+        val reason: String,
+    )
 
     internal companion object {
         // Leaves out nulls so PATCH /me only changes the fields that were passed.
@@ -217,3 +231,5 @@ class ApiClient(
 
 /** The feed snapshot behind a cursor has expired; reload from the top. */
 class FeedExpiredException : Exception("The feed has moved on")
+
+enum class ReportTarget(val wire: String) { Post("post"), Event("event"), User("user"), Message("message") }
