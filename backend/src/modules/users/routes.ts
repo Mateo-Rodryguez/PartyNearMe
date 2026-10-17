@@ -3,6 +3,7 @@ import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { asUser, type Db } from "../../db.js";
 import { HttpError } from "../../errors.js";
 import { clearPicture, pictureUrl, queuePicture } from "../media.js";
+import { isModerator } from "../moderation/routes.js";
 
 const ownProfile = z.object({
   id: z.guid(),
@@ -12,6 +13,8 @@ const ownProfile = z.object({
   avatar_url: z.string().nullable(),
   created_at: z.date(),
   interest_ids: z.array(z.number().int()),
+  /** Shows the moderator tools in the app. */
+  is_moderator: z.boolean(),
 });
 
 const publicProfile = z.object({
@@ -56,8 +59,8 @@ export const usersRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string |
         group by p.id
       `;
       if (!row) throw new HttpError(404, "Profile not found");
-      return row as z.infer<typeof ownProfile>;
-    });
+      return row;
+    }).then(async (row) => ({ ...row, is_moderator: await isModerator(db, userId) }) as z.infer<typeof ownProfile>);
 
   app.get("/interests", {
     schema: { response: { 200: z.array(z.object({ id: z.number(), slug: z.string(), name: z.string() })) } },

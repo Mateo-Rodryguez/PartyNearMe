@@ -25,6 +25,7 @@ data class OwnProfile(
     @SerialName("avatar_url") val avatarUrl: String? = null,
     @SerialName("created_at") val createdAt: String,
     @SerialName("interest_ids") val interestIds: List<Int> = emptyList(),
+    @SerialName("is_moderator") val isModerator: Boolean = false,
 )
 
 @Serializable
@@ -39,6 +40,30 @@ data class PublicProfile(
     @SerialName("is_following") val isFollowing: Boolean,
     @SerialName("is_blocked") val isBlocked: Boolean = false,
 )
+
+/** Something people reported, with all its open reports, for moderators. */
+@Serializable
+data class ReportedItem(
+    @SerialName("target_type") val targetType: String,
+    @SerialName("target_id") val targetId: String,
+    @SerialName("report_count") val reportCount: Int,
+    val reasons: List<String> = emptyList(),
+    @SerialName("first_reported_at") val firstReportedAt: String,
+    /** Null when it was deleted after being reported. */
+    val preview: ReportedPreview? = null,
+)
+
+@Serializable
+data class ReportedPreview(
+    val title: String,
+    val body: String? = null,
+    @SerialName("image_url") val imageUrl: String? = null,
+    val status: String? = null,
+    @SerialName("user_id") val userId: String? = null,
+)
+
+@Serializable
+data class ModerationQueue(val items: List<ReportedItem>)
 
 @Serializable
 data class UploadId(@SerialName("upload_id") val uploadId: String)
