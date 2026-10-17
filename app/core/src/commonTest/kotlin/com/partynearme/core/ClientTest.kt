@@ -172,7 +172,7 @@ class ClientTest {
             bodies += request.text()
             when (request.url.encodedPath) {
                 "/interactions" -> respond("", HttpStatusCode.Accepted)
-                else -> json("""{"id":"u1","username":"sam","display_name":"Sam","bio":null,"avatar_key":null,
+                else -> json("""{"id":"u1","username":"sam","display_name":"Sam","bio":null,"avatar_url":null,
                     "created_at":"2026-10-11T20:00:00Z","interest_ids":[]}""")
             }
         }
@@ -248,5 +248,33 @@ class ClientTest {
             json("""{"id":"u2","followers":0,"following":0,"is_following":false,"is_blocked":true}""")
         }
         assertEquals(true, app.api.user("u2").isBlocked)
+    }
+
+    @Test
+    fun aProfilePictureUploadsThePhotoThenSetsIt() = runTest {
+        val calls = mutableListOf<String>()
+        var avatarBody = ""
+        val app = app(MemorySessionStore(session())) { request ->
+            calls += "${request.method.value} ${request.url.host}${request.url.encodedPath}"
+            when (request.url.encodedPath) {
+                "/uploads" -> json("""{"upload_id":"up1","upload_url":"https://r2.test/uploads/u1/a.jpg","headers":{}}""", HttpStatusCode.Created)
+                else -> {
+                    if (request.url.encodedPath == "/me/avatar") avatarBody = request.text()
+                    respond("", HttpStatusCode.Accepted)
+                }
+            }
+        }
+        app.api.setAvatar(app.api.uploadPhoto("image/jpeg", byteArrayOf(1, 2, 3)))
+        assertEquals(listOf("POST", "PUT r2.test/uploads/u1/a.jpg", "PUT"), calls.map { if (it.contains("r2.test")) it else it.substringBefore(" ") })
+        assertEquals(true, calls[2].endsWith("/me/avatar"))
+        assertEquals("""{"upload_id":"up1"}""", avatarBody)
+    }
+
+    @Test
+    fun picturesReadTheirUrls() = runTest {
+        val app = app(MemorySessionStore(session())) {
+            json("""{"id":"u2","avatar_url":"https://m/a-640.webp","followers":0,"following":0,"is_following":false}""")
+        }
+        assertEquals("https://m/a-640.webp", app.api.user("u2").avatarUrl)
     }
 }

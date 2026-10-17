@@ -49,12 +49,12 @@ export async function buildApp({ config, db, verifyToken, storage, reportError }
   await app.register(async (authed) => {
     authed.decorateRequest("userId", "");
     authed.addHook("preHandler", authenticate(verifyToken));
-    await authed.register(usersRoutes, { db });
-    await authed.register(eventsRoutes, { db });
+    await authed.register(usersRoutes, { db, mediaBaseUrl: config.MEDIA_BASE_URL });
+    await authed.register(eventsRoutes, { db, mediaBaseUrl: config.MEDIA_BASE_URL });
     await authed.register(postsRoutes, { db, storage, mediaBaseUrl: config.MEDIA_BASE_URL });
     await authed.register(feedRoutes, { db, mediaBaseUrl: config.MEDIA_BASE_URL });
-    await authed.register(chatRoutes, { db });
-    await authed.register(moderationRoutes, { db });
+    await authed.register(chatRoutes, { db, mediaBaseUrl: config.MEDIA_BASE_URL });
+    await authed.register(moderationRoutes, { db, mediaBaseUrl: config.MEDIA_BASE_URL });
   });
 
   return app;

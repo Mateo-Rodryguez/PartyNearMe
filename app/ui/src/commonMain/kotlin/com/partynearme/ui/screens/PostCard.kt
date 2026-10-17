@@ -57,6 +57,7 @@ fun PostCard(
     var menu by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
         Row(Modifier.fillMaxWidth().padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Avatar(post.author.avatarUrl, post.author.name, 36.dp, Modifier.padding(end = 8.dp).clickable(onClick = onAuthor))
             Column(Modifier.weight(1f).clickable(onClick = onAuthor).padding(vertical = 8.dp)) {
                 Text(post.author.name, fontWeight = FontWeight.SemiBold)
                 post.placeName?.let { Text(it, style = MaterialTheme.typography.bodySmall) }

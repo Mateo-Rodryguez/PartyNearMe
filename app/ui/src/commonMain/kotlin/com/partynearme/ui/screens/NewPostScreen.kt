@@ -82,6 +82,7 @@ fun NewPostScreen(ui: Ui, preset: PartyRef? = null, onPosted: () -> Unit) {
     var progress by remember { mutableStateOf<Float?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     val pick = ui.platform.rememberPhotoPicker(MAX_PHOTOS - photos.size) { photos.addAll(it.take(MAX_PHOTOS - photos.size)) }
+    val camera = ui.platform.rememberCamera { if (photos.size < MAX_PHOTOS) photos.add(it) }
 
     fun share() {
         error = null
@@ -122,6 +123,7 @@ fun NewPostScreen(ui: Ui, preset: PartyRef? = null, onPosted: () -> Unit) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (photos.isEmpty()) {
                 Button(onClick = pick, modifier = Modifier.fillMaxWidth()) { Text("Choose photos") }
+                camera?.let { OutlinedButton(onClick = it, modifier = Modifier.fillMaxWidth()) { Text("Take a photo") } }
             } else {
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     itemsIndexed(photos) { index, photo ->
@@ -136,7 +138,12 @@ fun NewPostScreen(ui: Ui, preset: PartyRef? = null, onPosted: () -> Unit) {
                         }
                     }
                 }
-                if (photos.size < MAX_PHOTOS) OutlinedButton(onClick = pick, enabled = progress == null) { Text("Add more") }
+                if (photos.size < MAX_PHOTOS) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = pick, enabled = progress == null) { Text("Add more") }
+                        camera?.let { OutlinedButton(onClick = it, enabled = progress == null) { Text("Take a photo") } }
+                    }
+                }
             }
             OutlinedTextField(caption, { caption = it.take(2200) }, label = { Text("Write a caption") },
                 minLines = 2, modifier = Modifier.fillMaxWidth())

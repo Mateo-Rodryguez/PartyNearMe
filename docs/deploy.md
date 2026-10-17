@@ -54,6 +54,17 @@ in `render.yaml`; it is public, so it is fine in git. Only errors are sent: no t
 and no request headers, bodies, query strings or database data, just the route
 pattern (like `/posts/:id`) and the user's id. Without `SENTRY_DSN` nothing is sent.
 
+## Rate limits
+
+- **Per address:** every request counts towards `RATE_LIMIT_PER_MINUTE` (120 by default)
+  per IP address.
+- **Per person:** uploading, posting, creating parties, sending messages and reporting
+  have their own limits in `backend/src/limits.ts`, counted from the person's recent
+  rows in the database, so they survive restarts and need no Redis. Going over gives
+  a 429 with a message the app shows as is.
+- **Sign-in and sign-up** go straight to Supabase Auth, which applies its own limits;
+  they can be tuned in the Supabase dashboard's Authentication settings.
+
 ## Notes
 
 - The free plan sleeps after 15 minutes without traffic and takes about a minute

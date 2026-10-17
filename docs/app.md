@@ -4,8 +4,8 @@
 
 - `core`: talking to the API and Supabase sign-in, shared by Android and iOS.
 - `ui`: every screen, in Compose Multiplatform.
-- `androidApp`: the Android wrapper (photo picker, location, app icon).
-- `iosKit` and `iosApp`: the iPhone wrapper (photo picker, location) and its Xcode project.
+- `androidApp`: the Android wrapper (photo picker, camera, location, app icon).
+- `iosKit` and `iosApp`: the iPhone wrapper (photo picker, camera, location) and its Xcode project.
 - `demo`: sample data for screenshots, only in debug builds.
 
 ## Trying it on an Android phone
@@ -25,7 +25,7 @@ and in the `partynearme-screenshots` download on each run.
 Most screens use sample data built into debug builds, so no server or account is
 needed: `adb shell am start -n com.partynearme.app/.MainActivity --es demo feed`
 opens the feed. The other screens are `sign_in`, `nearby`, `event`, `new_event`,
-`map_picker`, `post`, `inbox`, `chat`, `profile` and `user`. Release builds ignore this.
+`map_picker`, `post`, `inbox`, `chat`, `profile`, `user` and `moderation`. Release builds ignore this.
 
 ## iPhone
 
@@ -47,12 +47,27 @@ GitHub Actions builds the app on every change (`.github/workflows/app.yml`).
 Locally, with the Android SDK installed, run `./gradlew :androidApp:assembleDebug` in `app/`.
 Without the Android SDK, `./gradlew -Ppnm.noAndroid :core:jvmTest` still runs the shared tests.
 
+## Taking photos
+
+New post has **Take a photo** next to **Choose photos** on phones with a camera. Android
+hands over to the phone's camera app, so the app needs no camera permission of its
+own; iPhone asks for camera access the first time. Photos are shrunk and stripped of
+location data on the phone like picked ones.
+
 ## Party photos
 
 A party's page shows the photos people posted there, newest first, with **Add photos**
 once the party is published. The New post tab can also attach a photo to a party you
 host or said you're going to, from the last three days onwards. Posts from a party
 say "At <party>" and open it. The server lists them at `GET /events/:id/posts`.
+
+## Profile pictures and party covers
+
+Tap your picture on the Profile tab, or use **Change profile picture** in its ⋮ menu.
+Hosts set a party's cover from the party's ⋮ menu. Both are checked by moderation
+on the server first, so the new picture appears a few seconds after uploading.
+Pictures show on profiles, posts, the party page and the inbox; without one, the
+first letter of the name shows instead.
 
 ## Push notifications
 
@@ -64,7 +79,8 @@ iPhone push comes with the Apple Developer account.
 
 ## Safety and store requirements
 
-The ⋮ menus let people report a post, party or person and block or unblock someone;
+The ⋮ menus let people report a post, party or person and block or unblock someone,
+and holding down on a message in a chat reports it;
 reports land in `public.reports` for review (docs/moderation.md). The profile ⋮ menu
 has the privacy policy, terms and **Delete account**, which deletes the account on the
 server and returns to sign-in. The sign-in screen says the app is 18+ and links the

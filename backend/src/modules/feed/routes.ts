@@ -96,7 +96,7 @@ export const feedRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string | 
     const nextOffset = offset + q.limit;
     // Loaded under RLS, so posts hidden or deleted since ranking drop out.
     const rows = pageIds.length === 0 ? [] : await asUser(db, me, (tx) => tx`
-      select ${postSelect(tx, me)}
+      select ${postSelect(tx, me, mediaBaseUrl)}
       from public.posts p join public.profiles a on a.id = p.author_id
       where p.id = any (${pageIds}::uuid[]) and p.status = 'visible'
     `);
