@@ -40,6 +40,11 @@ import platform.UIKit.UIGraphicsImageRenderer
 import platform.UIKit.UIGraphicsImageRendererFormat
 import platform.UIKit.UIImage
 import platform.UIKit.UIImageJPEGRepresentation
+import platform.UIKit.UIImagePickerController
+import platform.UIKit.UIImagePickerControllerDelegateProtocol
+import platform.UIKit.UIImagePickerControllerOriginalImage
+import platform.UIKit.UIImagePickerControllerSourceType
+import platform.UIKit.UINavigationControllerDelegateProtocol
 import platform.UIKit.UIViewController
 import platform.darwin.NSObject
 import platform.posix.memcpy
@@ -77,6 +82,30 @@ class IosPlatform : Platform {
     }
 
     @Composable
+    override fun rememberCamera(onTaken: (PickedPhoto) -> Unit): (() -> Unit)? {
+        if (!UIImagePickerController.isSourceTypeAvailable(UIImagePickerControllerSourceType.UIImagePickerControllerSourceTypeCamera)) {
+            return null
+        }
+        val scope = rememberCoroutineScope()
+        val latest = rememberUpdatedState(onTaken)
+        // Like the photo picker, the camera holds its delegate weakly.
+        val delegate = remember {
+            CameraDelegate { image ->
+                scope.launch {
+                    withContext(Dispatchers.Default) { runCatching { shrink(image) }.getOrNull() }?.let { latest.value(it) }
+                }
+            }
+        }
+        return {
+            val camera = UIImagePickerController().apply {
+                sourceType = UIImagePickerControllerSourceType.UIImagePickerControllerSourceTypeCamera
+                this.delegate = delegate
+            }
+            topViewController()?.presentViewController(camera, animated = true, completion = null)
+        }
+    }
+
+    @Composable
     override fun rememberLocationProvider(): LocationProvider = remember { LocationProvider { LocationRequest().run() } }
 
     // iPhone push needs an APNs key from the paid Apple Developer account; until then, none.
@@ -95,6 +124,19 @@ private class PhotoPickerDelegate(private val onResults: (List<PHPickerResult>) 
     }
 }
 
+/** Hands back the photo the camera took; iOS asks for camera permission itself the first time. */
+private class CameraDelegate(private val onTaken: (UIImage) -> Unit) :
+    NSObject(), UIImagePickerControllerDelegateProtocol, UINavigationControllerDelegateProtocol {
+    override fun imagePickerController(picker: UIImagePickerController, didFinishPickingMediaWithInfo: Map<Any?, *>) {
+        picker.dismissViewControllerAnimated(true, completion = null)
+        (didFinishPickingMediaWithInfo[UIImagePickerControllerOriginalImage] as? UIImage)?.let(onTaken)
+    }
+
+    override fun imagePickerControllerDidCancel(picker: UIImagePickerController) {
+        picker.dismissViewControllerAnimated(true, completion = null)
+    }
+}
+
 private suspend fun load(result: PHPickerResult): PickedPhoto? {
     val data = suspendCancellableCoroutine<NSData?> { cont ->
         result.itemProvider.loadDataRepresentationForTypeIdentifier("public.image") { data, _ -> cont.resume(data) }
@@ -103,9 +145,10 @@ private suspend fun load(result: PHPickerResult): PickedPhoto? {
 }
 
 /** Decodes, scales down and re-encodes as JPEG (which also drops the photo's GPS metadata). */
+private fun shrink(data: NSData): PickedPhoto? = UIImage.imageWithData(data)?.let { shrink(it) }
+
 @OptIn(ExperimentalForeignApi::class)
-private fun shrink(data: NSData): PickedPhoto? {
-    val image = UIImage.imageWithData(data) ?: return null
+private fun shrink(image: UIImage): PickedPhoto? {
     val (width, height) = image.size.useContents { width to height }
     val scale = minOf(1.0, MAX_EDGE / max(width, height))
     val w = (width * scale).toInt().toDouble()
