@@ -29,7 +29,7 @@ export const postsRoutes: FastifyPluginAsyncZod<{
 
   const loadPost = async (tx: Tx, me: string, id: string) => {
     const [row] = await tx`
-      select ${postSelect(tx, me)}
+      select ${postSelect(tx, me, mediaBaseUrl)}
       from public.posts p join public.profiles a on a.id = p.author_id
       where p.id = ${id}
     `;
@@ -145,7 +145,7 @@ export const postsRoutes: FastifyPluginAsyncZod<{
     const { limit, cursor } = request.query;
     const after = cursor ? decodeCursor(cursor) : null;
     const rows = await asUser(db, me, (tx) => tx`
-      select ${postSelect(tx, me)}
+      select ${postSelect(tx, me, mediaBaseUrl)}
       from public.posts p join public.profiles a on a.id = p.author_id
       where p.author_id = ${request.params.id}
         and p.status in ('pending', 'visible')
@@ -153,6 +153,45 @@ export const postsRoutes: FastifyPluginAsyncZod<{
       order by p.created_at desc, p.id desc
       limit ${limit + 1}
     `);
+    const posts = (rows.slice(0, limit) as unknown as PostRow[]).map(toPost);
+    const last = posts.at(-1);
+    return { posts, next_cursor: rows.length > limit && last ? encodeCursor(last) : null };
+  });
+
+  // A party's photos, newest first. People blocked either way are left out, as in the feed.
+  app.get("/events/:id/posts", {
+    schema: {
+      params: z.object({ id: z.guid() }),
+      querystring: z.object({
+        limit: z.coerce.number().int().min(1).max(50).default(24),
+        cursor: z.string().max(200).optional(),
+      }),
+      response: { 200: z.object({ posts: z.array(post), next_cursor: z.string().nullable() }) },
+    },
+  }, async (request) => {
+    const me = request.userId;
+    const { limit, cursor } = request.query;
+    const after = cursor ? decodeCursor(cursor) : null;
+    // Read as the owner: RLS only shows a user the blocks they made, not the ones against them.
+    const blocked = await db<{ id: string }[]>`
+      select blocked_id as id from public.blocks where blocker_id = ${me}
+      union select blocker_id from public.blocks where blocked_id = ${me}
+    `;
+    const hidden = blocked.map((b) => b.id);
+    const rows = await asUser(db, me, async (tx) => {
+      const [visible] = await tx`select 1 from public.events where id = ${request.params.id}`;
+      if (!visible) throw new HttpError(404, "Event not found");
+      return tx`
+        select ${postSelect(tx, me, mediaBaseUrl)}
+        from public.posts p join public.profiles a on a.id = p.author_id
+        where p.event_id = ${request.params.id}
+          and p.status in ('pending', 'visible')
+          and p.author_id <> all(${hidden}::uuid[])
+          ${after ? tx`and (p.created_at, p.id) < (${after.createdAt}::timestamptz, ${after.id}::uuid)` : tx``}
+        order by p.created_at desc, p.id desc
+        limit ${limit + 1}
+      `;
+    });
     const posts = (rows.slice(0, limit) as unknown as PostRow[]).map(toPost);
     const last = posts.at(-1);
     return { posts, next_cursor: rows.length > limit && last ? encodeCursor(last) : null };

@@ -17,6 +17,10 @@ interface Platform {
     @Composable
     fun rememberPhotoPicker(maxPhotos: Int, onPicked: (List<PickedPhoto>) -> Unit): () -> Unit
 
+    /** Returns a function that opens the camera for one photo, or null when the phone has no camera. */
+    @Composable
+    fun rememberCamera(onTaken: (PickedPhoto) -> Unit): (() -> Unit)?
+
     @Composable
     fun rememberLocationProvider(): LocationProvider
 

@@ -2,8 +2,14 @@ import { z } from "zod";
 import type { FastifyPluginAsyncZod } from "fastify-type-provider-zod";
 import { asUser, type Db, type Tx } from "../../db.js";
 import { HttpError } from "../../errors.js";
+import { pictureUrl } from "../media.js";
 
-const person = z.object({ id: z.guid(), username: z.string().nullable(), display_name: z.string().nullable() });
+const person = z.object({
+  id: z.guid(),
+  username: z.string().nullable(),
+  display_name: z.string().nullable(),
+  avatar_url: z.string().nullable(),
+});
 
 // Message ids are bigints; sent as strings so no client loses precision.
 const message = z.object({
@@ -36,9 +42,10 @@ const decodeCursor = (cursor: string) => {
 };
 
 /** Inbox rows; RLS limits them to conversations the user is in. */
-const conversationSelect = (tx: Tx, me: string) => tx`
+const conversationSelect = (tx: Tx, me: string, base: string | undefined) => tx`
   c.id, c.last_message_at,
-  (select json_build_object('id', p.id, 'username', p.username, 'display_name', p.display_name)
+  (select json_build_object('id', p.id, 'username', p.username, 'display_name', p.display_name,
+                            'avatar_url', ${pictureUrl(tx, base, "p.avatar_variants", "150")})
    from public.conversation_members om join public.profiles p on p.id = om.user_id
    where om.conversation_id = c.id and om.user_id <> ${me}
    limit 1) as other,
@@ -58,10 +65,13 @@ const toConversation = (row: ConversationRow): Conversation => ({
   last_message: row.last_message ? { ...row.last_message, created_at: new Date(row.last_message.created_at) } : null,
 });
 
-export const chatRoutes: FastifyPluginAsyncZod<{ db: Db }> = async (app, { db }) => {
+export const chatRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string | undefined }> = async (
+  app,
+  { db, mediaBaseUrl },
+) => {
   const loadConversation = async (tx: Tx, me: string, id: string) => {
     const [row] = await tx`
-      select ${conversationSelect(tx, me)}
+      select ${conversationSelect(tx, me, mediaBaseUrl)}
       from public.conversations c
       join public.conversation_members me on me.conversation_id = c.id and me.user_id = ${me}
       where c.id = ${id}
@@ -96,7 +106,7 @@ export const chatRoutes: FastifyPluginAsyncZod<{ db: Db }> = async (app, { db })
     const { limit, cursor } = request.query;
     const after = cursor ? decodeCursor(cursor) : null;
     const rows = await asUser(db, me, (tx) => tx`
-      select ${conversationSelect(tx, me)}
+      select ${conversationSelect(tx, me, mediaBaseUrl)}
       from public.conversations c
       join public.conversation_members me on me.conversation_id = c.id and me.user_id = ${me}
       where c.last_message_at is not null
