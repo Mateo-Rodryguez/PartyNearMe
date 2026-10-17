@@ -9,11 +9,19 @@ settings:
   base:
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
+packages:
+  # Crash reports, including crashes in the shared Kotlin code.
+  Sentry:
+    url: https://github.com/getsentry/sentry-cocoa
+    exactVersion: 9.30.2
 targets:
   PartyNearMe:
     type: application
     platform: iOS
     sources: [PartyNearMe]
+    dependencies:
+      - package: Sentry
+        product: Sentry
     scheme: {}
     info:
       path: PartyNearMe/Info.plist

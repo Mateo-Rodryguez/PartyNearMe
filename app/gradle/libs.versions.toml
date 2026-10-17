@@ -15,6 +15,7 @@ maplibre-compose = "0.20.0"
 maplibre-native = "0.202610.0"
 activity-compose = "1.11.0"
 firebase-bom = "35.0.0"
+sentry-android = "8.61.0"
 android-compileSdk = "37"
 android-minSdk = "26"
 android-targetSdk = "36"
@@ -52,5 +53,6 @@ coil-compose = { module = "io.coil-kt.coil3:coil-compose", version.ref = "coil" 
 coil-network-ktor = { module = "io.coil-kt.coil3:coil-network-ktor3", version.ref = "coil" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
 firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
+sentry-android = { module = "io.sentry:sentry-android-core", version.ref = "sentry-android" }
 kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutines" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }

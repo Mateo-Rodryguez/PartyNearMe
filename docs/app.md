@@ -63,6 +63,13 @@ has the privacy policy, terms and **Delete account**, which deletes the account 
 server and returns to sign-in. The sign-in screen says the app is 18+ and links the
 terms and privacy policy, which the server hosts at `/privacy` and `/terms`.
 
+## Crash reports
+
+Both apps send crash reports to the Sentry project `partynearme-app` (organisation
+PartyNearMe, EU region). Android sets it up from `AndroidManifest.xml`, iPhone in
+`PartyNearMeApp.swift`; the DSN is public. Debug builds report as environment `debug`,
+store builds as `production`. Screenshots, tracing and personal data are off.
+
 ## Settings in the app
 
 The API address, Supabase URL and Supabase publishable key are in
