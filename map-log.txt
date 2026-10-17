@@ -1,0 +1,14 @@
+10-17 17:48:41.135  4399  4399 D nativeloader: Load /data/app/~~6FTjHA52Nff_9FegiGDHOA==/com.partynearme.app-kvWrn151prcUmJbyBSDoGg==/base.apk!/lib/x86_64/libmaplibre-native-c.so using ns clns-7 from class loader (caller=/data/app/~~6FTjHA52Nff_9FegiGDHOA==/com.partynearme.app-kvWrn151prcUmJbyBSDoGg==/base.apk!classes12.dex): ok
+10-17 17:48:41.140  4399  4399 D nativeloader: Load /data/app/~~6FTjHA52Nff_9FegiGDHOA==/com.partynearme.app-kvWrn151prcUmJbyBSDoGg==/base.apk!/lib/x86_64/libjniMaplibreNativeC.so using ns clns-7 from class loader (caller=/data/app/~~6FTjHA52Nff_9FegiGDHOA==/com.partynearme.app-kvWrn151prcUmJbyBSDoGg==/base.apk!classes12.dex): ok
+10-17 17:48:41.317  4399  4456 I maplibre-compose: Created the MapLibre runtime on maplibre-compose-runtime
+10-17 17:48:41.329  4399  4456 D maplibre-compose: Ambient cache size set to 52428800 bytes
+10-17 17:48:42.550  4399  4532 I maplibre-compose: [General] GPU Identifier: Android Emulator OpenGL ES Translator (Google SwiftShader)
+10-17 17:48:42.683  4399  4457 I maplibre-compose: Rendered the first map frame with OpenGl on maplibre-compose-render, extent MapExtent(logical=380x221, physical=996x578, scale=2.625)
+10-17 17:48:43.065  4399  4532 W maplibre-compose: [General] Invalid geometry in line layer
+10-17 17:49:16.803  4772  4772 D nativeloader: Load /data/app/~~6FTjHA52Nff_9FegiGDHOA==/com.partynearme.app-kvWrn151prcUmJbyBSDoGg==/base.apk!/lib/x86_64/libmaplibre-native-c.so using ns clns-7 from class loader (caller=/data/app/~~6FTjHA52Nff_9FegiGDHOA==/com.partynearme.app-kvWrn151prcUmJbyBSDoGg==/base.apk!classes12.dex): ok
+10-17 17:49:16.805  4772  4772 D nativeloader: Load /data/app/~~6FTjHA52Nff_9FegiGDHOA==/com.partynearme.app-kvWrn151prcUmJbyBSDoGg==/base.apk!/lib/x86_64/libjniMaplibreNativeC.so using ns clns-7 from class loader (caller=/data/app/~~6FTjHA52Nff_9FegiGDHOA==/com.partynearme.app-kvWrn151prcUmJbyBSDoGg==/base.apk!classes12.dex): ok
+10-17 17:49:16.902  4772  4822 I maplibre-compose: Created the MapLibre runtime on maplibre-compose-runtime
+10-17 17:49:16.904  4772  4822 D maplibre-compose: Ambient cache size set to 52428800 bytes
+10-17 17:49:17.430  4772  4838 I maplibre-compose: [General] GPU Identifier: Android Emulator OpenGL ES Translator (Google SwiftShader)
+10-17 17:49:17.579  4772  4823 I maplibre-compose: Rendered the first map frame with OpenGl on maplibre-compose-render, extent MapExtent(logical=412x759, physical=1080x1991, scale=2.625)
+10-17 17:49:17.708  4772  4838 W maplibre-compose: [General] Invalid geometry in line layer
