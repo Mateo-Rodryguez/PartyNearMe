@@ -29,8 +29,12 @@ shot() {
     failed=1
     return
   fi
-  # Time for sample photos to load from the internet.
-  sleep 8
+  # Time for sample photos and map tiles to load from the internet. Maps and photo
+  # grids get longer, as on Android: the simulator draws maps in software.
+  case "$name" in
+    *event*|*map*|*profile*|*user*) sleep 16 ;;
+    *) sleep 8 ;;
+  esac
   xcrun simctl io booted screenshot "$out/$name.png" > /dev/null
   if ! running; then
     echo "::error::The app was not running after opening $name"
@@ -46,6 +50,11 @@ for screen in sign_in feed nearby event new_event map_picker post inbox chat pro
   shot "$(printf '%02d' "$n")-$screen" -demo "$screen"
   n=$((n + 1))
 done
+
+# Map and image messages, to see why a map or photo stays blank.
+xcrun simctl spawn booted log show --last 10m --style compact \
+  --predicate 'process == "PartyNearMe"' 2> /dev/null \
+  | grep -iE "maplibre|mbgl|metal|tile|coil|image|http|error" | tail -n 400 > "$out/app-log.txt" || true
 
 # Crash reports land here on the Mac running the simulator.
 mkdir -p "$out/crashes"
