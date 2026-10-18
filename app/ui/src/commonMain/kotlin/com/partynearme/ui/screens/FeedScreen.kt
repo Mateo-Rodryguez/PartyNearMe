@@ -1,18 +1,34 @@
 package com.partynearme.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,19 +39,26 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil3.SingletonImageLoader
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
 import com.partynearme.core.api.FeedExpiredException
 import com.partynearme.core.api.ReportTarget
+import com.partynearme.core.model.Event
 import com.partynearme.core.model.LatLng
 import com.partynearme.core.model.Post
+import com.partynearme.ui.Brand
+import com.partynearme.ui.Overline
 import com.partynearme.ui.Paged
 import com.partynearme.ui.Route
+import com.partynearme.ui.Tab
 import com.partynearme.ui.Ui
+import com.partynearme.ui.Wordmark
 import com.partynearme.ui.attempt
 import com.partynearme.ui.userMessage
 import kotlinx.coroutines.CoroutineScope
@@ -100,10 +123,11 @@ fun deletePost(ui: Ui, scope: CoroutineScope, paged: Paged<Post>, post: Post) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FeedScreen(ui: Ui, state: FeedState) {
+fun FeedScreen(ui: Ui, state: FeedState, nearby: NearbyState) {
     val paged = state.paged
     var reporting by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) { if (!paged.loadedOnce && !paged.loading) paged.refresh() }
+    LaunchedEffect(Unit) { if (!nearby.paged.loadedOnce && !nearby.paged.loading) nearby.paged.refresh() }
     val nearEnd by remember {
         derivedStateOf {
             val info = state.list.layoutInfo
@@ -114,7 +138,9 @@ fun FeedScreen(ui: Ui, state: FeedState) {
     PrefetchImages(state.list, paged.items)
 
     androidx.compose.foundation.layout.Column {
-        TopAppBar(title = { Text("PartyNearMe", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary) })
+        Row(Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Wordmark(size = 26.sp)
+        }
         PullToRefreshBox(
             isRefreshing = paged.loading && paged.loadedOnce && paged.items.isEmpty(),
             onRefresh = { paged.refresh() },
@@ -123,8 +149,17 @@ fun FeedScreen(ui: Ui, state: FeedState) {
             when {
                 !paged.loadedOnce && paged.items.isEmpty() -> Box(Modifier.fillMaxSize()) { CircularProgressIndicator(Modifier.align(Alignment.Center)) }
                 paged.items.isEmpty() && paged.error != null -> Message(paged.error!!) { paged.refresh() }
-                paged.items.isEmpty() -> Message("Nothing here yet. Post the first photo, or follow some people.", null)
+                paged.items.isEmpty() -> EmptyState(
+                    Icons.Filled.Home,
+                    "Your feed is warming up",
+                    body = "Post the first photo, or follow people to see their nights out here.",
+                    action = "Find parties nearby",
+                    onAction = { ui.nav.select(Tab.Nearby) },
+                )
                 else -> LazyColumn(state = state.list, modifier = Modifier.fillMaxSize()) {
+                    if (nearby.paged.items.isNotEmpty()) {
+                        item(key = "parties") { PartyRail(ui, nearby.paged.items) }
+                    }
                     if (paged.saved && paged.error != null) {
                         item(key = "saved") {
                             Text(
@@ -188,6 +223,56 @@ private fun TrackView(ui: Ui, postId: String) {
     }
 }
 
+/** Parties coming up near you as a row of rings above the feed, like Instagram stories. */
+@Composable
+private fun PartyRail(ui: Ui, events: List<Event>) {
+    Column(Modifier.padding(bottom = 16.dp)) {
+        Text(
+            "HAPPENING NEAR YOU",
+            style = Overline,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 20.dp, bottom = 10.dp),
+        )
+        LazyRow(contentPadding = PaddingValues(horizontal = 14.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            item(key = "new") {
+                RailItem("Start one", onClick = { ui.nav.select(Tab.Nearby); ui.nav.open(Route.NewEvent()) }) {
+                    Box(
+                        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(Icons.Filled.Add, null, Modifier.size(28.dp), tint = MaterialTheme.colorScheme.onSurface) }
+                }
+            }
+            items(events, key = { it.id }) { event ->
+                RailItem(event.title, ring = true, onClick = { ui.nav.open(Route.Event(event.id)) }) {
+                    Cover(event.coverUrl, event.title, Modifier.fillMaxSize())
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RailItem(label: String, ring: Boolean = false, onClick: () -> Unit, image: @Composable () -> Unit) {
+    Column(
+        Modifier.width(78.dp).clip(RoundedCornerShape(12.dp)).clickable(onClick = onClick).padding(vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            Modifier.size(70.dp)
+                .then(if (ring) Modifier.border(2.5.dp, Brand.sunset, CircleShape) else Modifier)
+                .padding(4.dp).clip(CircleShape),
+        ) { image() }
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 6.dp, start = 2.dp, end = 2.dp),
+        )
+    }
+}
+
+/** A short note in place of a list, such as an error, with a way to try again. */
 @Composable
 fun Message(text: String, retry: (() -> Unit)?) {
     androidx.compose.foundation.layout.Column(
@@ -196,7 +281,7 @@ fun Message(text: String, retry: (() -> Unit)?) {
     ) {
         Text(text, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
         if (retry != null) {
-            Button(onClick = retry, modifier = Modifier.padding(top = 12.dp)) { Text("Try again") }
+            SecondaryButton("Try again", retry, Modifier.padding(top = 16.dp), icon = Icons.Filled.Refresh)
         }
     }
 }

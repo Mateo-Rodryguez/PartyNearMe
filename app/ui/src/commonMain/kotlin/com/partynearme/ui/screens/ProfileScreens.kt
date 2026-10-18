@@ -9,24 +9,30 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -40,8 +46,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.partynearme.core.api.ReportTarget
@@ -121,7 +128,10 @@ fun MeScreen(ui: Ui) {
         PostGrid(ui, posts) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Header(me?.displayName ?: me?.username, me?.bio, stats, me?.avatarUrl, onAvatar = pickAvatar) {
-                    OutlinedButton(onClick = { editing = true }, modifier = Modifier.fillMaxWidth()) { Text("Edit profile") }
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        SecondaryButton("Edit profile", { editing = true }, Modifier.weight(1f), icon = Icons.Filled.Edit)
+                        SecondaryButton("Photo", pickAvatar, Modifier.weight(1f), icon = Icons.Filled.Face)
+                    }
                 }
             }
         }
@@ -217,17 +227,17 @@ fun UserScreen(ui: Ui, id: String) {
                                     Unit
                                 }
                                 if (p.isFollowing) {
-                                    OutlinedButton(onClick = follow, modifier = Modifier.weight(1f)) { Text("Following") }
+                                    SecondaryButton("Following", follow, Modifier.weight(1f).height(52.dp), icon = Icons.Filled.Check)
                                 } else {
-                                    Button(onClick = follow, modifier = Modifier.weight(1f)) { Text("Follow") }
+                                    PrimaryButton("Follow", follow, Modifier.weight(1f), icon = Icons.Filled.Add)
                                 }
-                                OutlinedButton(modifier = Modifier.weight(1f), onClick = {
+                                SecondaryButton("Message", {
                                     scope.launch {
                                         attempt { ui.api.startConversation(id) }
                                             .onSuccess { ui.nav.open(Route.Chat(it.id, title)) }
                                             .onFailure { ui.toast(it.userMessage) }
                                     }
-                                }) { Text("Message") }
+                                }, Modifier.weight(1f).height(52.dp), icon = Icons.Filled.Email)
                             }
                         }
                     }
@@ -268,13 +278,44 @@ private fun Header(
     onAvatar: (() -> Unit)? = null,
     actions: @Composable () -> Unit,
 ) {
-    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Avatar(avatarUrl, name ?: "?", 88.dp, if (onAvatar != null) Modifier.clickable(onClick = onAvatar) else Modifier)
-        name?.let { Text(it, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold) }
-        stats?.let { Text("${it.followers} followers · ${it.following} following") }
-        bio?.takeIf { it.isNotBlank() }?.let { Text(it) }
-        actions()
+    Column(
+        Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 20.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Avatar(avatarUrl, name ?: "?", 104.dp, if (onAvatar != null) Modifier.clip(CircleShape).clickable(onClick = onAvatar) else Modifier,
+            ring = true)
+        name?.let { Text(it, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center) }
+        stats?.let {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Stat(it.followers, "Followers")
+                Box(Modifier.padding(horizontal = 24.dp).size(width = 1.dp, height = 28.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant))
+                Stat(it.following, "Following")
+            }
+        }
+        bio?.takeIf { it.isNotBlank() }?.let {
+            Text(it, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center)
+        }
+        Box(Modifier.fillMaxWidth().padding(top = 4.dp)) { actions() }
     }
+}
+
+@Composable
+private fun Stat(count: Int, label: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(compactCount(count), style = MaterialTheme.typography.titleLarge)
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** 1890 -> "1,890", 12500 -> "12.5K": how social apps show big numbers. */
+private fun compactCount(n: Int): String = when {
+    n >= 1_000_000 -> "${(n / 100_000) / 10.0}M".replace(".0M", "M")
+    n >= 10_000 -> "${(n / 100) / 10.0}K".replace(".0K", "K")
+    n >= 1_000 -> "${n / 1000},${(n % 1000).toString().padStart(3, '0')}"
+    else -> n.toString()
 }
 
 @Composable
@@ -288,12 +329,18 @@ private fun PostGrid(ui: Ui, posts: Paged<Post>, header: LazyGridScope.() -> Uni
         columns = GridCells.Fixed(3),
         state = grid,
         modifier = Modifier.fillMaxSize(),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         header()
         if (posts.loadedOnce && posts.items.isEmpty()) {
-            item(span = { GridItemSpan(maxLineSpan) }) { Message(posts.error ?: "No posts yet.", null) }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                if (posts.error != null) {
+                    Message(posts.error!!, null)
+                } else {
+                    EmptyState(Icons.Filled.Face, "No posts yet", body = "Photos from nights out show up here.")
+                }
+            }
         }
         items(posts.items, key = { it.id }) { post ->
             Box(

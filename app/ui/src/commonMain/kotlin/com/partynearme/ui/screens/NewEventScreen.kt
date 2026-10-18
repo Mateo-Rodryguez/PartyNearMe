@@ -1,21 +1,34 @@
 package com.partynearme.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -29,13 +42,27 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import com.partynearme.core.model.LatLng
 import com.partynearme.core.model.NewEvent
+import com.partynearme.ui.Brand
+import com.partynearme.ui.Overline
+import com.partynearme.ui.PickedPhoto
 import com.partynearme.ui.Ui
 import com.partynearme.ui.attempt
-import com.partynearme.ui.eventTime
+import com.partynearme.ui.clockTime
+import com.partynearme.ui.dayLabel
 import com.partynearme.ui.userMessage
 import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDate
@@ -74,6 +101,8 @@ fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, onCreated: () -> Unit) {
     var mapStart by remember { mutableStateOf<LatLng?>(null) }
     LaunchedEffect(Unit) { mapStart = ui.location.current() }
     var error by remember { mutableStateOf<String?>(null) }
+    var cover by remember { mutableStateOf<PickedPhoto?>(null) }
+    val pickCover = ui.platform.rememberPhotoPicker(1) { picked -> picked.firstOrNull()?.let { cover = it } }
 
     if (picking) {
         MapPicker(
@@ -115,74 +144,131 @@ fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, onCreated: () -> Unit) {
         )
     }
 
-    Column(Modifier.verticalScroll(rememberScrollState())) {
-        BackBar(ui, "New party")
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            OutlinedTextField(title, { title = it.take(120) }, label = { Text("What's the party?") },
-                singleLine = true, modifier = Modifier.fillMaxWidth())
-            OutlinedTextField(venue, { venue = it.take(120) }, label = { Text("Venue name (optional)") },
-                singleLine = true, modifier = Modifier.fillMaxWidth())
-            Text("Starts ${eventTime(start.toString())}", style = MaterialTheme.typography.titleSmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { pickDate = true }) { Text("Change date") }
-                OutlinedButton(onClick = { pickTime = true }) { Text("Change time") }
+    fun publish() {
+        busy = true
+        error = null
+        scope.launch {
+            val here = spot ?: ui.location.current()
+            if (here == null) {
+                error = "Turn on location so people can find your party."
+            } else {
+                attempt {
+                    ui.api.createEvent(
+                        NewEvent(
+                            title = title.trim(),
+                            description = description.trim().ifEmpty { null },
+                            startsAt = start.toString(),
+                            endsAt = (start + hours.hours).toString(),
+                            venueName = venue.trim().ifEmpty { null },
+                            lat = here.lat,
+                            lng = here.lng,
+                            publish = true,
+                        ),
+                    )
+                }.onSuccess { created ->
+                    // The party is live either way; a cover that fails to upload can be added later.
+                    cover?.let { photo ->
+                        attempt { ui.api.setCover(created.id, ui.api.uploadPhoto(photo.contentType, photo.bytes)) }
+                            .onFailure { ui.toast("Your party is live, but the cover didn't upload. Try again from its page.") }
+                    }
+                    ui.toast("Your party is live")
+                    onCreated()
+                    ui.nav.back()
+                }.onFailure { error = it.userMessage }
             }
-            Text("Lasts about $hours hours", style = MaterialTheme.typography.titleSmall)
-            // Equal shares of the row with slim padding, so "12h" fits on one line on
-            // narrower screens such as an iPhone's.
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                DURATIONS.forEach { h ->
-                    val label = @Composable { Text("${h}h", maxLines = 1, softWrap = false) }
-                    val padding = PaddingValues(horizontal = 4.dp)
-                    if (h == hours) {
-                        Button(onClick = {}, Modifier.weight(1f), contentPadding = padding) { label() }
-                    } else {
-                        OutlinedButton(onClick = { hours = h }, Modifier.weight(1f), contentPadding = padding) { label() }
+            busy = false
+        }
+    }
+
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            BackBar(ui, "New party")
+            Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // A live preview of the card people will see, which doubles as the cover picker.
+                Box(
+                    Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(24.dp))
+                        .background(Brand.coverFor(title.trim().ifEmpty { "New party" }))
+                        .clickable(onClick = pickCover),
+                ) {
+                    cover?.let {
+                        AsyncImage(it.bytes, contentDescription = "Cover photo", contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize())
+                    }
+                    Box(Modifier.fillMaxSize().background(Brand.scrim))
+                    Pill(
+                        if (cover == null) "Add a cover photo" else "Change cover",
+                        Modifier.align(Alignment.TopEnd).padding(12.dp),
+                        icon = if (cover == null) Icons.Filled.Add else Icons.Filled.Edit,
+                        dark = true,
+                    )
+                    Column(Modifier.align(Alignment.BottomStart).padding(16.dp)) {
+                        Text(dayLabel(start.toString()).uppercase(), style = Overline, color = Color.White.copy(alpha = 0.85f))
+                        Text(title.trim().ifEmpty { "Your party" }, style = MaterialTheme.typography.headlineSmall,
+                            color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                 }
+                PartyField(title, { title = it.take(120) }, "What's the party?",
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next))
+                PartyField(venue, { venue = it.take(120) }, "Venue (optional)",
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done))
+
+                FormLabel("When")
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    PickerTile(Icons.Filled.DateRange, "Date", dayLabel(start.toString()), Modifier.weight(1f)) { pickDate = true }
+                    PickerTile(Icons.Filled.PlayArrow, "Starts", clockTime(start.toString()), Modifier.weight(1f)) { pickTime = true }
+                }
+                Text("Lasts about $hours hours", style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                // Equal shares of the row, so "12h" fits on one line on narrower screens such as an iPhone's.
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DURATIONS.forEach { h -> ChoiceChip("${h}h", h == hours, { hours = h }, Modifier.weight(1f)) }
+                }
+
+                FormLabel("Where")
+                InfoRow(
+                    Icons.Filled.Place,
+                    if (spot == null) "Where you are now" else "The spot you picked",
+                    detail = if (spot == null) "Tap to pick a different spot on the map" else "Tap to change it on the map",
+                    onClick = { picking = true },
+                    trailing = {
+                        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    },
+                )
+
+                FormLabel("Details")
+                PartyField(description, { description = it.take(2000) }, "Dress code, tickets, what to bring (optional)",
+                    singleLine = false, minLines = 3)
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                Spacer(Modifier.height(96.dp))
             }
-            OutlinedTextField(description, { description = it.take(2000) }, label = { Text("Details (optional)") },
-                minLines = 3, modifier = Modifier.fillMaxWidth())
-            Text(
-                if (spot == null) "Where: where you are now" else "Where: the spot you picked on the map",
-                style = MaterialTheme.typography.titleSmall,
-            )
-            OutlinedButton(onClick = { picking = true }) { Text(if (spot == null) "Pick on the map" else "Change on the map") }
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            Button(
-                enabled = title.isNotBlank() && !busy,
-                modifier = Modifier.fillMaxWidth(),
-                onClick = {
-                    busy = true
-                    error = null
-                    scope.launch {
-                        val here = spot ?: ui.location.current()
-                        if (here == null) {
-                            error = "Turn on location so people can find your party."
-                        } else {
-                            attempt {
-                                ui.api.createEvent(
-                                    NewEvent(
-                                        title = title.trim(),
-                                        description = description.trim().ifEmpty { null },
-                                        startsAt = start.toString(),
-                                        endsAt = (start + hours.hours).toString(),
-                                        venueName = venue.trim().ifEmpty { null },
-                                        lat = here.lat,
-                                        lng = here.lng,
-                                        publish = true,
-                                    ),
-                                )
-                            }.onSuccess {
-                                ui.toast("Your party is live")
-                                onCreated()
-                                ui.nav.back()
-                            }.onFailure { error = it.userMessage }
-                        }
-                        busy = false
-                    }
-                },
-            ) { Text(if (busy) "Publishing…" else "Publish party") }
+        }
+        Box(
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                .background(Brush.verticalGradient(listOf(Color.Transparent, MaterialTheme.colorScheme.background)))
+                .padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 12.dp),
+        ) {
+            PrimaryButton("Publish party", ::publish, Modifier.fillMaxWidth(), enabled = title.isNotBlank() || busy, busy = busy)
+        }
+    }
+}
+
+@Composable
+private fun FormLabel(text: String) {
+    Text(text.uppercase(), style = Overline, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp))
+}
+
+/** A big tappable tile showing a chosen value, such as the date, that opens its picker. */
+@Composable
+private fun PickerTile(icon: ImageVector, label: String, value: String, modifier: Modifier, onClick: () -> Unit) {
+    Row(
+        modifier.clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceContainer)
+            .clickable(onClick = onClick).padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, null, tint = MaterialTheme.colorScheme.primary)
+        Column(Modifier.padding(start = 12.dp)) {
+            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(value, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
 }

@@ -21,7 +21,7 @@ struct PartyNearMeApp: App {
 
     var body: some Scene {
         WindowGroup {
-            SharedScreens().ignoresSafeArea()
+            SharedScreens().ignoresSafeArea().preferredColorScheme(.dark)
         }
     }
 }

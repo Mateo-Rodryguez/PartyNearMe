@@ -5,16 +5,16 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Place
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -64,20 +64,24 @@ fun MapPicker(start: LatLng?, onPicked: (LatLng) -> Unit, onCancel: () -> Unit) 
         )
         Surface(
             modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
-            tonalElevation = 3.dp,
-            shadowElevation = 8.dp,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            color = MaterialTheme.colorScheme.surfaceContainer,
+            shadowElevation = 12.dp,
         ) {
-            Column(Modifier.padding(16.dp).navigationBarsPadding()) {
-                Text("Move the map so the pin is on the party", style = MaterialTheme.typography.titleSmall)
-                Row(Modifier.fillMaxWidth().padding(top = 12.dp)) {
-                    OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("Cancel") }
-                    Button(
+            Column(Modifier.padding(20.dp).navigationBarsPadding()) {
+                Text("Where's the party?", style = MaterialTheme.typography.titleLarge)
+                Text("Move the map so the pin sits on the spot.", style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                Row(Modifier.fillMaxWidth().padding(top = 16.dp)) {
+                    SecondaryButton("Cancel", onCancel, Modifier.weight(1f).height(52.dp))
+                    PrimaryButton(
+                        "Put it here",
                         onClick = {
                             val center = map.cameraPosition.center
                             onPicked(LatLng(center.latitude, center.longitude))
                         },
-                        modifier = Modifier.weight(1f).padding(start = 8.dp),
-                    ) { Text("Put it here") }
+                        modifier = Modifier.weight(1f).padding(start = 10.dp),
+                    )
                 }
             }
         }

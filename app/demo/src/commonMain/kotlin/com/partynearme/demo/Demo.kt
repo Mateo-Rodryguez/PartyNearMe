@@ -81,11 +81,13 @@ private const val ALEX = "00000000-0000-4000-8000-000000000003"
 private object FakeApi {
     private fun ago(d: Duration) = (Clock.System.now() - d).toString()
     private fun ahead(d: Duration) = (Clock.System.now() + d).toString()
-    private fun person(id: String, username: String, name: String) =
-        """{"id":"$id","username":"$username","display_name":"$name"}"""
+    private fun person(id: String, username: String, name: String, avatar: String? = null) =
+        """{"id":"$id","username":"$username","display_name":"$name","avatar_url":${avatar?.let { "\"$it\"" }}}"""
 
-    private val sam = person(SAM, "sam", "Sam Rivera")
-    private val alex = person(ALEX, "alex", "Alex Chen")
+    private const val SAM_AVATAR = "https://picsum.photos/seed/sam-avatar/200/200"
+    private const val ALEX_AVATAR = "https://picsum.photos/seed/alex-avatar/200/200"
+    private val sam = person(SAM, "sam", "Sam Rivera", SAM_AVATAR)
+    private val alex = person(ALEX, "alex", "Alex Chen", ALEX_AVATAR)
     private val mateo = person(ME, "mateo", "Mateo")
 
     private fun photo(seed: String, w: Int, h: Int) =
@@ -94,13 +96,16 @@ private object FakeApi {
            "width":$w,"height":$h,"blurhash":null}"""
 
     private fun post(id: String, author: String, caption: String, likes: Int, liked: Boolean, age: Duration, media: String,
-                     place: String? = null, status: String = "visible") =
-        """{"id":"$id","author":$author,"event_id":null,"caption":"$caption",
+                     place: String? = null, status: String = "visible", party: Pair<String, String>? = null) =
+        """{"id":"$id","author":$author,"event_id":${party?.let { "\"${it.first}\"" }},
+           "event_title":${party?.let { "\"${it.second}\"" }},"caption":"$caption",
            "place_name":${place?.let { "\"$it\"" }},"lat":null,"lng":null,"status":"$status","like_count":$likes,
            "liked_by_me":$liked,"media":[$media],"created_at":"${ago(age)}"}"""
 
     private val feedPosts get() = listOf(
-        post("p1", sam, "Best night of the summer", 128, true, 42.minutes, photo("party1", 1080, 1350), "Fabric, London"),
+        post("p1", sam, "Best night of the summer", 128, true, 42.minutes,
+            listOf(photo("party1", 1080, 1350), photo("party4", 1080, 1350), photo("party5", 1080, 1350)).joinToString(","),
+            "Fabric, London", party = "e1" to "Rooftop Sunset Party"),
         post("p2", alex, "Warming up for Saturday", 37, false, 5.hours, photo("party2", 1080, 1080)),
         post("p3", sam, "Sunset session on the roof", 412, false, 2.days, photo("party3", 1350, 1080), "Shoreditch"),
     ).joinToString(",")
@@ -112,17 +117,18 @@ private object FakeApi {
     ).joinToString(",")
 
     private fun event(id: String, title: String, venue: String, starts: Duration, going: Int, interested: Int,
-                      mine: String?, distance: Int) =
+                      mine: String?, distance: Int, cover: String?) =
         """{"id":"$id","organiser":$sam,"title":"$title","description":"Bring your friends. Doors at 9, music until late.",
            "starts_at":"${ahead(starts)}","ends_at":"${ahead(starts + 5.hours)}","venue_name":"$venue",
-           "lat":51.51,"lng":-0.13,"cover_url":null,"status":"published","going_count":$going,
+           "lat":51.51,"lng":-0.13,"cover_url":${cover?.let { "\"https://picsum.photos/seed/$it/1280/800\"" }},"status":"published","going_count":$going,
            "interested_count":$interested,"my_rsvp":${mine?.let { "\"$it\"" }},"created_at":"${ago(2.days)}",
            "distance_m":$distance}"""
 
     private val events get() = listOf(
-        event("e1", "Rooftop Sunset Party", "Skyline Bar", 6.hours, 42, 17, "going", 650),
-        event("e2", "House Night", "Warehouse 9", 1.days + 3.hours, 120, 48, null, 2300),
-        event("e3", "Student Mixer", "Union Hall", 3.days, 18, 30, "interested", 4100),
+        event("e1", "Rooftop Sunset Party", "Skyline Bar", 6.hours, 42, 17, "going", 650, cover = "rooftop"),
+        event("e2", "House Night", "Warehouse 9", 1.days + 3.hours, 120, 48, null, 2300, cover = "house-night"),
+        // No cover: shows the gradient parties get until their host adds a photo.
+        event("e3", "Student Mixer", "Union Hall", 3.days, 18, 30, "interested", 4100, cover = null),
     )
 
     private fun message(id: Int, from: String, body: String, age: Duration) =
@@ -155,7 +161,7 @@ private object FakeApi {
         path == "/users/$ME" -> HttpStatusCode.OK to """{"id":"$ME","username":"mateo","display_name":"Mateo",
             "bio":"Building PartyNearMe","avatar_url":null,"followers":214,"following":180,"is_following":false}"""
         path.startsWith("/users/") -> HttpStatusCode.OK to """{"id":"$SAM","username":"sam","display_name":"Sam Rivera",
-            "bio":"DJ and party host in London","avatar_url":null,"followers":1890,"following":312,"is_following":true}"""
+            "bio":"DJ and party host in London","avatar_url":"$SAM_AVATAR","followers":1890,"following":312,"is_following":true}"""
         path == "/events/nearby" -> HttpStatusCode.OK to """{"events":[${events.joinToString(",")}],"next_cursor":null}"""
         path.matches(Regex("/events/[^/]+/posts")) -> HttpStatusCode.OK to """{"posts":[$feedPosts],"next_cursor":null}"""
         path.startsWith("/events/") -> HttpStatusCode.OK to events.first()
