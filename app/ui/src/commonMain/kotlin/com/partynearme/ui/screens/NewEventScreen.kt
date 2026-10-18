@@ -2,6 +2,7 @@ package com.partynearme.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -127,9 +128,17 @@ fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, onCreated: () -> Unit) {
                 OutlinedButton(onClick = { pickTime = true }) { Text("Change time") }
             }
             Text("Lasts about $hours hours", style = MaterialTheme.typography.titleSmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Equal shares of the row with slim padding, so "12h" fits on one line on
+            // narrower screens such as an iPhone's.
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 DURATIONS.forEach { h ->
-                    if (h == hours) Button(onClick = {}) { Text("${h}h") } else OutlinedButton(onClick = { hours = h }) { Text("${h}h") }
+                    val label = @Composable { Text("${h}h", maxLines = 1, softWrap = false) }
+                    val padding = PaddingValues(horizontal = 4.dp)
+                    if (h == hours) {
+                        Button(onClick = {}, Modifier.weight(1f), contentPadding = padding) { label() }
+                    } else {
+                        OutlinedButton(onClick = { hours = h }, Modifier.weight(1f), contentPadding = padding) { label() }
+                    }
                 }
             }
             OutlinedTextField(description, { description = it.take(2000) }, label = { Text("Details (optional)") },
