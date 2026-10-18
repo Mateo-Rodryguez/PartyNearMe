@@ -52,6 +52,7 @@ object Demo {
             "chat" -> { nav.select(Tab.Chat); nav.open(Route.Chat("c1", "@sam")) }
             "profile" -> nav.select(Tab.Me)
             "user" -> nav.open(Route.User(SAM))
+            "moderation" -> { nav.select(Tab.Me); nav.open(Route.Moderation) }
         }
         return DemoSetup(core, DemoPlatform, nav)
     }
@@ -145,7 +146,8 @@ private object FakeApi {
 
     fun handle(method: HttpMethod, path: String): Pair<HttpStatusCode, String> = when {
         path == "/me" -> HttpStatusCode.OK to """{"id":"$ME","username":"mateo","display_name":"Mateo",
-            "bio":"Building PartyNearMe","avatar_url":null,"created_at":"${ago(30.days)}","interest_ids":[1,3]}"""
+            "bio":"Building PartyNearMe","avatar_url":null,"created_at":"${ago(30.days)}","interest_ids":[1,3],
+            "is_moderator":true}"""
         path == "/feed" -> HttpStatusCode.OK to """{"posts":[$feedPosts],"next_cursor":null}"""
         path == "/interactions" -> HttpStatusCode.Accepted to ""
         path == "/users/$ME/posts" -> HttpStatusCode.OK to """{"posts":[$myPosts],"next_cursor":null}"""
@@ -162,6 +164,14 @@ private object FakeApi {
         path.endsWith("/messages") -> HttpStatusCode.OK to """{"messages":[$messages],"has_more":false}"""
         path.endsWith("/read") -> HttpStatusCode.NoContent to ""
         path == "/me/avatar" || path.endsWith("/cover") -> HttpStatusCode.Accepted to ""
+        path == "/moderation/queue" -> HttpStatusCode.OK to """{"items":[
+           {"target_type":"post","target_id":"p9","report_count":2,"reasons":["Spam","Spam"],
+            "first_reported_at":"${ago(3.hours)}","preview":{"title":"Post by Alex Chen","body":"Cheap tickets, DM me",
+            "image_url":null,"status":"visible","user_id":"$ALEX"}},
+           {"target_type":"user","target_id":"$ALEX","report_count":1,"reasons":["Fake account"],
+            "first_reported_at":"${ago(1.hours)}","preview":{"title":"Alex Chen","body":null,"image_url":null,
+            "status":null,"user_id":"$ALEX"}}]}"""
+        path == "/moderation/actions" -> HttpStatusCode.NoContent to ""
         else -> HttpStatusCode.NotFound to """{"error":"request_failed","message":"Not in the demo"}"""
     }
 }

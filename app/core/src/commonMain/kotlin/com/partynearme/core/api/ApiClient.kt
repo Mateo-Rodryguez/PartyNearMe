@@ -11,12 +11,14 @@ import com.partynearme.core.model.Interaction
 import com.partynearme.core.model.Interest
 import com.partynearme.core.model.Message
 import com.partynearme.core.model.MessagePage
+import com.partynearme.core.model.ModerationQueue
 import com.partynearme.core.model.NewEvent
 import com.partynearme.core.model.NewPost
 import com.partynearme.core.model.OwnProfile
 import com.partynearme.core.model.Post
 import com.partynearme.core.model.PostPage
 import com.partynearme.core.model.PublicProfile
+import com.partynearme.core.model.ReportedItem
 import com.partynearme.core.model.UploadId
 import com.partynearme.core.model.UploadTicket
 import io.ktor.client.HttpClient
@@ -142,6 +144,13 @@ class ApiClient(
     suspend fun report(targetType: ReportTarget, targetId: String, reason: String) =
         callUnit(HttpMethod.Post, "/reports") { json(ReportBody(targetType.wire, targetId, reason)) }
 
+    /** Open reports, one entry per reported thing. Moderators only. */
+    suspend fun moderationQueue(): List<ReportedItem> = call<ModerationQueue>(HttpMethod.Get, "/moderation/queue").items
+
+    /** Acts on a reported thing and closes its reports. Moderators only. */
+    suspend fun moderate(targetType: String, targetId: String, action: ModerationAction, note: String? = null) =
+        callUnit(HttpMethod.Post, "/moderation/actions") { json(ModerationBody(targetType, targetId, action.wire, note)) }
+
     /** Deletes the signed-in account and everything it owns. */
     suspend fun deleteAccount() = callUnit(HttpMethod.Delete, "/me")
 
@@ -226,6 +235,12 @@ class ApiClient(
     @Serializable private data class UnreadCount(@SerialName("unread_count") val unreadCount: Int)
     @Serializable private data class SendBody(val body: String)
     @Serializable private data class DeviceBody(val platform: String)
+    @Serializable private data class ModerationBody(
+        @SerialName("target_type") val targetType: String,
+        @SerialName("target_id") val targetId: String,
+        val action: String,
+        val note: String? = null,
+    )
     @Serializable private data class ReportBody(
         @SerialName("target_type") val targetType: String,
         @SerialName("target_id") val targetId: String,
@@ -252,3 +267,7 @@ class ApiClient(
 class FeedExpiredException : Exception("The feed has moved on")
 
 enum class ReportTarget(val wire: String) { Post("post"), Event("event"), User("user"), Message("message") }
+
+enum class ModerationAction(val wire: String) {
+    Remove("remove"), Restore("restore"), Dismiss("dismiss"), RemovePicture("remove_picture"), DeleteAccount("delete_account"),
+}

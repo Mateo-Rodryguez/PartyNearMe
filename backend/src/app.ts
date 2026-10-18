@@ -54,7 +54,7 @@ export async function buildApp({ config, db, verifyToken, storage, reportError }
     await authed.register(postsRoutes, { db, storage, mediaBaseUrl: config.MEDIA_BASE_URL });
     await authed.register(feedRoutes, { db, mediaBaseUrl: config.MEDIA_BASE_URL });
     await authed.register(chatRoutes, { db, mediaBaseUrl: config.MEDIA_BASE_URL });
-    await authed.register(moderationRoutes, { db });
+    await authed.register(moderationRoutes, { db, mediaBaseUrl: config.MEDIA_BASE_URL });
   });
 
   return app;

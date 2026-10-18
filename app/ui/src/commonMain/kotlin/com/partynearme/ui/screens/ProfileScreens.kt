@@ -102,6 +102,9 @@ fun MeScreen(ui: Ui) {
                             }
                         })
                     }
+                    if (me?.isModerator == true) {
+                        DropdownMenuItem(text = { Text("Reports to review") }, onClick = { menu = false; ui.nav.open(Route.Moderation) })
+                    }
                     DropdownMenuItem(text = { Text("Sign out") }, onClick = {
                         menu = false
                         scope.launch { ui.app.interactions.flush(); ui.app.signOut() }

@@ -13,9 +13,28 @@ policy). The terms promise a review within 24 hours.
   different people is hidden straight away until a moderator looks at it.
 - Blocking a user stops them messaging you and removes their posts from your feed.
 
-## Reviewing reports
+## Reviewing reports in the app
 
-Open the Supabase dashboard, go to **SQL Editor**, and run:
+Moderators get **Reports to review** in the Profile tab's ⋮ menu. It lists each
+reported post, party, person or message once, with how many people reported it,
+their reasons and a preview (moderators see hidden posts too). The buttons remove
+or put back a post or party, delete a message, remove a profile picture, delete an
+account, or mark it as "Nothing wrong"; each closes the open reports and is logged
+in `public.moderation_actions` with an optional note.
+
+To make someone a moderator, run this in the Supabase **SQL Editor** with their
+sign-in email:
+
+```sql
+insert into public.moderators (user_id)
+select id from auth.users where email = 'their@email.com';
+```
+
+Remove one with `delete from public.moderators where user_id = '…';`.
+
+## Reviewing reports in the dashboard
+
+The same can be done by hand. Open the Supabase dashboard, go to **SQL Editor**, and run:
 
 ```sql
 select r.created_at, r.target_type, r.target_id, r.reason, p.username as reporter, r.id
