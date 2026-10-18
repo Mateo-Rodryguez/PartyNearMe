@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { FastifyPluginAsyncZod, ZodTypeProvider } from "fastify-type-provider-zod";
 import { asUser, type Db } from "../../db.js";
 import { HttpError } from "../../errors.js";
+import { checkLimit } from "../../limits.js";
 import { clearPicture } from "../media.js";
 
 /** Posts reported by this many different people are hidden until a moderator looks. */
@@ -76,6 +77,7 @@ export const moderationRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: str
     schema: { body: reportBody, response: { 204: z.null() } },
   }, async (request, reply) => {
     const me = request.userId;
+    await checkLimit(db, me, "report");
     const { target_type, target_id, reason } = request.body;
     await asUser(db, me, (tx) => tx`
       insert into public.reports (reporter_id, target_type, target_id, reason)
