@@ -47,6 +47,15 @@ GitHub Actions builds the app on every change (`.github/workflows/app.yml`).
 Locally, with the Android SDK installed, run `./gradlew :androidApp:assembleDebug` in `app/`.
 Without the Android SDK, `./gradlew -Ppnm.noAndroid :core:jvmTest` still runs the shared tests.
 
+## Feed loading
+
+The app saves the feed's first page (up to 20 posts) on the phone and shows it at
+once on the next start, then swaps in the fresh feed when it arrives; the free
+server can take up to a minute to wake. Offline, the saved posts stay with a short
+note above them. The saved copy is only shown to the account that saved it and is
+removed on sign-out and account deletion. While scrolling, the next page loads six
+posts before the end and the photos of the next three posts download early.
+
 ## Taking photos
 
 New post has **Take a photo** next to **Choose photos** on phones with a camera. Android

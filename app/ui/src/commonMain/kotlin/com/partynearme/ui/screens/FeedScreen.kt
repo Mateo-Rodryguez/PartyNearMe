@@ -26,6 +26,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import coil3.SingletonImageLoader
+import coil3.compose.LocalPlatformContext
+import coil3.request.ImageRequest
 import com.partynearme.core.api.FeedExpiredException
 import com.partynearme.core.api.ReportTarget
 import com.partynearme.core.model.LatLng
@@ -52,11 +55,18 @@ class FeedState(private val ui: Ui, private val scope: CoroutineScope) {
             here = ui.location.current()
         }
         try {
-            ui.api.feed(here?.lat, here?.lng, cursor).let { it.posts to it.nextCursor }
+            ui.api.feed(here?.lat, here?.lng, cursor).also { page ->
+                if (cursor == null) ui.app.feedCache.save(ui.myId, page.posts)
+            }.let { it.posts to it.nextCursor }
         } catch (e: FeedExpiredException) {
             // The ranked list behind this cursor is gone; pull to refresh starts a new one.
             emptyList<Post>() to null
         }
+    }
+
+    init {
+        // The server can take a while to wake; the last feed shows meanwhile.
+        paged.seed(ui.app.feedCache.load(ui.myId))
     }
 
     fun like(post: Post, liked: Boolean) = likePost(ui, scope, paged, post, liked)
@@ -97,10 +107,11 @@ fun FeedScreen(ui: Ui, state: FeedState) {
     val nearEnd by remember {
         derivedStateOf {
             val info = state.list.layoutInfo
-            (info.visibleItemsInfo.lastOrNull()?.index ?: 0) >= info.totalItemsCount - 3
+            (info.visibleItemsInfo.lastOrNull()?.index ?: 0) >= info.totalItemsCount - PREFETCH_POSTS * 2
         }
     }
     LaunchedEffect(nearEnd) { if (nearEnd && paged.loadedOnce) paged.loadMore() }
+    PrefetchImages(state.list, paged.items)
 
     androidx.compose.foundation.layout.Column {
         TopAppBar(title = { Text("PartyNearMe", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary) })
@@ -110,10 +121,20 @@ fun FeedScreen(ui: Ui, state: FeedState) {
             modifier = Modifier.fillMaxSize(),
         ) {
             when {
-                !paged.loadedOnce -> Box(Modifier.fillMaxSize()) { CircularProgressIndicator(Modifier.align(Alignment.Center)) }
+                !paged.loadedOnce && paged.items.isEmpty() -> Box(Modifier.fillMaxSize()) { CircularProgressIndicator(Modifier.align(Alignment.Center)) }
                 paged.items.isEmpty() && paged.error != null -> Message(paged.error!!) { paged.refresh() }
                 paged.items.isEmpty() -> Message("Nothing here yet. Post the first photo, or follow some people.", null)
                 else -> LazyColumn(state = state.list, modifier = Modifier.fillMaxSize()) {
+                    if (paged.saved && paged.error != null) {
+                        item(key = "saved") {
+                            Text(
+                                "Showing the posts you saw last. ${paged.error}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                            )
+                        }
+                    }
                     items(paged.items, key = { it.id }) { post ->
                         TrackView(ui, post.id)
                         PostCard(
@@ -128,13 +149,29 @@ fun FeedScreen(ui: Ui, state: FeedState) {
                         )
                     }
                     if (paged.error != null) {
-                        item { Message(paged.error!!) { paged.loadMore() } }
+                        item { Message(paged.error!!) { paged.retry() } }
                     }
                 }
             }
         }
     }
     reporting?.let { ReportDialog(ui, ReportTarget.Post, it) { reporting = null } }
+}
+
+/** How many posts below the screen get their photos loaded early, so scrolling doesn't wait. */
+private const val PREFETCH_POSTS = 3
+
+/** Starts downloading the photos of the next few posts into the image cache. */
+@Composable
+private fun PrefetchImages(list: LazyListState, posts: List<Post>) {
+    val context = LocalPlatformContext.current
+    val last by remember { derivedStateOf { list.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 } }
+    LaunchedEffect(last, posts.size) {
+        val loader = SingletonImageLoader.get(context)
+        posts.drop(last + 1).take(PREFETCH_POSTS)
+            .flatMap { post -> post.media.mapNotNull { it.urlFor(1080) } }
+            .forEach { url -> loader.enqueue(ImageRequest.Builder(context).data(url).build()) }
+    }
 }
 
 /** Records that a post was on screen, and for how long, while it stays composed. */
