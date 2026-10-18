@@ -31,6 +31,19 @@ describe("POST /reports", () => {
     expect(rows).toEqual([{ reporter_id: alice, target_type: "user", target_id: bob, reason: "Spam", status: "open" }]);
   });
 
+  it("only takes reports of messages from your own chats", async () => {
+    const alice = await ctx.createUser();
+    const bob = await ctx.createUser();
+    const eve = await ctx.createUser();
+    const chat = (await ctx.as(alice, { method: "POST", url: "/conversations", payload: { user_id: bob } })).json().id as string;
+    const sent = await ctx.as(alice, { method: "POST", url: `/conversations/${chat}/messages`, payload: { body: "rude" } });
+    const id = sent.json().id as string;
+
+    expect((await report(eve, { target_type: "message", target_id: id, reason: "Harassment" })).statusCode).toBe(404);
+    expect((await report(bob, { target_type: "message", target_id: "abc", reason: "Harassment" })).statusCode).toBe(404);
+    expect((await report(bob, { target_type: "message", target_id: id, reason: "Harassment" })).statusCode).toBe(204);
+  });
+
   it("validates input", async () => {
     const alice = await ctx.createUser();
     expect((await report(alice, { target_type: "planet", target_id: "x", reason: "Spam" })).statusCode).toBe(400);
@@ -107,7 +120,8 @@ describe("moderator tools", () => {
     await report(carol, { target_type: "post", target_id: post, reason: "Spam" });
     await report(mod, { target_type: "post", target_id: post, reason: "Nudity" });
     await report(carol, { target_type: "user", target_id: author, reason: "Fake" });
-    await report(carol, { target_type: "message", target_id: "999", reason: "Rude" });
+    // A message deleted after it was reported.
+    await ctx.db`insert into public.reports (reporter_id, target_type, target_id, reason) values (${carol}, 'message', '999', 'Rude')`;
     await ctx.db`update public.posts set status = 'hidden' where id = ${post}`;
 
     const res = await queue(mod);

@@ -79,7 +79,8 @@ iPhone push comes with the Apple Developer account.
 
 ## Safety and store requirements
 
-The ⋮ menus let people report a post, party or person and block or unblock someone;
+The ⋮ menus let people report a post, party or person and block or unblock someone,
+and holding down on a message in a chat reports it;
 reports land in `public.reports` for review (docs/moderation.md). The profile ⋮ menu
 has the privacy policy, terms and **Delete account**, which deletes the account on the
 server and returns to sign-in. The sign-in screen says the app is 18+ and links the

@@ -1,7 +1,9 @@
 package com.partynearme.ui.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +20,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.Badge
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -38,9 +42,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.partynearme.core.api.ReportTarget
 import com.partynearme.core.model.Conversation
 import com.partynearme.core.model.Message
 import com.partynearme.ui.Paged
@@ -118,6 +124,7 @@ fun ChatScreen(ui: Ui, conversationId: String, title: String, onLeave: () -> Uni
     var error by remember { mutableStateOf<String?>(null) }
     var draft by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
+    var reporting by remember { mutableStateOf<String?>(null) }
     val list = rememberLazyListState()
 
     fun merge(fresh: List<Message>) {
@@ -179,7 +186,9 @@ fun ChatScreen(ui: Ui, conversationId: String, title: String, onLeave: () -> Uni
                     modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    items(messages, key = { it.id }) { m -> Bubble(m, mine = m.senderId == ui.myId) }
+                    items(messages, key = { it.id }) { m ->
+                        Bubble(m, mine = m.senderId == ui.myId, onReport = { reporting = m.id })
+                    }
                 }
             }
         }
@@ -206,20 +215,28 @@ fun ChatScreen(ui: Ui, conversationId: String, title: String, onLeave: () -> Uni
             ) { Icon(Icons.AutoMirrored.Filled.Send, "Send") }
         }
     }
+    reporting?.let { id -> ReportDialog(ui, ReportTarget.Message, id) { reporting = null } }
 }
 
+/** A message; holding down on someone else's offers to report it. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun Bubble(message: Message, mine: Boolean) {
+private fun Bubble(message: Message, mine: Boolean, onReport: () -> Unit) {
+    var menu by remember { mutableStateOf(false) }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
-        Text(
-            message.body,
-            color = if (mine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.widthIn(max = 300.dp)
-                .background(
-                    if (mine) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
-                    RoundedCornerShape(16.dp),
-                )
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-        )
+        Box {
+            Text(
+                message.body,
+                color = if (mine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.widthIn(max = 300.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .combinedClickable(enabled = !mine, onClick = {}, onLongClick = { menu = true })
+                    .background(if (mine) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            )
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(text = { Text("Report message") }, onClick = { menu = false; onReport() })
+            }
+        }
     }
 }
