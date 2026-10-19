@@ -6,9 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -20,6 +18,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.partynearme.ui.Wordmark
 import com.partynearme.core.PartyNearMe
 import com.partynearme.core.model.OwnProfile
 import com.partynearme.ui.attempt
@@ -41,29 +41,28 @@ fun ProfileSetupScreen(app: PartyNearMe, profile: OwnProfile, onDone: (OwnProfil
     Column(
         Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("Pick a username", style = MaterialTheme.typography.headlineSmall)
-        OutlinedTextField(
+        Wordmark(size = 30.sp)
+        Text("Pick a username", style = MaterialTheme.typography.headlineMedium)
+        Text("It's how people find you and see who posted.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        PartyField(
             value = username,
             onValueChange = { username = it.lowercase().filter { c -> c.isLetterOrDigit() || c == '_' || c == '.' }.take(30) },
-            label = { Text("Username") },
-            prefix = { Text("@") },
-            singleLine = true,
-            supportingText = { Text("3 to 30 letters, numbers, _ or .") },
+            label = "Username",
+            prefix = "@",
+            supportingText = "3 to 30 letters, numbers, _ or .",
             isError = username.isNotEmpty() && !valid,
-            modifier = Modifier.fillMaxWidth(),
         )
-        OutlinedTextField(
+        PartyField(
             value = displayName,
             onValueChange = { displayName = it.take(60) },
-            label = { Text("Your name (optional)") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            label = "Your name (optional)",
         )
         error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        Button(
-            enabled = valid && !busy,
+        PrimaryButton(
+            "Continue",
+            enabled = valid || busy,
+            busy = busy,
             modifier = Modifier.fillMaxWidth(),
             onClick = {
                 busy = true
@@ -75,7 +74,7 @@ fun ProfileSetupScreen(app: PartyNearMe, profile: OwnProfile, onDone: (OwnProfil
                     busy = false
                 }
             },
-        ) { Text("Continue") }
+        )
         TextButton(onClick = { scope.launch { app.signOut() } }) { Text("Sign out") }
     }
 }

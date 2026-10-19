@@ -1,25 +1,43 @@
 package com.partynearme.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
-import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Place
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -37,11 +55,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.partynearme.core.PartyNearMe
 import com.partynearme.core.model.OwnProfile
 import com.partynearme.ui.screens.ChatScreen
+import com.partynearme.ui.screens.EmptyState
 import com.partynearme.ui.screens.EventScreen
 import com.partynearme.ui.screens.FeedScreen
 import com.partynearme.ui.screens.FeedState
@@ -76,7 +101,7 @@ class Ui(
 @Composable
 fun App(app: PartyNearMe, platform: Platform, navigator: Navigator) {
     PartyTheme {
-        Surface(Modifier.fillMaxSize()) {
+        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             val session by app.sessions.session.collectAsState()
             val userId = session?.userId
             if (userId == null) {
@@ -101,12 +126,11 @@ private fun SignedIn(app: PartyNearMe, platform: Platform, nav: Navigator, userI
     val profile = me
     when {
         profile == null && error != null -> Centered {
-            Text(error!!)
-            Button(onClick = { attemptNo++ }) { Text("Try again") }
+            EmptyState(Icons.Filled.Refresh, "Can't connect right now", body = error, action = "Try again") { attemptNo++ }
         }
         profile == null -> Centered {
-            CircularProgressIndicator()
-            Text("Connecting…")
+            Wordmark()
+            CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
         }
         profile.username == null -> ProfileSetupScreen(app, profile) { me = it }
         else -> Main(app, platform, nav, userId)
@@ -149,15 +173,8 @@ private fun Main(app: PartyNearMe, platform: Platform, nav: Navigator, userId: S
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
-        bottomBar = {
-            NavigationBar {
-                TabItem(nav, Tab.Feed, Icons.Filled.Home, "Feed")
-                TabItem(nav, Tab.Nearby, Icons.Filled.Place, "Nearby")
-                TabItem(nav, Tab.Post, Icons.Filled.AddCircle, "Post")
-                TabItem(nav, Tab.Chat, Icons.Filled.Email, "Chat", badge = unread)
-                TabItem(nav, Tab.Me, Icons.Filled.AccountCircle, "Profile")
-            }
-        },
+        containerColor = MaterialTheme.colorScheme.background,
+        bottomBar = { TabBar(nav, unread) },
     ) { padding ->
         Box(Modifier.padding(padding).consumeWindowInsets(padding)) {
             when (val route = nav.top) {
@@ -169,7 +186,7 @@ private fun Main(app: PartyNearMe, platform: Platform, nav: Navigator, userId: S
                 is Route.NewPost -> NewPostScreen(ui, PartyRef(route.eventId, route.eventTitle)) { feed.paged.refresh() }
                 Route.Moderation -> ModerationScreen(ui)
                 null -> when (nav.tab) {
-                    Tab.Feed -> FeedScreen(ui, feed)
+                    Tab.Feed -> FeedScreen(ui, feed, nearby)
                     Tab.Nearby -> NearbyScreen(ui, nearby)
                     Tab.Post -> NewPostScreen(ui) { feed.paged.refresh() }
                     Tab.Chat -> InboxScreen(ui, inbox)
@@ -180,25 +197,85 @@ private fun Main(app: PartyNearMe, platform: Platform, nav: Navigator, userId: S
     }
 }
 
+/** The tab bar: outlined icons that fill in when chosen, and a gradient "+" in the middle, TikTok style. */
 @Composable
-private fun androidx.compose.foundation.layout.RowScope.TabItem(
+private fun TabBar(nav: Navigator, unread: Int) {
+    Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.background)) {
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
+        Row(
+            Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars).height(60.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TabItem(nav, Tab.Feed, Icons.Filled.Home, Icons.Outlined.Home, "Home")
+            TabItem(nav, Tab.Nearby, Icons.Filled.Place, Icons.Outlined.Place, "Nearby")
+            Box(
+                Modifier.weight(1f).fillMaxHeight().clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    role = Role.Tab,
+                    onClickLabel = "New post",
+                ) { nav.select(Tab.Post) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    Modifier.size(width = 48.dp, height = 34.dp).clip(RoundedCornerShape(12.dp)).background(Brand.gradient),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Icons.Filled.Add, "New post", tint = Color.White) }
+            }
+            TabItem(nav, Tab.Chat, Icons.Filled.Email, Icons.Outlined.Email, "Messages", badge = unread)
+            TabItem(nav, Tab.Me, Icons.Filled.AccountCircle, Icons.Outlined.AccountCircle, "Profile")
+        }
+    }
+}
+
+@Composable
+private fun RowScope.TabItem(
     nav: Navigator,
     tab: Tab,
+    selectedIcon: ImageVector,
     icon: ImageVector,
     label: String,
     badge: Int = 0,
 ) {
-    NavigationBarItem(
-        selected = nav.tab == tab,
-        onClick = { nav.select(tab) },
-        icon = {
+    val selected = nav.tab == tab
+    val color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+    Column(
+        Modifier.weight(1f).fillMaxHeight().clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null,
+            role = Role.Tab,
+        ) { nav.select(tab) },
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Box {
+            Icon(if (selected) selectedIcon else icon, label, Modifier.size(26.dp), tint = color)
             if (badge > 0) {
-                BadgedBox(badge = { Badge { Text(if (badge > 99) "99+" else badge.toString()) } }) { Icon(icon, label) }
-            } else {
-                Icon(icon, label)
+                Box(
+                    Modifier.align(Alignment.TopEnd).offset(x = 8.dp, y = (-4).dp)
+                        .clip(CircleShape).background(MaterialTheme.colorScheme.primary)
+                        .border(2.dp, MaterialTheme.colorScheme.background, CircleShape)
+                        .padding(horizontal = 5.dp, vertical = 1.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(if (badge > 99) "99+" else badge.toString(), color = Color.White, fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold)
+                }
             }
-        },
-        label = { Text(label) },
+        }
+        Text(label, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, color = color,
+            modifier = Modifier.padding(top = 2.dp))
+    }
+}
+
+/** "PartyNearMe" in the brand gradient. */
+@Composable
+fun Wordmark(modifier: Modifier = Modifier, size: TextUnit = 34.sp) {
+    Text(
+        "PartyNearMe",
+        modifier = modifier,
+        style = MaterialTheme.typography.headlineLarge.copy(brush = Brand.sunset, fontSize = size),
+        fontWeight = FontWeight.Black,
     )
 }
 

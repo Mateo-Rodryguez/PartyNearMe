@@ -132,6 +132,29 @@ fun eventTime(iso: String): String {
     return "$day ${t.date.day} ${monthName(t.date.month.ordinal)}, ${t.hour.pad()}:${t.minute.pad()}"
 }
 
+/** "Tonight", "Tomorrow", or "Wed 21 Oct": how people talk about when a party is. */
+fun dayLabel(iso: String, now: Instant = Clock.System.now()): String {
+    val day = parseInstant(iso)?.toLocalDateTime(zone)?.date ?: return ""
+    val today = now.toLocalDateTime(zone).date
+    return when ((day.toEpochDays() - today.toEpochDays()).toInt()) {
+        0 -> "Tonight"
+        1 -> "Tomorrow"
+        else -> "${day.dayOfWeek.name.take(3).lowercase().replaceFirstChar { it.uppercase() }} ${day.day} ${monthName(day.month.ordinal)}"
+    }
+}
+
+/** "21:00" in the phone's time zone. */
+fun clockTime(iso: String): String {
+    val t = parseInstant(iso)?.toLocalDateTime(zone) ?: return ""
+    return "${t.hour.pad()}:${t.minute.pad()}"
+}
+
+/** The two lines of a calendar tile: "OCT" and "19". */
+fun calendarTile(iso: String): Pair<String, String> {
+    val d = parseInstant(iso)?.toLocalDateTime(zone)?.date ?: return "" to ""
+    return monthName(d.month.ordinal).uppercase() to d.day.toString()
+}
+
 fun distance(meters: Int?): String = when {
     meters == null -> ""
     meters < 1000 -> "${(meters / 50 + 1) * 50} m away"

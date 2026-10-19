@@ -7,28 +7,34 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material3.Badge
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -43,12 +49,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.partynearme.core.api.ReportTarget
 import com.partynearme.core.model.Conversation
 import com.partynearme.core.model.Message
+import com.partynearme.ui.Brand
 import com.partynearme.ui.Paged
 import com.partynearme.ui.Route
 import com.partynearme.ui.Ui
@@ -80,33 +89,40 @@ fun InboxScreen(ui: Ui, state: InboxState) {
             when {
                 !paged.loadedOnce -> Box(Modifier.fillMaxSize()) { CircularProgressIndicator(Modifier.align(Alignment.Center)) }
                 paged.items.isEmpty() && paged.error != null -> Message(paged.error!!) { paged.refresh() }
-                paged.items.isEmpty() -> Message("No messages yet. Start a chat from someone's profile.", null)
-                else -> LazyColumn(Modifier.fillMaxSize()) {
+                paged.items.isEmpty() -> EmptyState(
+                    Icons.Filled.Email,
+                    "No messages yet",
+                    body = "Open someone's profile and tap Message to plan your next night out.",
+                )
+                else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 4.dp)) {
                     items(paged.items, key = { it.id }) { c ->
                         val name = c.other?.name ?: "Deleted account"
+                        val unread = c.unreadCount > 0
                         Row(
-                            Modifier.fillMaxWidth().clickable { ui.nav.open(Route.Chat(c.id, name)) }.padding(16.dp),
+                            Modifier.fillMaxWidth().clickable { ui.nav.open(Route.Chat(c.id, name)) }
+                                .padding(horizontal = 20.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Avatar(c.other?.avatarUrl, name, 44.dp, Modifier.padding(end = 12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text(name, fontWeight = if (c.unreadCount > 0) FontWeight.Bold else FontWeight.Normal)
+                            Avatar(c.other?.avatarUrl, name, 56.dp, ring = unread)
+                            Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
+                                Text(name, style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = if (unread) FontWeight.Bold else FontWeight.SemiBold)
                                 c.lastMessage?.let {
                                     Text(
-                                        (if (it.senderId == ui.myId) "You: " else "") + it.body,
+                                        (if (it.senderId == ui.myId) "You: " else "") + it.body +
+                                            (c.lastMessageAt?.let { at -> " · ${timeAgo(at)}" } ?: ""),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = if (unread) FontWeight.SemiBold else FontWeight.Normal,
+                                        color = if (unread) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                             }
-                            Column(horizontalAlignment = Alignment.End) {
-                                c.lastMessageAt?.let { Text(timeAgo(it), style = MaterialTheme.typography.bodySmall) }
-                                if (c.unreadCount > 0) Badge { Text(c.unreadCount.toString()) }
+                            if (unread) {
+                                Box(Modifier.size(10.dp).clip(CircleShape).background(Brand.gradient))
                             }
                         }
-                        HorizontalDivider()
                     }
                 }
             }
@@ -175,7 +191,13 @@ fun ChatScreen(ui: Ui, conversationId: String, title: String, onLeave: () -> Uni
     }
 
     Column(Modifier.fillMaxSize()) {
-        BackBar(ui, title)
+        Row(Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            RoundIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back") { ui.nav.back() }
+            Avatar(null, title, 36.dp, Modifier.padding(start = 12.dp))
+            Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 10.dp))
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
         Box(Modifier.weight(1f)) {
             if (error != null && messages.isEmpty()) {
                 Message(error!!, null)
@@ -184,7 +206,8 @@ fun ChatScreen(ui: Ui, conversationId: String, title: String, onLeave: () -> Uni
                     state = list,
                     reverseLayout = true,
                     modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    contentPadding = PaddingValues(vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     items(messages, key = { it.id }) { m ->
                         Bubble(m, mine = m.senderId == ui.myId, onReport = { reporting = m.id })
@@ -192,27 +215,45 @@ fun ChatScreen(ui: Ui, conversationId: String, title: String, onLeave: () -> Uni
                 }
             }
         }
-        Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            TextField(
                 value = draft,
                 onValueChange = { draft = it.take(4000) },
                 placeholder = { Text("Message…") },
                 maxLines = 4,
+                shape = RoundedCornerShape(24.dp),
+                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    cursorColor = MaterialTheme.colorScheme.primary,
+                ),
                 modifier = Modifier.weight(1f),
             )
-            IconButton(
-                enabled = draft.isNotBlank() && !sending,
-                onClick = {
-                    val body = draft.trim()
-                    sending = true
-                    scope.launch {
-                        attempt { ui.api.send(conversationId, body) }
-                            .onSuccess { merge(listOf(it)); draft = ""; list.scrollToItem(0) }
-                            .onFailure { ui.toast(it.userMessage) }
-                        sending = false
-                    }
-                },
-            ) { Icon(Icons.AutoMirrored.Filled.Send, "Send") }
+            val canSend = draft.isNotBlank() && !sending
+            Box(
+                Modifier.padding(start = 8.dp, bottom = 4.dp).size(48.dp).clip(CircleShape)
+                    .background(if (canSend) Brand.gradient else SolidBrush(MaterialTheme.colorScheme.surfaceContainerHigh))
+                    .clickable(enabled = canSend, onClickLabel = "Send") {
+                        val body = draft.trim()
+                        sending = true
+                        scope.launch {
+                            attempt { ui.api.send(conversationId, body) }
+                                .onSuccess { merge(listOf(it)); draft = ""; list.scrollToItem(0) }
+                                .onFailure { ui.toast(it.userMessage) }
+                            sending = false
+                        }
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(Icons.AutoMirrored.Filled.Send, "Send", Modifier.size(20.dp),
+                    tint = if (canSend) Color.White else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
     reporting?.let { id -> ReportDialog(ui, ReportTarget.Message, id) { reporting = null } }
@@ -223,16 +264,23 @@ fun ChatScreen(ui: Ui, conversationId: String, title: String, onLeave: () -> Uni
 @Composable
 private fun Bubble(message: Message, mine: Boolean, onReport: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
+    // Rounded bubbles with one tighter corner pointing at the sender, as in iMessage and Instagram.
+    val shape = if (mine) {
+        RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 20.dp, bottomEnd = 6.dp)
+    } else {
+        RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 6.dp, bottomEnd = 20.dp)
+    }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
         Box {
             Text(
                 message.body,
-                color = if (mine) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.widthIn(max = 300.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                color = if (mine) Color.White else MaterialTheme.colorScheme.onSurface,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.widthIn(max = 290.dp)
+                    .clip(shape)
                     .combinedClickable(enabled = !mine, onClick = {}, onLongClick = { menu = true })
-                    .background(if (mine) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                    .background(if (mine) Brand.gradient else SolidBrush(MaterialTheme.colorScheme.surfaceContainerHigh))
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
             )
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 DropdownMenuItem(text = { Text("Report message") }, onClick = { menu = false; onReport() })
