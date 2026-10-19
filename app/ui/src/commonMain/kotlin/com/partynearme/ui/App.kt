@@ -78,6 +78,7 @@ import com.partynearme.ui.screens.NearbyScreen
 import com.partynearme.ui.screens.NearbyState
 import com.partynearme.ui.screens.NewEventScreen
 import com.partynearme.ui.screens.NewPostScreen
+import com.partynearme.ui.screens.NotificationsScreen
 import com.partynearme.ui.screens.PartyRef
 import com.partynearme.ui.screens.PostScreen
 import com.partynearme.ui.screens.ProfileSetupScreen
@@ -96,6 +97,9 @@ class Ui(
     val toast: (String) -> Unit,
 ) {
     val api get() = app.api
+
+    /** New notifications, for the bell on Home; cleared when they are opened. */
+    var unreadNotifications by mutableIntStateOf(0)
 }
 
 @Composable
@@ -159,6 +163,7 @@ private fun Main(app: PartyNearMe, platform: Platform, nav: Navigator, userId: S
     LaunchedEffect(Unit) {
         while (true) {
             attempt { app.api.unreadCount() }.onSuccess { unread = it }
+            attempt { app.api.unreadNotifications() }.onSuccess { ui.unreadNotifications = it }
             delay(60_000)
         }
     }
@@ -185,6 +190,7 @@ private fun Main(app: PartyNearMe, platform: Platform, nav: Navigator, userId: S
                 is Route.Post -> PostScreen(ui, route.id)
                 is Route.NewPost -> NewPostScreen(ui, PartyRef(route.eventId, route.eventTitle)) { feed.paged.refresh() }
                 Route.Moderation -> ModerationScreen(ui)
+                Route.Notifications -> NotificationsScreen(ui)
                 null -> when (nav.tab) {
                     Tab.Feed -> FeedScreen(ui, feed, nearby)
                     Tab.Nearby -> NearbyScreen(ui, nearby)

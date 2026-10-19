@@ -17,6 +17,8 @@ sealed interface Route {
     data class Post(val id: String) : Route
     /** The new-post screen opened from a party, with that party already picked. */
     data class NewPost(val eventId: String, val eventTitle: String) : Route
+    /** Likes, follows, RSVPs and reminders, opened from the bell on Home. */
+    data object Notifications : Route
     /** Open reports, for moderators. */
     data object Moderation : Route
 }

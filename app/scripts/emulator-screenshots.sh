@@ -32,12 +32,20 @@ shot() {
 
 # The real app, signed out: checks it starts against the real configuration.
 shot 00-real-app
-# Sample data (debug builds only), one screen at a time.
+# Sample data (debug builds only), one screen at a time, in the light theme.
+adb shell cmd uimode night no
 n=1
-for screen in sign_in feed nearby event new_event map_picker post inbox chat profile user; do
+for screen in sign_in feed notifications nearby event new_event map_picker post inbox chat profile user; do
   shot "$(printf '%02d' "$n")-$screen" --es demo "$screen"
   n=$((n + 1))
 done
+# The main screens again in the dark theme: the app follows the phone's setting.
+adb shell cmd uimode night yes
+for screen in sign_in feed notifications nearby event map_picker profile; do
+  shot "$(printf '%02d' "$n")-$screen-dark" --es demo "$screen"
+  n=$((n + 1))
+done
+adb shell cmd uimode night no
 
 adb logcat -d -b crash > "$out/crash-log.txt" || true
 # Map messages, to see why a map stays blank.
