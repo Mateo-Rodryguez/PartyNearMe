@@ -155,11 +155,16 @@ fun calendarTile(iso: String): Pair<String, String> {
     return monthName(d.month.ordinal).uppercase() to d.day.toString()
 }
 
-fun distance(meters: Int?): String = when {
+/** "650 m away", "2.3 km away", or in [miles] "0.4 mi away". */
+fun distance(meters: Int?, miles: Boolean = false): String = when {
     meters == null -> ""
+    miles -> "${(maxOf(1, (meters / 160.934 + 0.5).toInt())) / 10.0} mi away".replace(".0 ", " ")
     meters < 1000 -> "${(meters / 50 + 1) * 50} m away"
     else -> "${(meters + 50) / 100 / 10.0} km away".replace(".0 ", " ")
 }
+
+/** A search radius as people say it: "25 km", or "16 mi" in [miles]. */
+fun radiusLabel(km: Int, miles: Boolean): String = if (miles) "${(km / 1.609 + 0.5).toInt()} mi" else "$km km"
 
 private fun Int.pad() = toString().padStart(2, '0')
 private fun monthName(index: Int) =

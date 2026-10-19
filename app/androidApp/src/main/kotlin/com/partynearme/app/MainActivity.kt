@@ -1,12 +1,16 @@
 package com.partynearme.app
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.LaunchedEffect
 import com.partynearme.ui.App
+import com.partynearme.ui.isAppNight
 import com.partynearme.ui.Route
 import com.partynearme.ui.Tab
 import kotlinx.coroutines.launch
@@ -24,6 +28,16 @@ class MainActivity : ComponentActivity() {
         val nav = demo?.navigator ?: app.navigator
         if (demo == null && savedInstanceState == null) openFromNotification(intent)
         setContent {
+            // A theme picked in settings can differ from the phone's, so the bar icons follow the app's.
+            val dark = isAppNight(core)
+            LaunchedEffect(dark) {
+                val style = if (dark) {
+                    SystemBarStyle.dark(Color.TRANSPARENT)
+                } else {
+                    SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+                }
+                enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+            }
             BackHandler(enabled = nav.canGoBack) { nav.back() }
             App(core, platform, nav)
         }

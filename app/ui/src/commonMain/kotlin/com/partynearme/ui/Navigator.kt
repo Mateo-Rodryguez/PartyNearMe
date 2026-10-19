@@ -21,6 +21,16 @@ sealed interface Route {
     data object Notifications : Route
     /** Open reports, for moderators. */
     data object Moderation : Route
+    /** Settings, from the gear on your profile. [relationshipPicker] opens straight onto it, for screenshots. */
+    data class Settings(val relationshipPicker: Boolean = false) : Route
+    /** Finding people by name, from the magnifier on Home. [query] fills the box, for screenshots. */
+    data class Search(val query: String = "") : Route
+    /** Someone's followers, or the people they follow. */
+    data class People(val userId: String, val followers: Boolean, val title: String) : Route
+    /** Saved posts and parties. */
+    data object Saved : Route
+    /** People you blocked, from settings. */
+    data object Blocked : Route
 }
 
 /** A back stack per tab, like Instagram: switching tabs keeps where you were. */

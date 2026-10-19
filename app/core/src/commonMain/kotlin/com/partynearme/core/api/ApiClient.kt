@@ -3,12 +3,15 @@ package com.partynearme.core.api
 import com.partynearme.core.ApiException
 import com.partynearme.core.AppConfig
 import com.partynearme.core.auth.SessionManager
+import com.partynearme.core.model.AccountSettings
 import com.partynearme.core.model.Conversation
 import com.partynearme.core.model.ConversationPage
 import com.partynearme.core.model.Event
+import com.partynearme.core.model.EventList
 import com.partynearme.core.model.EventPage
 import com.partynearme.core.model.Interaction
 import com.partynearme.core.model.Interest
+import com.partynearme.core.model.ListedPerson
 import com.partynearme.core.model.Message
 import com.partynearme.core.model.MessagePage
 import com.partynearme.core.model.ModerationQueue
@@ -16,9 +19,11 @@ import com.partynearme.core.model.NewEvent
 import com.partynearme.core.model.NewPost
 import com.partynearme.core.model.NotificationPage
 import com.partynearme.core.model.OwnProfile
+import com.partynearme.core.model.PeoplePage
 import com.partynearme.core.model.Post
 import com.partynearme.core.model.PostPage
 import com.partynearme.core.model.PublicProfile
+import com.partynearme.core.model.RelationshipStatus
 import com.partynearme.core.model.ReportedItem
 import com.partynearme.core.model.UploadId
 import com.partynearme.core.model.UploadTicket
@@ -90,6 +95,11 @@ class ApiClient(
     suspend fun deletePost(id: String) = callUnit(HttpMethod.Delete, "/posts/${id.path()}")
     suspend fun like(id: String) = callUnit(HttpMethod.Put, "/posts/${id.path()}/like")
     suspend fun unlike(id: String) = callUnit(HttpMethod.Delete, "/posts/${id.path()}/like")
+    suspend fun savePost(id: String, saved: Boolean) =
+        callUnit(if (saved) HttpMethod.Put else HttpMethod.Delete, "/posts/${id.path()}/save")
+    /** Saved posts, most recently saved first. */
+    suspend fun savedPosts(cursor: String? = null): PostPage =
+        call(HttpMethod.Get, "/me/saved/posts") { parameter("cursor", cursor) }
 
     suspend fun userPosts(userId: String, cursor: String? = null): PostPage =
         call(HttpMethod.Get, "/users/${userId.path()}/posts") { parameter("cursor", cursor) }
@@ -109,6 +119,10 @@ class ApiClient(
     suspend fun eventPosts(id: String, cursor: String? = null): PostPage =
         call(HttpMethod.Get, "/events/${id.path()}/posts") { parameter("cursor", cursor) }
     suspend fun createEvent(event: NewEvent): Event = call(HttpMethod.Post, "/events") { json(event) }
+    suspend fun saveEvent(id: String, saved: Boolean) =
+        callUnit(if (saved) HttpMethod.Put else HttpMethod.Delete, "/events/${id.path()}/save")
+    /** Saved parties, most recently saved first. */
+    suspend fun savedEvents(): List<Event> = call<EventList>(HttpMethod.Get, "/me/saved/events").events
 
     /** [status] is "going" or "interested"; null removes the RSVP. */
     /** The cover shows once the server has checked the photo. */
@@ -129,6 +143,12 @@ class ApiClient(
     suspend fun me(): OwnProfile = call(HttpMethod.Get, "/me")
     suspend fun updateMe(username: String? = null, displayName: String? = null, bio: String? = null): OwnProfile =
         call(HttpMethod.Patch, "/me") { json(ProfileUpdate(username, displayName, bio)) }
+    /** Null hides the heart. Sent on its own so the null reaches the server. */
+    suspend fun setRelationshipStatus(status: RelationshipStatus?): OwnProfile =
+        call(HttpMethod.Patch, "/me") {
+            contentType(ContentType.Application.Json)
+            setBody(if (status == null) """{"relationship_status":null}""" else """{"relationship_status":"${status.wire}"}""")
+        }
     /** The picture shows once the server has checked the photo. */
     suspend fun setAvatar(uploadId: String) = callUnit(HttpMethod.Put, "/me/avatar") { json(UploadId(uploadId)) }
     suspend fun removeAvatar() = callUnit(HttpMethod.Delete, "/me/avatar")
@@ -139,6 +159,17 @@ class ApiClient(
     suspend fun unfollow(id: String) = callUnit(HttpMethod.Delete, "/users/${id.path()}/follow")
     suspend fun block(id: String) = callUnit(HttpMethod.Put, "/users/${id.path()}/block")
     suspend fun unblock(id: String) = callUnit(HttpMethod.Delete, "/users/${id.path()}/block")
+    suspend fun searchUsers(query: String): List<ListedPerson> =
+        call<PeoplePage>(HttpMethod.Get, "/users/search") { parameter("q", query) }.users
+    suspend fun followers(id: String, cursor: String? = null): PeoplePage =
+        call(HttpMethod.Get, "/users/${id.path()}/followers") { parameter("cursor", cursor) }
+    suspend fun following(id: String, cursor: String? = null): PeoplePage =
+        call(HttpMethod.Get, "/users/${id.path()}/following") { parameter("cursor", cursor) }
+    suspend fun blockedUsers(): List<ListedPerson> = call<PeoplePage>(HttpMethod.Get, "/me/blocks").users
+
+    suspend fun settings(): AccountSettings = call(HttpMethod.Get, "/me/settings")
+    suspend fun updateSettings(settings: AccountSettings): AccountSettings =
+        call(HttpMethod.Patch, "/me/settings") { json(settings) }
 
     // Safety
 

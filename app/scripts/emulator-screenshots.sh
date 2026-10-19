@@ -35,13 +35,13 @@ shot 00-real-app
 # Sample data (debug builds only), one screen at a time, in the light theme.
 adb shell cmd uimode night no
 n=1
-for screen in sign_in feed notifications nearby event new_event map_picker post inbox chat profile user; do
+for screen in sign_in feed notifications nearby event new_event map_picker post inbox chat profile user settings relationship search followers saved; do
   shot "$(printf '%02d' "$n")-$screen" --es demo "$screen"
   n=$((n + 1))
 done
 # The main screens again in the dark theme: the app follows the phone's setting.
 adb shell cmd uimode night yes
-for screen in sign_in feed notifications nearby event map_picker profile; do
+for screen in sign_in feed notifications nearby event map_picker profile settings relationship; do
   shot "$(printf '%02d' "$n")-$screen-dark" --es demo "$screen"
   n=$((n + 1))
 done

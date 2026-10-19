@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -102,6 +103,8 @@ class FeedState(private val ui: Ui, private val scope: CoroutineScope) {
 
     fun delete(post: Post) = deletePost(ui, scope, paged, post)
 
+    fun save(post: Post, saved: Boolean) = savePost(ui, scope, paged, post, saved)
+
     fun notInterested(post: Post) {
         paged.remove { it.id == post.id }
         scope.launch { ui.app.interactions.notInterested(post.id) }
@@ -119,6 +122,18 @@ fun likePost(ui: Ui, scope: CoroutineScope, paged: Paged<Post>, post: Post, like
     }
 }
 
+fun savePost(ui: Ui, scope: CoroutineScope, paged: Paged<Post>, post: Post, saved: Boolean) {
+    paged.update { if (it.id == post.id) it.withSave(saved) else it }
+    scope.launch {
+        attempt { ui.api.savePost(post.id, saved) }
+            .onSuccess { if (saved) ui.toast("Saved. Find it under Saved on your profile.") }
+            .onFailure { error ->
+                paged.update { if (it.id == post.id) it.withSave(!saved) else it }
+                ui.toast(error.userMessage)
+            }
+    }
+}
+
 fun deletePost(ui: Ui, scope: CoroutineScope, paged: Paged<Post>, post: Post) {
     scope.launch {
         attempt { ui.api.deletePost(post.id) }
@@ -133,7 +148,9 @@ fun FeedScreen(ui: Ui, state: FeedState, nearby: NearbyState) {
     val paged = state.paged
     var reporting by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) { if (!paged.loadedOnce && !paged.loading) paged.refresh() }
-    LaunchedEffect(Unit) { if (!nearby.paged.loadedOnce && !nearby.paged.loading) nearby.paged.refresh() }
+    LaunchedEffect(Unit) {
+        if (!nearby.paged.loadedOnce && !nearby.paged.loading) nearby.paged.refresh() else nearby.refreshIfRadiusChanged()
+    }
     val nearEnd by remember {
         derivedStateOf {
             val info = state.list.layoutInfo
@@ -150,6 +167,8 @@ fun FeedScreen(ui: Ui, state: FeedState, nearby: NearbyState) {
         ) {
             Wordmark(size = 26.sp)
             Spacer(Modifier.weight(1f))
+            RoundIconButton(Icons.Filled.Search, "Search people") { ui.nav.open(Route.Search()) }
+            Spacer(Modifier.width(8.dp))
             Bell(ui.unreadNotifications) { ui.nav.open(Route.Notifications) }
         }
         PullToRefreshBox(
@@ -192,6 +211,7 @@ fun FeedScreen(ui: Ui, state: FeedState, nearby: NearbyState) {
                             onNotInterested = { state.notInterested(post) },
                             onReport = { reporting = post.id },
                             onEvent = { ui.nav.open(Route.Event(it)) },
+                            onSave = { state.save(post, it) },
                         )
                     }
                     if (paged.error != null) {

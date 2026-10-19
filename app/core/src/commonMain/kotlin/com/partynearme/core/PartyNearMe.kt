@@ -8,6 +8,7 @@ import com.partynearme.core.auth.SessionManager
 import com.partynearme.core.auth.SessionStore
 import com.partynearme.core.cache.FeedCache
 import com.partynearme.core.cache.NoFeedCache
+import com.partynearme.core.prefs.Preferences
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.HttpTimeout
@@ -22,6 +23,8 @@ class PartyNearMe(
     now: () -> Long = { Clock.System.now().epochSeconds },
     /** The saved copy of the feed's first page. */
     val feedCache: FeedCache = NoFeedCache,
+    /** Theme, units and other choices kept on this phone. */
+    val preferences: Preferences = Preferences(),
 ) {
     private val http = HttpClient(engine) {
         expectSuccess = false

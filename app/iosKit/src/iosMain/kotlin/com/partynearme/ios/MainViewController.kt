@@ -5,6 +5,8 @@ import com.partynearme.core.AppConfig
 import com.partynearme.core.PartyNearMe
 import com.partynearme.core.auth.SettingsSessionStore
 import com.partynearme.core.cache.SettingsFeedCache
+import com.partynearme.core.prefs.Preferences
+import com.partynearme.core.prefs.ThemeMode
 import com.partynearme.demo.Demo
 import com.partynearme.ui.App
 import com.partynearme.ui.Navigator
@@ -16,6 +18,7 @@ import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSOperationQueue
 import platform.Foundation.NSUserDefaults
 import platform.UIKit.UIApplicationDidEnterBackgroundNotification
+import platform.UIKit.UIUserInterfaceStyle
 import platform.UIKit.UIViewController
 import kotlin.experimental.ExperimentalNativeApi
 
@@ -32,7 +35,10 @@ fun MainViewController(): UIViewController {
     val defaults = NSUserDefaults.standardUserDefaults
     val demo = demoScreen(defaults)?.let { Demo.setUp(it) }
     val core = demo?.core ?: NSUserDefaultsSettings(defaults).let { settings ->
-        PartyNearMe(CONFIG, SettingsSessionStore(settings), Darwin.create(), feedCache = SettingsFeedCache(settings))
+        PartyNearMe(
+            CONFIG, SettingsSessionStore(settings), Darwin.create(),
+            feedCache = SettingsFeedCache(settings), preferences = Preferences(settings),
+        )
     }
     val platform = demo?.platform ?: IosPlatform()
     val nav = demo?.navigator ?: Navigator()
@@ -43,7 +49,18 @@ fun MainViewController(): UIViewController {
         UIApplicationDidEnterBackgroundNotification, null, NSOperationQueue.mainQueue,
     ) { _ -> scope.launch { core.interactions.flush() } }
 
-    return ComposeUIViewController { App(core, platform, nav) }
+    val controller = ComposeUIViewController { App(core, platform, nav) }
+    // A theme picked in settings overrides the phone's, so the status bar matches the app.
+    scope.launch {
+        core.preferences.state.collect { prefs ->
+            controller.overrideUserInterfaceStyle = when (prefs.theme) {
+                ThemeMode.System -> UIUserInterfaceStyle.UIUserInterfaceStyleUnspecified
+                ThemeMode.Light -> UIUserInterfaceStyle.UIUserInterfaceStyleLight
+                ThemeMode.Dark -> UIUserInterfaceStyle.UIUserInterfaceStyleDark
+            }
+        }
+    }
+    return controller
 }
 
 /**

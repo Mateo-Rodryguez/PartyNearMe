@@ -52,13 +52,15 @@ fun PrimaryButton(
     enabled: Boolean = true,
     busy: Boolean = false,
     icon: ImageVector? = null,
+    /** Smaller, for a button inside a list row. */
+    compact: Boolean = false,
 ) {
     val active = enabled && !busy
     Box(
-        modifier.heightIn(min = 52.dp).clip(CircleShape)
+        modifier.heightIn(min = if (compact) 44.dp else 52.dp).clip(CircleShape)
             .background(if (enabled) Brand.gradient else SolidBrush(MaterialTheme.colorScheme.surfaceContainerHigh))
             .clickable(enabled = active, role = Role.Button, onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .padding(horizontal = if (compact) 18.dp else 20.dp, vertical = if (compact) 8.dp else 14.dp),
         contentAlignment = Alignment.Center,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
