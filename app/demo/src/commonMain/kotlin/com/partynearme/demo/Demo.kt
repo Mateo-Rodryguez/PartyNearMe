@@ -52,6 +52,7 @@ object Demo {
             "chat" -> { nav.select(Tab.Chat); nav.open(Route.Chat("c1", "@sam")) }
             "profile" -> nav.select(Tab.Me)
             "user" -> nav.open(Route.User(SAM))
+            "notifications" -> nav.open(Route.Notifications)
             "moderation" -> { nav.select(Tab.Me); nav.open(Route.Moderation) }
         }
         return DemoSetup(core, DemoPlatform, nav)
@@ -150,6 +151,23 @@ private object FakeApi {
             "body":"Thanks for the invite","created_at":"${ago(1.days)}"},"unread_count":0,
             "last_message_at":"${ago(1.days)}"}],"next_cursor":null}"""
 
+    private fun notification(type: String, actor: String?, age: Duration, unread: Boolean, post: String? = null,
+                             thumb: String? = null, event: String? = null, title: String? = null, cover: String? = null) =
+        """{"id":"$type:$age","type":"$type","actor":$actor,"post_id":${post?.let { "\"$it\"" }},
+           "post_thumbnail_url":${thumb?.let { "\"https://picsum.photos/seed/$it/150/150\"" }},
+           "event_id":${event?.let { "\"$it\"" }},"event_title":${title?.let { "\"$it\"" }},
+           "event_cover_url":${cover?.let { "\"https://picsum.photos/seed/$it/150/150\"" }},
+           "created_at":"${ago(age)}","unread":$unread}"""
+
+    private val notifications get() = listOf(
+        notification("like", sam, 4.minutes, true, post = "p4", thumb = "mine1"),
+        notification("rsvp", alex, 25.minutes, true, event = "e1", title = "Rooftop Sunset Party", cover = "rooftop"),
+        notification("reminder", null, 2.hours, true, event = "e1", title = "Rooftop Sunset Party", cover = "rooftop"),
+        notification("follow", alex, 1.days, false),
+        notification("like", alex, 2.days, false, post = "p6", thumb = "mine3"),
+        notification("follow", sam, 6.days, false),
+    ).joinToString(",")
+
     fun handle(method: HttpMethod, path: String): Pair<HttpStatusCode, String> = when {
         path == "/me" -> HttpStatusCode.OK to """{"id":"$ME","username":"mateo","display_name":"Mateo",
             "bio":"Building PartyNearMe","avatar_url":null,"created_at":"${ago(30.days)}","interest_ids":[1,3],
@@ -165,6 +183,9 @@ private object FakeApi {
         path == "/events/nearby" -> HttpStatusCode.OK to """{"events":[${events.joinToString(",")}],"next_cursor":null}"""
         path.matches(Regex("/events/[^/]+/posts")) -> HttpStatusCode.OK to """{"posts":[$feedPosts],"next_cursor":null}"""
         path.startsWith("/events/") -> HttpStatusCode.OK to events.first()
+        path == "/notifications" -> HttpStatusCode.OK to """{"notifications":[$notifications],"unread_count":3}"""
+        path == "/notifications/unread" -> HttpStatusCode.OK to """{"unread_count":3}"""
+        path == "/notifications/seen" -> HttpStatusCode.NoContent to ""
         path == "/conversations/unread" -> HttpStatusCode.OK to """{"unread_count":1}"""
         path == "/conversations" && method == HttpMethod.Get -> HttpStatusCode.OK to conversations
         path.endsWith("/messages") -> HttpStatusCode.OK to """{"messages":[$messages],"has_more":false}"""

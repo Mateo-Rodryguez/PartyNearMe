@@ -188,6 +188,28 @@ data class ConversationPage(
 @Serializable
 data class MessagePage(val messages: List<Message>, @SerialName("has_more") val hasMore: Boolean)
 
+/** Something that happened to the user: a like, a new follower, an RSVP or a party reminder. */
+@Serializable
+data class Notification(
+    val id: String,
+    /** "like", "follow", "rsvp" or "reminder"; unknown types are skipped by the app. */
+    val type: String,
+    val actor: Person? = null,
+    @SerialName("post_id") val postId: String? = null,
+    @SerialName("post_thumbnail_url") val postThumbnailUrl: String? = null,
+    @SerialName("event_id") val eventId: String? = null,
+    @SerialName("event_title") val eventTitle: String? = null,
+    @SerialName("event_cover_url") val eventCoverUrl: String? = null,
+    @SerialName("created_at") val createdAt: String,
+    val unread: Boolean = false,
+)
+
+@Serializable
+data class NotificationPage(
+    val notifications: List<Notification>,
+    @SerialName("unread_count") val unreadCount: Int = 0,
+)
+
 /** What the user saw or did, reported in batches for ranking. */
 @Serializable
 data class Interaction(

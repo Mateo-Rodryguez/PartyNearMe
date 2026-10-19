@@ -14,6 +14,7 @@ import com.partynearme.core.model.MessagePage
 import com.partynearme.core.model.ModerationQueue
 import com.partynearme.core.model.NewEvent
 import com.partynearme.core.model.NewPost
+import com.partynearme.core.model.NotificationPage
 import com.partynearme.core.model.OwnProfile
 import com.partynearme.core.model.Post
 import com.partynearme.core.model.PostPage
@@ -172,6 +173,14 @@ class ApiClient(
 
     suspend fun markRead(conversationId: String) =
         callUnit(HttpMethod.Post, "/conversations/${conversationId.path()}/read")
+
+    // Notifications
+
+    /** Likes, follows, RSVPs and party reminders, newest first. */
+    suspend fun notifications(): NotificationPage = call(HttpMethod.Get, "/notifications")
+    suspend fun unreadNotifications(): Int = call<UnreadCount>(HttpMethod.Get, "/notifications/unread").unreadCount
+    /** Called when the user opens their notifications, so the bell's count clears. */
+    suspend fun markNotificationsSeen() = callUnit(HttpMethod.Post, "/notifications/seen")
 
     // Push
 

@@ -31,10 +31,6 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         # Compose draws at the screen's full refresh rate on ProMotion iPhones.
         CADisableMinimumFrameDurationOnPhone: true
-        # The app is always dark: light status bar text, and dark keyboards, pickers and alerts.
-        UIUserInterfaceStyle: Dark
-        UIStatusBarStyle: UIStatusBarStyleLightContent
-        UIViewControllerBasedStatusBarAppearance: false
         NSCameraUsageDescription: PartyNearMe uses the camera so you can take photos to post.
         NSLocationWhenInUseUsageDescription: PartyNearMe uses your location to show parties near you and to place the parties you create.
     settings:

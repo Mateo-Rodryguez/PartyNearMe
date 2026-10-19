@@ -1,11 +1,15 @@
 package com.partynearme.ui
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -15,25 +19,35 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 
 /**
- * The brand: a night-out look, dark in every system setting, the way nightlife apps
- * such as Dice and Resident Advisor are, with photos and one hot gradient doing the talking.
+ * The brand. It follows the phone's light or dark setting:
+ * - Night (dark): near-black with a violet tint and a hot pink to violet gradient,
+ *   the look of a club at night. Violet reads as exciting and a little mysterious.
+ * - Day (light): warm cream with a coral to pink gradient, like a sunset. Warm
+ *   orange and coral read as friendly, social and energetic, which is what planning
+ *   a night out with friends should feel like; cool greys would feel corporate.
+ * Photos and one gradient do the talking in both.
  */
 object Brand {
     val Pink = Color(0xFFFF3D7F)
     val Violet = Color(0xFF8B5CF6)
     val Orange = Color(0xFFFF8A3D)
+    val Coral = Color(0xFFFF5A4E)
 
     val Night = Color(0xFF0B0A10)
-    val Surface1 = Color(0xFF14121C)
-    val Surface2 = Color(0xFF1C1927)
-    val Surface3 = Color(0xFF262233)
-    val Line = Color(0xFF2C2839)
-    val TextMuted = Color(0xFFA29EB4)
 
     /** Main buttons, my chat bubbles, the selected chip. */
-    val gradient = Brush.linearGradient(listOf(Pink, Violet))
+    val gradient: Brush
+        @Composable get() = LocalPalette.current.gradient
     /** The wordmark and the rings around people and parties. */
-    val sunset = Brush.linearGradient(listOf(Orange, Pink, Violet))
+    val sunset: Brush
+        @Composable get() = LocalPalette.current.sunset
+    /** The two soft lights behind the sign-in screen. */
+    val glow: Pair<Color, Color>
+        @Composable get() = LocalPalette.current.glow
+    /** True in the dark theme, for the few things that differ beyond colours, such as the map style. */
+    val isNight: Boolean
+        @Composable get() = LocalPalette.current.night
+
     /** Darkens the bottom of a photo so white text on it stays readable. */
     val scrim = Brush.verticalGradient(listOf(Color.Transparent, Color(0xCC000000)))
 
@@ -49,7 +63,25 @@ object Brand {
     fun coverFor(key: String): Brush = Brush.linearGradient(covers[(key.hashCode() and Int.MAX_VALUE) % covers.size])
 }
 
-private val Colors = darkColorScheme(
+private class Palette(val night: Boolean, val gradient: Brush, val sunset: Brush, val glow: Pair<Color, Color>)
+
+private val NightPalette = Palette(
+    night = true,
+    gradient = Brush.linearGradient(listOf(Brand.Pink, Brand.Violet)),
+    sunset = Brush.linearGradient(listOf(Brand.Orange, Brand.Pink, Brand.Violet)),
+    glow = Brand.Pink.copy(alpha = 0.35f) to Brand.Violet.copy(alpha = 0.3f),
+)
+
+private val DayPalette = Palette(
+    night = false,
+    gradient = Brush.linearGradient(listOf(Brand.Coral, Brand.Pink)),
+    sunset = Brush.linearGradient(listOf(Brand.Orange, Brand.Coral, Brand.Pink)),
+    glow = Brand.Orange.copy(alpha = 0.22f) to Brand.Pink.copy(alpha = 0.18f),
+)
+
+private val LocalPalette = staticCompositionLocalOf { NightPalette }
+
+private val NightColors = darkColorScheme(
     primary = Brand.Pink,
     onPrimary = Color.White,
     primaryContainer = Color(0xFF3B1029),
@@ -64,19 +96,51 @@ private val Colors = darkColorScheme(
     onBackground = Color(0xFFF5F3FA),
     surface = Brand.Night,
     onSurface = Color(0xFFF5F3FA),
-    surfaceVariant = Brand.Surface2,
-    onSurfaceVariant = Brand.TextMuted,
+    surfaceVariant = Color(0xFF1C1927),
+    onSurfaceVariant = Color(0xFFA29EB4),
     surfaceTint = Color.Transparent,
     surfaceContainerLowest = Color(0xFF07060B),
-    surfaceContainerLow = Brand.Surface1,
-    surfaceContainer = Brand.Surface1,
-    surfaceContainerHigh = Brand.Surface2,
-    surfaceContainerHighest = Brand.Surface3,
+    surfaceContainerLow = Color(0xFF14121C),
+    surfaceContainer = Color(0xFF14121C),
+    surfaceContainerHigh = Color(0xFF1C1927),
+    surfaceContainerHighest = Color(0xFF262233),
     inverseSurface = Color(0xFFF5F3FA),
     inverseOnSurface = Brand.Night,
     outline = Color(0xFF4A4459),
-    outlineVariant = Brand.Line,
+    outlineVariant = Color(0xFF2C2839),
     error = Color(0xFFFF5A5F),
+    onError = Color.White,
+)
+
+private val DayColors = lightColorScheme(
+    // A deeper pink than the night one, so text and icons in it pass contrast on cream.
+    primary = Color(0xFFE11D63),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFFFFE1E8),
+    onPrimaryContainer = Color(0xFF8A0F3C),
+    secondary = Brand.Coral,
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFFFFE4DC),
+    onSecondaryContainer = Color(0xFF7A2318),
+    tertiary = Brand.Orange,
+    onTertiary = Color.White,
+    background = Color(0xFFFFF8F4),
+    onBackground = Color(0xFF221A1D),
+    surface = Color(0xFFFFF8F4),
+    onSurface = Color(0xFF221A1D),
+    surfaceVariant = Color(0xFFF7E8E2),
+    onSurfaceVariant = Color(0xFF6E6064),
+    surfaceTint = Color.Transparent,
+    surfaceContainerLowest = Color.White,
+    surfaceContainerLow = Color(0xFFFFF1EC),
+    surfaceContainer = Color(0xFFFFF1EC),
+    surfaceContainerHigh = Color(0xFFF9E6E0),
+    surfaceContainerHighest = Color(0xFFF2DBD4),
+    inverseSurface = Color(0xFF221A1D),
+    inverseOnSurface = Color(0xFFFFF8F4),
+    outline = Color(0xFFB9A7A2),
+    outlineVariant = Color(0xFFEBD9D3),
+    error = Color(0xFFD92D3A),
     onError = Color.White,
 )
 
@@ -110,7 +174,10 @@ private val Shape = Shapes(
 /** Small all-caps label above a section or on a card. */
 val Overline = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.08.em)
 
+/** Follows the phone's light or dark setting. */
 @Composable
-fun PartyTheme(content: @Composable () -> Unit) {
-    MaterialTheme(colorScheme = Colors, typography = Type, shapes = Shape, content = content)
+fun PartyTheme(night: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalPalette provides if (night) NightPalette else DayPalette) {
+        MaterialTheme(colorScheme = if (night) NightColors else DayColors, typography = Type, shapes = Shape, content = content)
+    }
 }

@@ -146,15 +146,16 @@ fun SignInScreen(app: PartyNearMe) {
     }
 }
 
-/** Soft pink and violet light behind the sign-in screen, like stage lights. */
+/** Soft coloured light behind the sign-in screen, like stage lights at night or a sunset by day. */
 @Composable
 private fun BoxScope.Glow() {
+    val (first, second) = Brand.glow
     Box(
         Modifier.align(Alignment.TopStart).offset(x = (-120).dp, y = (-80).dp).size(380.dp)
-            .background(Brush.radialGradient(listOf(Brand.Pink.copy(alpha = 0.35f), Color.Transparent))),
+            .background(Brush.radialGradient(listOf(first, Color.Transparent))),
     )
     Box(
         Modifier.align(Alignment.TopEnd).offset(x = 140.dp, y = 60.dp).size(360.dp)
-            .background(Brush.radialGradient(listOf(Brand.Violet.copy(alpha = 0.3f), Color.Transparent))),
+            .background(Brush.radialGradient(listOf(second, Color.Transparent))),
     )
 }

@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,6 +25,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -40,6 +44,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -138,8 +144,13 @@ fun FeedScreen(ui: Ui, state: FeedState, nearby: NearbyState) {
     PrefetchImages(state.list, paged.items)
 
     androidx.compose.foundation.layout.Column {
-        Row(Modifier.fillMaxWidth().height(64.dp).padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.fillMaxWidth().height(64.dp).padding(start = 20.dp, end = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Wordmark(size = 26.sp)
+            Spacer(Modifier.weight(1f))
+            Bell(ui.unreadNotifications) { ui.nav.open(Route.Notifications) }
         }
         PullToRefreshBox(
             isRefreshing = paged.loading && paged.loadedOnce && paged.items.isEmpty(),
@@ -219,6 +230,30 @@ private fun TrackView(ui: Ui, postId: String) {
             awaitCancellation()
         } finally {
             withContext(NonCancellable) { ui.app.interactions.dwell(postId, shown.elapsedNow().inWholeMilliseconds) }
+        }
+    }
+}
+
+/** The notifications bell, top right on Home as in Instagram, with a count of new ones. */
+@Composable
+private fun Bell(unread: Int, onClick: () -> Unit) {
+    Box {
+        RoundIconButton(
+            if (unread > 0) Icons.Filled.Notifications else Icons.Outlined.Notifications,
+            if (unread > 0) "Notifications, $unread new" else "Notifications",
+            onClick = onClick,
+        )
+        if (unread > 0) {
+            Box(
+                Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-2).dp)
+                    .clip(CircleShape).background(Brand.gradient)
+                    .border(2.dp, MaterialTheme.colorScheme.background, CircleShape)
+                    .padding(horizontal = 5.dp, vertical = 1.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(if (unread > 99) "99+" else unread.toString(), color = Color.White, fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold)
+            }
         }
     }
 }

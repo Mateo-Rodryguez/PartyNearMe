@@ -44,12 +44,20 @@ shot() {
 
 # The real app, signed out: checks it starts against the real configuration.
 shot 00-real-app
-# Sample data (debug builds only), one screen at a time.
+# Sample data (debug builds only), one screen at a time, in the light theme.
+xcrun simctl ui booted appearance light
 n=1
-for screen in sign_in feed nearby event new_event map_picker post inbox chat profile user; do
+for screen in sign_in feed notifications nearby event new_event map_picker post inbox chat profile user; do
   shot "$(printf '%02d' "$n")-$screen" -demo "$screen"
   n=$((n + 1))
 done
+# The main screens again in the dark theme: the app follows the phone's setting.
+xcrun simctl ui booted appearance dark
+for screen in sign_in feed notifications nearby event map_picker profile; do
+  shot "$(printf '%02d' "$n")-$screen-dark" -demo "$screen"
+  n=$((n + 1))
+done
+xcrun simctl ui booted appearance light
 
 # Map and image messages, to see why a map or photo stays blank.
 xcrun simctl spawn booted log show --last 10m --style compact \
