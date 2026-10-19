@@ -53,6 +53,12 @@ fun PostScreen(ui: Ui, id: String) {
                 },
                 onReport = { reporting = true },
                 onEvent = { ui.nav.open(Route.Event(it)) },
+                onSave = { saved ->
+                    post = current.withSave(saved)
+                    scope.launch {
+                        attempt { ui.api.savePost(id, saved) }.onFailure { post = current; ui.toast(it.userMessage) }
+                    }
+                },
             )
             error != null -> Message(error!!, null)
         }

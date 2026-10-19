@@ -29,6 +29,7 @@ export const post = z.object({
   status: z.enum(["pending", "visible", "hidden", "removed"]),
   like_count: z.number().int(),
   liked_by_me: z.boolean(),
+  saved_by_me: z.boolean(),
   media: z.array(media),
   created_at: z.date(),
 });
@@ -46,6 +47,7 @@ export const postSelect = (tx: Tx, me: string, base: string | undefined) => tx`
   json_build_object('id', a.id, 'username', a.username, 'display_name', a.display_name,
                     'avatar_url', ${pictureUrl(tx, base, "a.avatar_variants", "150")}) as author,
   exists (select 1 from public.likes l where l.post_id = p.id and l.user_id = ${me}) as liked_by_me,
+  exists (select 1 from public.saved_posts s where s.post_id = p.id and s.user_id = ${me}) as saved_by_me,
   coalesce((
     select json_agg(json_build_object(
       'position', m.position, 'storage_key', m.storage_key, 'variants', m.variants,

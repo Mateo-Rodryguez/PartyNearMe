@@ -160,6 +160,17 @@ describe("push notifications", () => {
     expect(push.sent[0]?.message.body).toHaveLength(100);
   });
 
+  it("skips the kinds of push the user turned off in settings", async () => {
+    const alice = await ctx.createUser();
+    const bob = await ctx.createUser();
+    await register(bob, "bob-phone-1");
+    await ctx.as(bob, { method: "PATCH", url: "/me/settings", payload: { push_messages: false } });
+    const c = (await ctx.as(alice, { method: "POST", url: "/conversations", payload: { user_id: bob } })).json() as { id: string };
+    await ctx.as(alice, { method: "POST", url: `/conversations/${c.id}/messages`, payload: { body: "hi" } });
+    await drain();
+    expect(push.sent).toEqual([]);
+  });
+
   it("forgets phones Firebase says are gone", async () => {
     const alice = await ctx.createUser();
     const bob = await ctx.createUser();

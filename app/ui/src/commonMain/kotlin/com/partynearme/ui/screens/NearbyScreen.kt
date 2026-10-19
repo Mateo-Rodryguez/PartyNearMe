@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import com.partynearme.core.model.Event
 import com.partynearme.core.model.LatLng
 import com.partynearme.ui.Brand
+import com.partynearme.ui.LocalAppPrefs
 import com.partynearme.ui.Paged
 import com.partynearme.ui.Route
 import com.partynearme.ui.Ui
@@ -51,20 +52,28 @@ import com.partynearme.ui.calendarTile
 import com.partynearme.ui.clockTime
 import com.partynearme.ui.dayLabel
 import com.partynearme.ui.distance
+import com.partynearme.ui.radiusLabel
 import kotlinx.coroutines.CoroutineScope
 
 class NearbyState(private val ui: Ui, scope: CoroutineScope) {
     var noLocation by mutableStateOf(false)
         private set
     val list = LazyListState()
+    /** The radius the list was loaded with, so changing it in settings reloads the list. */
+    private var radiusKm = ui.prefs.current.radiusKm
     val paged = Paged(scope) { cursor ->
+        if (cursor == null) radiusKm = ui.prefs.current.radiusKm
         val here: LatLng? = ui.location.current()
         noLocation = here == null
         if (here == null) {
             emptyList<Event>() to null
         } else {
-            ui.api.nearbyEvents(here.lat, here.lng, radiusKm = 25.0, cursor = cursor).let { it.events to it.nextCursor }
+            ui.api.nearbyEvents(here.lat, here.lng, radiusKm = radiusKm.toDouble(), cursor = cursor).let { it.events to it.nextCursor }
         }
+    }
+
+    fun refreshIfRadiusChanged() {
+        if (paged.loadedOnce && radiusKm != ui.prefs.current.radiusKm) paged.refresh()
     }
 }
 
@@ -72,7 +81,7 @@ class NearbyState(private val ui: Ui, scope: CoroutineScope) {
 @Composable
 fun NearbyScreen(ui: Ui, state: NearbyState) {
     val paged = state.paged
-    LaunchedEffect(Unit) { if (!paged.loadedOnce && !paged.loading) paged.refresh() }
+    LaunchedEffect(Unit) { if (!paged.loadedOnce && !paged.loading) paged.refresh() else state.refreshIfRadiusChanged() }
     val nearEnd by remember {
         derivedStateOf {
             val info = state.list.layoutInfo
@@ -102,7 +111,8 @@ fun NearbyScreen(ui: Ui, state: NearbyState) {
                     paged.items.isEmpty() -> EmptyState(
                         Icons.Filled.Star,
                         "No parties nearby yet",
-                        body = "Nothing in the next two weeks within 25 km. Start one and get your friends along.",
+                        body = "Nothing in the next two weeks within ${radiusLabel(ui.prefs.current.radiusKm, LocalAppPrefs.current.miles)}. " +
+                            "Start one and get your friends along.",
                         action = "Start a party",
                         onAction = { ui.nav.open(Route.NewEvent()) },
                     )
@@ -145,7 +155,7 @@ fun EventCard(event: Event, onClick: () -> Unit) {
             Cover(event.coverUrl, event.title, Modifier.fillMaxSize())
             Box(Modifier.fillMaxSize().background(Brand.scrim))
             DateTile(event.startsAt, Modifier.align(Alignment.TopStart).padding(12.dp))
-            distance(event.distanceM).takeIf { it.isNotEmpty() }?.let {
+            distance(event.distanceM, LocalAppPrefs.current.miles).takeIf { it.isNotEmpty() }?.let {
                 Pill(it, Modifier.align(Alignment.TopEnd).padding(12.dp), icon = Icons.Filled.Place, dark = true)
             }
             Column(Modifier.align(Alignment.BottomStart).padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {

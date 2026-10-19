@@ -25,7 +25,8 @@ and in the `partynearme-screenshots` download on each run.
 Most screens use sample data built into debug builds, so no server or account is
 needed: `adb shell am start -n com.partynearme.app/.MainActivity --es demo feed`
 opens the feed. The other screens are `sign_in`, `nearby`, `event`, `new_event`,
-`map_picker`, `post`, `inbox`, `chat`, `profile`, `user` and `moderation`. Release builds ignore this.
+`map_picker`, `post`, `inbox`, `chat`, `profile`, `user`, `moderation`, `settings`, `relationship`,
+`search`, `followers` and `saved`. Release builds ignore this.
 
 ## iPhone
 
@@ -72,7 +73,7 @@ say "At <party>" and open it. The server lists them at `GET /events/:id/posts`.
 
 ## Profile pictures and party covers
 
-Tap your picture on the Profile tab, or use **Change profile picture** in its ⋮ menu.
+Tap your picture on the Profile tab, or use **Profile picture** in settings.
 Hosts set a party's cover from the party's ⋮ menu. Both are checked by moderation
 on the server first, so the new picture appears a few seconds after uploading.
 Pictures show on profiles, posts, the party page and the inbox; without one, the
@@ -108,3 +109,41 @@ The API address, Supabase URL and Supabase publishable key are in
 `androidApp/src/main/kotlin/com/partynearme/app/PartyApp.kt` and
 `iosKit/src/iosMain/kotlin/com/partynearme/ios/MainViewController.kt`. All three are public;
 no secret keys belong in the app.
+
+## Profile
+
+The numbers under a name read **Parties**, **Followers**, **Following**. Parties
+counts the published parties someone hosted plus the ones they said they're going
+to, each once. Tapping Followers or Following opens the list, with a switch between
+the two and a Follow button on each person.
+
+## Finding people
+
+The magnifier on Home (or **Find people** on your profile) searches as you type:
+usernames that start with the text come first, then names containing it, then the
+people with most followers. People blocked either way never show.
+
+## Saving
+
+The bookmark under a post, and on a party's cover, saves it. **Saved** (the bookmark
+at the top right of your profile) lists saved posts as a grid and saved parties as
+cards. Only you can see what you saved; posts hidden by moderation drop out.
+
+## Settings
+
+The gear at the top left of your profile. On your account (synced to the server):
+edit profile, profile picture, relationship status, interests, who can message you
+(everyone, or only people you follow; existing chats carry on), blocked accounts,
+and which push notifications you get (messages, guests for your parties, party
+reminders). On this phone only: theme (automatic, day or night), hiding like counts
+on other people's posts, the Nearby search distance (5 to 50 km) and kilometres or
+miles. Also privacy policy, terms, sign out and delete account; moderators get
+**Reports to review** here.
+
+## Relationship hearts
+
+People can show a small heart next to their name: full red for in a relationship,
+half filled in a softer red for talking to someone, an empty outline for single
+and looking. The default is nothing. Profiles and people lists show only the heart;
+what each one means is written only in the picker in settings. The outline is black
+in the day theme and white at night, where black wouldn't show.

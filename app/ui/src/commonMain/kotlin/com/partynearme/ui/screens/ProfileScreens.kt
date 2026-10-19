@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
@@ -26,6 +27,8 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -55,6 +58,7 @@ import com.partynearme.core.api.ReportTarget
 import com.partynearme.core.model.OwnProfile
 import com.partynearme.core.model.Post
 import com.partynearme.core.model.PublicProfile
+import com.partynearme.core.model.RelationshipStatus
 import com.partynearme.ui.Paged
 import com.partynearme.ui.Route
 import com.partynearme.ui.Ui
@@ -63,29 +67,15 @@ import com.partynearme.ui.userMessage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-/** Your own profile: details, your posts, editing and signing out. */
+/** Your own profile: details and your posts, with settings behind the gear and saved things behind the bookmark. */
 @Composable
 fun MeScreen(ui: Ui) {
     val scope = rememberCoroutineScope()
     var me by remember { mutableStateOf<OwnProfile?>(null) }
     var stats by remember { mutableStateOf<PublicProfile?>(null) }
     var editing by remember { mutableStateOf(false) }
-    var menu by remember { mutableStateOf(false) }
-    var confirmDelete by remember { mutableStateOf(false) }
-    val legal = rememberLegalLinks(ui.app)
     val posts = remember { Paged<Post>(scope) { c -> ui.api.userPosts(ui.myId, c).let { it.posts to it.nextCursor } } }
-    val pickAvatar = ui.platform.rememberPhotoPicker(1) { picked ->
-        val photo = picked.firstOrNull() ?: return@rememberPhotoPicker
-        scope.launch {
-            attempt { ui.api.setAvatar(ui.api.uploadPhoto(photo.contentType, photo.bytes)) }
-                .onSuccess {
-                    ui.toast("Your new picture shows once it's been checked")
-                    delay(PICTURE_CHECK_DELAY)
-                    attempt { ui.api.me() }.onSuccess { me = it }
-                }
-                .onFailure { ui.toast(it.userMessage) }
-        }
-    }
+    val pickAvatar = rememberAvatarPicker(ui) { me = it }
     LaunchedEffect(Unit) {
         attempt { ui.api.me() }.onSuccess { me = it }
         attempt { ui.api.user(ui.myId) }.onSuccess { stats = it }
@@ -93,44 +83,27 @@ fun MeScreen(ui: Ui) {
     }
 
     Column {
-        TitleBar(me?.username?.let { "@$it" } ?: "Profile") {
-            Box {
-                IconButton(onClick = { menu = true }) { Icon(Icons.Filled.MoreVert, "More") }
-                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                    DropdownMenuItem(text = { Text("Edit profile") }, onClick = { menu = false; editing = true })
-                    DropdownMenuItem(text = { Text("Change profile picture") }, onClick = { menu = false; pickAvatar() })
-                    if (me?.avatarUrl != null) {
-                        DropdownMenuItem(text = { Text("Remove profile picture") }, onClick = {
-                            menu = false
-                            scope.launch {
-                                attempt { ui.api.removeAvatar() }
-                                    .onSuccess { me = me?.copy(avatarUrl = null) }
-                                    .onFailure { ui.toast(it.userMessage) }
-                            }
-                        })
-                    }
-                    if (me?.isModerator == true) {
-                        DropdownMenuItem(text = { Text("Reports to review") }, onClick = { menu = false; ui.nav.open(Route.Moderation) })
-                    }
-                    DropdownMenuItem(text = { Text("Sign out") }, onClick = {
-                        menu = false
-                        scope.launch { ui.app.interactions.flush(); ui.app.signOut() }
-                    })
-                    DropdownMenuItem(text = { Text("Privacy policy") }, onClick = { menu = false; legal.privacy() })
-                    DropdownMenuItem(text = { Text("Terms") }, onClick = { menu = false; legal.terms() })
-                    DropdownMenuItem(
-                        text = { Text("Delete account", color = MaterialTheme.colorScheme.error) },
-                        onClick = { menu = false; confirmDelete = true },
-                    )
-                }
-            }
+        TitleBar(
+            me?.username?.let { "@$it" } ?: "Profile",
+            leading = { RoundIconButton(Icons.Filled.Settings, "Settings") { ui.nav.open(Route.Settings()) } },
+        ) {
+            RoundIconButton(PartyIcons.BookmarkBorder, "Saved") { ui.nav.open(Route.Saved) }
         }
         PostGrid(ui, posts) {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                Header(me?.displayName ?: me?.username, me?.bio, stats, me?.avatarUrl, onAvatar = pickAvatar) {
+                Header(
+                    ui,
+                    ui.myId,
+                    me?.displayName ?: me?.username,
+                    me?.bio,
+                    stats,
+                    me?.avatarUrl,
+                    RelationshipStatus.of(me?.relationshipStatus),
+                    onAvatar = pickAvatar,
+                ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         SecondaryButton("Edit profile", { editing = true }, Modifier.weight(1f), icon = Icons.Filled.Edit)
-                        SecondaryButton("Photo", pickAvatar, Modifier.weight(1f), icon = Icons.Filled.Face)
+                        SecondaryButton("Find people", { ui.nav.open(Route.Search()) }, Modifier.weight(1f), icon = Icons.Filled.Search)
                     }
                 }
             }
@@ -141,12 +114,29 @@ fun MeScreen(ui: Ui) {
     if (editing && current != null) {
         EditProfileDialog(ui, current, onDismiss = { editing = false }) { me = it; editing = false }
     }
-    if (confirmDelete) DeleteAccountDialog(ui) { confirmDelete = false }
+}
+
+/** Opens the photo picker and sets the picked photo as the profile picture; [onUpdated] gets the profile once it's checked. */
+@Composable
+fun rememberAvatarPicker(ui: Ui, onUpdated: (OwnProfile) -> Unit): () -> Unit {
+    val scope = rememberCoroutineScope()
+    return ui.platform.rememberPhotoPicker(1) { picked ->
+        val photo = picked.firstOrNull() ?: return@rememberPhotoPicker
+        scope.launch {
+            attempt { ui.api.setAvatar(ui.api.uploadPhoto(photo.contentType, photo.bytes)) }
+                .onSuccess {
+                    ui.toast("Your new picture shows once it's been checked")
+                    delay(PICTURE_CHECK_DELAY)
+                    attempt { ui.api.me() }.onSuccess(onUpdated)
+                }
+                .onFailure { ui.toast(it.userMessage) }
+        }
+    }
 }
 
 /** Account deletion, which app stores require inside the app. It can't be undone, so it asks first. */
 @Composable
-private fun DeleteAccountDialog(ui: Ui, onDismiss: () -> Unit) {
+fun DeleteAccountDialog(ui: Ui, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
     AlertDialog(
@@ -214,7 +204,7 @@ fun UserScreen(ui: Ui, id: String) {
         when {
             p != null -> PostGrid(ui, posts) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    Header(p.displayName ?: p.username, p.bio, p, p.avatarUrl) {
+                    Header(ui, id, p.displayName ?: p.username, p.bio, p, p.avatarUrl, RelationshipStatus.of(p.relationshipStatus)) {
                         if (id != ui.myId) {
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 val follow = {
@@ -271,10 +261,13 @@ fun UserScreen(ui: Ui, id: String) {
 
 @Composable
 private fun Header(
+    ui: Ui,
+    userId: String,
     name: String?,
     bio: String?,
     stats: PublicProfile?,
     avatarUrl: String?,
+    relationship: RelationshipStatus?,
     onAvatar: (() -> Unit)? = null,
     actions: @Composable () -> Unit,
 ) {
@@ -285,13 +278,21 @@ private fun Header(
     ) {
         Avatar(avatarUrl, name ?: "?", 104.dp, if (onAvatar != null) Modifier.clip(CircleShape).clickable(onClick = onAvatar) else Modifier,
             ring = true)
-        name?.let { Text(it, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center) }
+        name?.let {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(it, style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+                RelationshipHeart(relationship, 24.dp)
+            }
+        }
         stats?.let {
+            val handle = it.username?.let { u -> "@$u" } ?: "Profile"
+            // Parties first: the thing this app is about, read before the social numbers.
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Stat(it.followers, "Followers")
-                Box(Modifier.padding(horizontal = 24.dp).size(width = 1.dp, height = 28.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant))
-                Stat(it.following, "Following")
+                Stat(it.parties, "Parties")
+                StatDivider()
+                Stat(it.followers, "Followers") { ui.nav.open(Route.People(userId, followers = true, title = handle)) }
+                StatDivider()
+                Stat(it.following, "Following") { ui.nav.open(Route.People(userId, followers = false, title = handle)) }
             }
         }
         bio?.takeIf { it.isNotBlank() }?.let {
@@ -303,23 +304,41 @@ private fun Header(
 }
 
 @Composable
-private fun Stat(count: Int, label: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun StatDivider() {
+    Box(Modifier.padding(horizontal = 8.dp).size(width = 1.dp, height = 28.dp).background(MaterialTheme.colorScheme.outlineVariant))
+}
+
+@Composable
+private fun Stat(count: Int, label: String, onClick: (() -> Unit)? = null) {
+    Column(
+        Modifier.clip(RoundedCornerShape(12.dp))
+            .then(if (onClick != null) Modifier.clickable(onClickLabel = "Show $label", onClick = onClick) else Modifier)
+            .padding(horizontal = 14.dp, vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         Text(compactCount(count), style = MaterialTheme.typography.titleLarge)
         Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 /** 1890 -> "1,890", 12500 -> "12.5K": how social apps show big numbers. */
-private fun compactCount(n: Int): String = when {
+fun compactCount(n: Int): String = when {
     n >= 1_000_000 -> "${(n / 100_000) / 10.0}M".replace(".0M", "M")
     n >= 10_000 -> "${(n / 100) / 10.0}K".replace(".0K", "K")
     n >= 1_000 -> "${n / 1000},${(n % 1000).toString().padStart(3, '0')}"
     else -> n.toString()
 }
 
+/** Posts as a three-column grid of square photos, loading more near the end. [empty] shows when there are none. */
 @Composable
-private fun PostGrid(ui: Ui, posts: Paged<Post>, header: LazyGridScope.() -> Unit) {
+fun PostGrid(
+    ui: Ui,
+    posts: Paged<Post>,
+    empty: @Composable () -> Unit = {
+        EmptyState(Icons.Filled.Face, "No posts yet", body = "Photos from nights out show up here.")
+    },
+    header: LazyGridScope.() -> Unit,
+) {
     val grid = rememberLazyGridState()
     val nearEnd by remember {
         derivedStateOf { (grid.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0) >= grid.layoutInfo.totalItemsCount - 6 }
@@ -338,7 +357,7 @@ private fun PostGrid(ui: Ui, posts: Paged<Post>, header: LazyGridScope.() -> Uni
                 if (posts.error != null) {
                     Message(posts.error!!, null)
                 } else {
-                    EmptyState(Icons.Filled.Face, "No posts yet", body = "Photos from nights out show up here.")
+                    empty()
                 }
             }
         }
@@ -359,7 +378,7 @@ private fun PostGrid(ui: Ui, posts: Paged<Post>, header: LazyGridScope.() -> Uni
 }
 
 @Composable
-private fun EditProfileDialog(ui: Ui, profile: OwnProfile, onDismiss: () -> Unit, onSaved: (OwnProfile) -> Unit) {
+fun EditProfileDialog(ui: Ui, profile: OwnProfile, onDismiss: () -> Unit, onSaved: (OwnProfile) -> Unit) {
     val scope = rememberCoroutineScope()
     var username by remember { mutableStateOf(profile.username.orEmpty()) }
     var displayName by remember { mutableStateOf(profile.displayName.orEmpty()) }

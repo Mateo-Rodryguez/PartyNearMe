@@ -44,7 +44,10 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -65,6 +68,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.partynearme.core.PartyNearMe
 import com.partynearme.core.model.OwnProfile
+import com.partynearme.core.prefs.LocalPrefs
+import com.partynearme.core.prefs.ThemeMode
+import com.partynearme.ui.screens.BlockedScreen
 import com.partynearme.ui.screens.ChatScreen
 import com.partynearme.ui.screens.EmptyState
 import com.partynearme.ui.screens.EventScreen
@@ -79,9 +85,13 @@ import com.partynearme.ui.screens.NearbyState
 import com.partynearme.ui.screens.NewEventScreen
 import com.partynearme.ui.screens.NewPostScreen
 import com.partynearme.ui.screens.NotificationsScreen
+import com.partynearme.ui.screens.PeopleScreen
 import com.partynearme.ui.screens.PartyRef
 import com.partynearme.ui.screens.PostScreen
 import com.partynearme.ui.screens.ProfileSetupScreen
+import com.partynearme.ui.screens.SavedScreen
+import com.partynearme.ui.screens.SearchScreen
+import com.partynearme.ui.screens.SettingsScreen
 import com.partynearme.ui.screens.SignInScreen
 import com.partynearme.ui.screens.UserScreen
 import kotlinx.coroutines.delay
@@ -97,23 +107,45 @@ class Ui(
     val toast: (String) -> Unit,
 ) {
     val api get() = app.api
+    /** Choices kept on this phone: theme, units, radius, like counts. */
+    val prefs get() = app.preferences
 
     /** New notifications, for the bell on Home; cleared when they are opened. */
     var unreadNotifications by mutableIntStateOf(0)
 }
 
+/** The phone-only choices, for screens that draw differently because of them (units, like counts). */
+val LocalAppPrefs = compositionLocalOf { LocalPrefs() }
+
 @Composable
 fun App(app: PartyNearMe, platform: Platform, navigator: Navigator) {
-    PartyTheme {
-        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            val session by app.sessions.session.collectAsState()
-            val userId = session?.userId
-            if (userId == null) {
-                LaunchedEffect(Unit) { navigator.reset() }
-                SignInScreen(app)
-            } else {
-                key(userId) { SignedIn(app, platform, navigator, userId) }
-            }
+    val prefs by app.preferences.state.collectAsState()
+    CompositionLocalProvider(LocalAppPrefs provides prefs) {
+        PartyTheme(night = isAppNight(app)) { AppContent(app, platform, navigator) }
+    }
+}
+
+/** True when the app draws its dark theme: the phone's setting unless one was picked in settings. */
+@Composable
+fun isAppNight(app: PartyNearMe): Boolean {
+    val prefs by app.preferences.state.collectAsState()
+    return when (prefs.theme) {
+        ThemeMode.System -> isSystemInDarkTheme()
+        ThemeMode.Light -> false
+        ThemeMode.Dark -> true
+    }
+}
+
+@Composable
+private fun AppContent(app: PartyNearMe, platform: Platform, navigator: Navigator) {
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        val session by app.sessions.session.collectAsState()
+        val userId = session?.userId
+        if (userId == null) {
+            LaunchedEffect(Unit) { navigator.reset() }
+            SignInScreen(app)
+        } else {
+            key(userId) { SignedIn(app, platform, navigator, userId) }
         }
     }
 }
@@ -191,6 +223,11 @@ private fun Main(app: PartyNearMe, platform: Platform, nav: Navigator, userId: S
                 is Route.NewPost -> NewPostScreen(ui, PartyRef(route.eventId, route.eventTitle)) { feed.paged.refresh() }
                 Route.Moderation -> ModerationScreen(ui)
                 Route.Notifications -> NotificationsScreen(ui)
+                is Route.Settings -> SettingsScreen(ui, route.relationshipPicker)
+                is Route.Search -> SearchScreen(ui, route.query)
+                is Route.People -> PeopleScreen(ui, route.userId, route.followers, route.title)
+                Route.Saved -> SavedScreen(ui)
+                Route.Blocked -> BlockedScreen(ui)
                 null -> when (nav.tab) {
                     Tab.Feed -> FeedScreen(ui, feed, nearby)
                     Tab.Nearby -> NearbyScreen(ui, nearby)

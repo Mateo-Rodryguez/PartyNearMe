@@ -54,6 +54,11 @@ object Demo {
             "user" -> nav.open(Route.User(SAM))
             "notifications" -> nav.open(Route.Notifications)
             "moderation" -> { nav.select(Tab.Me); nav.open(Route.Moderation) }
+            "settings" -> { nav.select(Tab.Me); nav.open(Route.Settings()) }
+            "relationship" -> { nav.select(Tab.Me); nav.open(Route.Settings(relationshipPicker = true)) }
+            "search" -> nav.open(Route.Search("sa"))
+            "followers" -> { nav.select(Tab.Me); nav.open(Route.People(ME, followers = true, title = "@mateo")) }
+            "saved" -> { nav.select(Tab.Me); nav.open(Route.Saved) }
         }
         return DemoSetup(core, DemoPlatform, nav)
     }
@@ -85,6 +90,20 @@ private object FakeApi {
     private fun person(id: String, username: String, name: String, avatar: String? = null) =
         """{"id":"$id","username":"$username","display_name":"$name","avatar_url":${avatar?.let { "\"$it\"" }}}"""
 
+    /** Someone in a list, with their heart and whether you follow them. */
+    private fun listed(id: String, username: String, name: String, seed: String?, heart: String?, following: Boolean) =
+        """{"id":"$id","username":"$username","display_name":"$name",
+           "avatar_url":${seed?.let { "\"https://picsum.photos/seed/$it/200/200\"" }},
+           "relationship_status":${heart?.let { "\"$it\"" }},"is_following":$following}"""
+
+    private val people get() = listOf(
+        listed(SAM, "sam", "Sam Rivera", "sam-avatar", "taken", true),
+        listed("00000000-0000-4000-8000-000000000010", "samira.k", "Samira Khan", "samira", "single", false),
+        listed("00000000-0000-4000-8000-000000000011", "sasha_dj", "Sasha Novak", "sasha", null, false),
+        listed(ALEX, "alex", "Alex Chen", "alex-avatar", "talking", true),
+        listed("00000000-0000-4000-8000-000000000012", "salsa.nights", "Salsa Nights London", null, null, false),
+    ).joinToString(",")
+
     private const val SAM_AVATAR = "https://picsum.photos/seed/sam-avatar/200/200"
     private const val ALEX_AVATAR = "https://picsum.photos/seed/alex-avatar/200/200"
     private val sam = person(SAM, "sam", "Sam Rivera", SAM_AVATAR)
@@ -97,18 +116,26 @@ private object FakeApi {
            "width":$w,"height":$h,"blurhash":null}"""
 
     private fun post(id: String, author: String, caption: String, likes: Int, liked: Boolean, age: Duration, media: String,
-                     place: String? = null, status: String = "visible", party: Pair<String, String>? = null) =
+                     place: String? = null, status: String = "visible", party: Pair<String, String>? = null,
+                     saved: Boolean = false) =
         """{"id":"$id","author":$author,"event_id":${party?.let { "\"${it.first}\"" }},
            "event_title":${party?.let { "\"${it.second}\"" }},"caption":"$caption",
            "place_name":${place?.let { "\"$it\"" }},"lat":null,"lng":null,"status":"$status","like_count":$likes,
-           "liked_by_me":$liked,"media":[$media],"created_at":"${ago(age)}"}"""
+           "liked_by_me":$liked,"saved_by_me":$saved,"media":[$media],"created_at":"${ago(age)}"}"""
 
     private val feedPosts get() = listOf(
         post("p1", sam, "Best night of the summer", 128, true, 42.minutes,
             listOf(photo("party1", 1080, 1350), photo("party4", 1080, 1350), photo("party5", 1080, 1350)).joinToString(","),
-            "Fabric, London", party = "e1" to "Rooftop Sunset Party"),
+            "Fabric, London", party = "e1" to "Rooftop Sunset Party", saved = true),
         post("p2", alex, "Warming up for Saturday", 37, false, 5.hours, photo("party2", 1080, 1080)),
         post("p3", sam, "Sunset session on the roof", 412, false, 2.days, photo("party3", 1350, 1080), "Shoreditch"),
+    ).joinToString(",")
+
+    private val savedPosts get() = listOf(
+        post("p1", sam, "Best night of the summer", 128, true, 42.minutes, photo("party1", 1080, 1350), saved = true),
+        post("p7", alex, "Lights", 64, false, 3.days, photo("party6", 1080, 1080), saved = true),
+        post("p8", sam, "Crowd", 230, true, 5.days, photo("party7", 1080, 1080), saved = true),
+        post("p9", alex, "Afters", 18, false, 8.days, photo("party8", 1080, 1080), saved = true),
     ).joinToString(",")
 
     private val myPosts get() = listOf(
@@ -118,16 +145,16 @@ private object FakeApi {
     ).joinToString(",")
 
     private fun event(id: String, title: String, venue: String, starts: Duration, going: Int, interested: Int,
-                      mine: String?, distance: Int, cover: String?) =
+                      mine: String?, distance: Int, cover: String?, saved: Boolean = false) =
         """{"id":"$id","organiser":$sam,"title":"$title","description":"Bring your friends. Doors at 9, music until late.",
            "starts_at":"${ahead(starts)}","ends_at":"${ahead(starts + 5.hours)}","venue_name":"$venue",
            "lat":51.51,"lng":-0.13,"cover_url":${cover?.let { "\"https://picsum.photos/seed/$it/1280/800\"" }},"status":"published","going_count":$going,
-           "interested_count":$interested,"my_rsvp":${mine?.let { "\"$it\"" }},"created_at":"${ago(2.days)}",
+           "interested_count":$interested,"my_rsvp":${mine?.let { "\"$it\"" }},"saved_by_me":$saved,"created_at":"${ago(2.days)}",
            "distance_m":$distance}"""
 
     private val events get() = listOf(
         event("e1", "Rooftop Sunset Party", "Skyline Bar", 6.hours, 42, 17, "going", 650, cover = "rooftop"),
-        event("e2", "House Night", "Warehouse 9", 1.days + 3.hours, 120, 48, null, 2300, cover = "house-night"),
+        event("e2", "House Night", "Warehouse 9", 1.days + 3.hours, 120, 48, null, 2300, cover = "house-night", saved = true),
         // No cover: shows the gradient parties get until their host adds a photo.
         event("e3", "Student Mixer", "Union Hall", 3.days, 18, 30, "interested", 4100, cover = null),
     )
@@ -170,16 +197,30 @@ private object FakeApi {
 
     fun handle(method: HttpMethod, path: String): Pair<HttpStatusCode, String> = when {
         path == "/me" -> HttpStatusCode.OK to """{"id":"$ME","username":"mateo","display_name":"Mateo",
-            "bio":"Building PartyNearMe","avatar_url":null,"created_at":"${ago(30.days)}","interest_ids":[1,3],
-            "is_moderator":true}"""
+            "bio":"Building PartyNearMe","avatar_url":null,"relationship_status":"talking",
+            "created_at":"${ago(30.days)}","interest_ids":[1,3],"is_moderator":true}"""
+        path == "/me/settings" -> HttpStatusCode.OK to """{"messages_from":"everyone","push_messages":true,
+            "push_rsvps":true,"push_reminders":false}"""
+        path == "/me/blocks" -> HttpStatusCode.OK to """{"users":[]}"""
+        path == "/me/saved/posts" -> HttpStatusCode.OK to """{"posts":[$savedPosts],"next_cursor":null}"""
+        path == "/me/saved/events" -> HttpStatusCode.OK to """{"events":[${events[1]}]}"""
+        path == "/interests" -> HttpStatusCode.OK to """[{"id":1,"slug":"music","name":"Music"},{"id":2,"slug":"sports","name":"Sports"},
+            {"id":3,"slug":"fitness","name":"Fitness"},{"id":4,"slug":"food","name":"Food"},{"id":5,"slug":"travel","name":"Travel"},
+            {"id":6,"slug":"tech","name":"Tech"},{"id":7,"slug":"fashion","name":"Fashion"},{"id":8,"slug":"art","name":"Art"},
+            {"id":9,"slug":"gaming","name":"Gaming"},{"id":10,"slug":"other","name":"Other"}]"""
+        path == "/users/search" -> HttpStatusCode.OK to """{"users":[$people]}"""
+        path.endsWith("/followers") || path.endsWith("/following") ->
+            HttpStatusCode.OK to """{"users":[$people],"next_cursor":null}"""
         path == "/feed" -> HttpStatusCode.OK to """{"posts":[$feedPosts],"next_cursor":null}"""
         path == "/interactions" -> HttpStatusCode.Accepted to ""
         path == "/users/$ME/posts" -> HttpStatusCode.OK to """{"posts":[$myPosts],"next_cursor":null}"""
         path.matches(Regex("/users/[^/]+/posts")) -> HttpStatusCode.OK to """{"posts":[$feedPosts],"next_cursor":null}"""
         path == "/users/$ME" -> HttpStatusCode.OK to """{"id":"$ME","username":"mateo","display_name":"Mateo",
-            "bio":"Building PartyNearMe","avatar_url":null,"followers":214,"following":180,"is_following":false}"""
+            "bio":"Building PartyNearMe","avatar_url":null,"relationship_status":"talking","parties":37,
+            "followers":214,"following":180,"is_following":false}"""
         path.startsWith("/users/") -> HttpStatusCode.OK to """{"id":"$SAM","username":"sam","display_name":"Sam Rivera",
-            "bio":"DJ and party host in London","avatar_url":"$SAM_AVATAR","followers":1890,"following":312,"is_following":true}"""
+            "bio":"DJ and party host in London","avatar_url":"$SAM_AVATAR","relationship_status":"taken","parties":142,
+            "followers":1890,"following":312,"is_following":true}"""
         path == "/events/nearby" -> HttpStatusCode.OK to """{"events":[${events.joinToString(",")}],"next_cursor":null}"""
         path.matches(Regex("/events/[^/]+/posts")) -> HttpStatusCode.OK to """{"posts":[$feedPosts],"next_cursor":null}"""
         path.startsWith("/events/") -> HttpStatusCode.OK to events.first()
