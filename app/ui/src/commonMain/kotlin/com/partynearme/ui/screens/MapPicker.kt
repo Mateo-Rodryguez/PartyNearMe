@@ -157,14 +157,15 @@ private fun PickerSheet(onPicked: () -> Unit, onCancel: () -> Unit) {
     }
 }
 
-/** A round button that floats over the map with a shadow, in the theme's surface colour. */
+/** A round button that floats over the map with a shadow. */
 @Composable
 private fun FloatingButton(icon: ImageVector, description: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Surface(
         onClick = onClick,
         modifier = modifier.size(48.dp),
         shape = CircleShape,
-        color = MaterialTheme.colorScheme.surface,
+        // At night a shadow doesn't show on the dark map, so the button is a lighter grey instead.
+        color = if (Brand.isNight) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surface,
         shadowElevation = 8.dp,
     ) {
         Box(contentAlignment = Alignment.Center) {
