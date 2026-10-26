@@ -16,6 +16,18 @@ data class Person(
     val name: String get() = displayName ?: username?.let { "@$it" } ?: "Someone"
 }
 
+/**
+ * A heart next to the name: "taken" (in a relationship), "talking" (talking to
+ * someone, still single) or "single" (looking). Null shows nothing.
+ */
+enum class RelationshipStatus(val wire: String) {
+    Taken("taken"), Talking("talking"), Single("single");
+
+    companion object {
+        fun of(wire: String?): RelationshipStatus? = entries.firstOrNull { it.wire == wire }
+    }
+}
+
 @Serializable
 data class OwnProfile(
     val id: String,
@@ -23,6 +35,7 @@ data class OwnProfile(
     @SerialName("display_name") val displayName: String? = null,
     val bio: String? = null,
     @SerialName("avatar_url") val avatarUrl: String? = null,
+    @SerialName("relationship_status") val relationshipStatus: String? = null,
     @SerialName("created_at") val createdAt: String,
     @SerialName("interest_ids") val interestIds: List<Int> = emptyList(),
     @SerialName("is_moderator") val isModerator: Boolean = false,
@@ -35,10 +48,39 @@ data class PublicProfile(
     @SerialName("display_name") val displayName: String? = null,
     val bio: String? = null,
     @SerialName("avatar_url") val avatarUrl: String? = null,
+    @SerialName("relationship_status") val relationshipStatus: String? = null,
+    /** Parties hosted plus parties said "going" to. */
+    val parties: Int = 0,
     val followers: Int,
     val following: Int,
     @SerialName("is_following") val isFollowing: Boolean,
     @SerialName("is_blocked") val isBlocked: Boolean = false,
+)
+
+/** Someone in a list: search results, followers, following, blocked accounts. */
+@Serializable
+data class ListedPerson(
+    val id: String,
+    val username: String? = null,
+    @SerialName("display_name") val displayName: String? = null,
+    @SerialName("avatar_url") val avatarUrl: String? = null,
+    @SerialName("relationship_status") val relationshipStatus: String? = null,
+    @SerialName("is_following") val isFollowing: Boolean = false,
+) {
+    val name: String get() = displayName ?: username?.let { "@$it" } ?: "Someone"
+}
+
+@Serializable
+data class PeoplePage(val users: List<ListedPerson>, @SerialName("next_cursor") val nextCursor: String? = null)
+
+/** Settings kept on the server: who can message the user and which push notifications they get. */
+@Serializable
+data class AccountSettings(
+    /** "everyone" or "following". */
+    @SerialName("messages_from") val messagesFrom: String = "everyone",
+    @SerialName("push_messages") val pushMessages: Boolean = true,
+    @SerialName("push_rsvps") val pushRsvps: Boolean = true,
+    @SerialName("push_reminders") val pushReminders: Boolean = true,
 )
 
 /** Something people reported, with all its open reports, for moderators. */
@@ -102,6 +144,7 @@ data class Post(
     val status: String,
     @SerialName("like_count") val likeCount: Int,
     @SerialName("liked_by_me") val likedByMe: Boolean,
+    @SerialName("saved_by_me") val savedByMe: Boolean = false,
     val media: List<Media> = emptyList(),
     @SerialName("created_at") val createdAt: String,
 )
@@ -125,9 +168,13 @@ data class Event(
     @SerialName("going_count") val goingCount: Int,
     @SerialName("interested_count") val interestedCount: Int,
     @SerialName("my_rsvp") val myRsvp: String? = null,
+    @SerialName("saved_by_me") val savedByMe: Boolean = false,
     @SerialName("created_at") val createdAt: String,
     @SerialName("distance_m") val distanceM: Int? = null,
 )
+
+@Serializable
+data class EventList(val events: List<Event>)
 
 @Serializable
 data class EventPage(val events: List<Event>, @SerialName("next_cursor") val nextCursor: String? = null)

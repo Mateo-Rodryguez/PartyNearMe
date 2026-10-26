@@ -31,6 +31,7 @@ const event = z.object({
   going_count: z.number().int(),
   interested_count: z.number().int(),
   my_rsvp: z.enum(["going", "interested"]).nullable(),
+  saved_by_me: z.boolean(),
   created_at: z.date(),
 });
 type Event = z.infer<typeof event>;
@@ -114,7 +115,8 @@ const eventSelect = (tx: Tx, me: string, base: string | undefined) => tx`
                     'avatar_url', ${pictureUrl(tx, base, "p.avatar_variants", "150")}) as organiser,
   (select count(*)::int from public.rsvps r where r.event_id = e.id and r.status = 'going') as going_count,
   (select count(*)::int from public.rsvps r where r.event_id = e.id and r.status = 'interested') as interested_count,
-  (select r.status from public.rsvps r where r.event_id = e.id and r.user_id = ${me}) as my_rsvp
+  (select r.status from public.rsvps r where r.event_id = e.id and r.user_id = ${me}) as my_rsvp,
+  exists (select 1 from public.saved_events s where s.event_id = e.id and s.user_id = ${me}) as saved_by_me
 `;
 
 export const eventsRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string | undefined }> = async (
@@ -210,6 +212,40 @@ export const eventsRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string 
       limit 100
     `);
     return rows as unknown as Event[];
+  });
+
+  /** Bookmarks a party. Only the user sees what they saved. */
+  app.put("/events/:id/save", { schema: { params: eventParams, response: noContent } }, async (request, reply) => {
+    const me = request.userId;
+    await asUser(db, me, async (tx) => {
+      const [visible] = await tx`select 1 from public.events where id = ${request.params.id}`;
+      if (!visible) throw new HttpError(404, "Event not found");
+      await tx`insert into public.saved_events (user_id, event_id) values (${me}, ${request.params.id}) on conflict do nothing`;
+    });
+    return reply.status(204).send(null);
+  });
+
+  app.delete("/events/:id/save", { schema: { params: eventParams, response: noContent } }, async (request, reply) => {
+    await asUser(db, request.userId, (tx) => tx`
+      delete from public.saved_events where event_id = ${request.params.id} and user_id = ${request.userId}
+    `);
+    return reply.status(204).send(null);
+  });
+
+  /** Saved parties, most recently saved first, cancelled ones included so the user sees they're off. */
+  app.get("/me/saved/events", { schema: { response: { 200: z.object({ events: z.array(event) }) } } }, async (request) => {
+    const me = request.userId;
+    const rows = await asUser(db, me, (tx) => tx`
+      select ${eventSelect(tx, me, mediaBaseUrl)}
+      from public.saved_events s
+      join public.events e on e.id = s.event_id
+      join public.profiles p on p.id = e.organiser_id
+      where s.user_id = ${me} and e.status in ('published', 'cancelled')
+        and not exists (select 1 from public.blocks b where b.blocker_id = ${me} and b.blocked_id = e.organiser_id)
+      order by s.created_at desc
+      limit 200
+    `);
+    return { events: rows as unknown as Event[] };
   });
 
   app.get("/events/:id", { schema: { params: eventParams, response: { 200: event } } }, (request) =>

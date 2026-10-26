@@ -236,14 +236,25 @@ const nameOf = (p: { display_name: string | null; username: string | null }) =>
  * Sends to every device of the given users. Push is best effort: a failed
  * send is logged rather than retried, so nobody gets the same alert twice.
  */
-async function pushTo({ db, pusher, log }: WorkerDeps, userIds: string[], message: PushMessage): Promise<void> {
+/** The setting in user_settings that turns each kind of push off. */
+type PushSetting = "push_messages" | "push_rsvps" | "push_reminders";
+
+async function pushTo(
+  { db, pusher, log }: WorkerDeps,
+  userIds: string[],
+  setting: PushSetting,
+  message: PushMessage,
+): Promise<void> {
   if (userIds.length === 0) return;
   if (!pusher) {
     log.info({ users: userIds.length, type: message.data.type }, "push skipped: Firebase not configured");
     return;
   }
+  // No settings row means the defaults, which have every kind on.
   const devices = await db<{ token: string }[]>`
-    select token from public.device_tokens where user_id = any (${userIds}::uuid[])
+    select d.token from public.device_tokens d
+    left join public.user_settings s on s.user_id = d.user_id
+    where d.user_id = any (${userIds}::uuid[]) and coalesce(s.${db(setting)}, true)
   `;
   for (const { token } of devices) {
     try {
@@ -267,7 +278,7 @@ async function notifyMessage(deps: WorkerDeps, messageId: string): Promise<void>
     select user_id from public.conversation_members
     where conversation_id = ${m.conversation_id} and user_id <> ${m.sender_id}
   `;
-  await pushTo(deps, recipients.map((r) => r.user_id), {
+  await pushTo(deps, recipients.map((r) => r.user_id), "push_messages", {
     title: nameOf(m),
     body: preview(m.body),
     data: { type: "message", conversation_id: m.conversation_id },
@@ -284,7 +295,7 @@ async function notifyRsvp(deps: WorkerDeps, eventId: string, userId: string): Pr
                          or (b.blocker_id = ${userId} and b.blocked_id = e.organiser_id))
   `;
   if (!row) return;
-  await pushTo(deps, [row.organiser_id], {
+  await pushTo(deps, [row.organiser_id], "push_rsvps", {
     title: row.title,
     body: `${nameOf(row)} is going`,
     data: { type: "rsvp", event_id: eventId, user_id: userId },
@@ -301,7 +312,7 @@ async function notifyReminder(deps: WorkerDeps, eventId: string): Promise<void> 
   `;
   const minutes = Math.max(0, Math.round((event.starts_at.getTime() - Date.now()) / 60_000));
   const when = minutes <= 90 ? `in ${minutes} min` : `in about ${Math.round(minutes / 60)} h`;
-  await pushTo(deps, going.map((g) => g.user_id), {
+  await pushTo(deps, going.map((g) => g.user_id), "push_reminders", {
     title: event.title,
     body: event.venue_name ? `Starts ${when} at ${event.venue_name}` : `Starts ${when}`,
     data: { type: "event_reminder", event_id: eventId },

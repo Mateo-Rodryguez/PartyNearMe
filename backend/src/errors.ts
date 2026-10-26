@@ -22,6 +22,7 @@ const pgErrors: Record<string, [number, string]> = {
   // Raised by our own database functions with a message meant for the client.
   "22023": [400, ""],
   P0002: [404, ""],
+  PN403: [403, ""],
 };
 
 export function registerErrorHandler(app: FastifyInstance, report: ErrorReporter = noReporter): void {

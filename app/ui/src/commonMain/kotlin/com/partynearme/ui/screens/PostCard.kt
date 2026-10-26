@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -56,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.partynearme.core.model.Media
 import com.partynearme.core.model.Post
+import com.partynearme.ui.LocalAppPrefs
 import com.partynearme.ui.timeAgo
 import kotlinx.coroutines.delay
 
@@ -70,6 +72,7 @@ fun PostCard(
     onNotInterested: (() -> Unit)? = null,
     onReport: () -> Unit = {},
     onEvent: (String) -> Unit = {},
+    onSave: ((Boolean) -> Unit)? = null,
 ) {
     var menu by remember { mutableStateOf(false) }
     var bursts by remember { mutableIntStateOf(0) }
@@ -125,7 +128,7 @@ fun PostCard(
                 )
             }
         }
-        Row(Modifier.padding(start = 4.dp, end = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { onLike(!post.likedByMe) }, enabled = visible) {
                 Icon(
                     if (post.likedByMe) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
@@ -134,11 +137,25 @@ fun PostCard(
                     tint = if (post.likedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 )
             }
-            Text(
-                when (post.likeCount) { 0 -> "Be the first to like this"; 1 -> "1 like"; else -> "${post.likeCount} likes" },
-                style = MaterialTheme.typography.labelLarge,
-                color = if (post.likeCount == 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-            )
+            // People can hide counts on others' posts in settings; your own always show.
+            if (isMine || !LocalAppPrefs.current.hideLikeCounts) {
+                Text(
+                    when (post.likeCount) { 0 -> "Be the first to like this"; 1 -> "1 like"; else -> "${post.likeCount} likes" },
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (post.likeCount == 0) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            if (onSave != null) {
+                IconButton(onClick = { onSave(!post.savedByMe) }, enabled = visible) {
+                    Icon(
+                        if (post.savedByMe) PartyIcons.Bookmark else PartyIcons.BookmarkBorder,
+                        if (post.savedByMe) "Remove from saved" else "Save",
+                        modifier = Modifier.size(26.dp),
+                        tint = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+            }
         }
         post.caption?.takeIf { it.isNotBlank() }?.let { caption ->
             Text(
@@ -232,6 +249,9 @@ private fun Photos(media: List<Media>, pending: Boolean, bursts: Int, onDoubleTa
         }
     }
 }
+
+/** Puts a save (or unsave) on the screen at once, then tells the server. */
+fun Post.withSave(saved: Boolean) = copy(savedByMe = saved)
 
 /** Puts a like (or unlike) on the screen at once, then tells the server. */
 fun Post.withLike(liked: Boolean) =

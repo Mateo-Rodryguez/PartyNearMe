@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -49,6 +50,7 @@ import com.partynearme.core.model.Event
 import com.partynearme.core.model.LatLng
 import com.partynearme.core.model.Post
 import com.partynearme.ui.Brand
+import com.partynearme.ui.LocalAppPrefs
 import com.partynearme.ui.Route
 import com.partynearme.ui.Ui
 import com.partynearme.ui.attempt
@@ -117,6 +119,20 @@ fun EventScreen(ui: Ui, id: String) {
                 Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                     RoundIconButton(Icons.AutoMirrored.Filled.ArrowBack, "Back", onPhoto = true) { ui.nav.back() }
                     Spacer(Modifier.weight(1f))
+                    RoundIconButton(
+                        if (e.savedByMe) PartyIcons.Bookmark else PartyIcons.BookmarkBorder,
+                        if (e.savedByMe) "Remove from saved" else "Save party",
+                        onPhoto = true,
+                    ) {
+                        val saved = !e.savedByMe
+                        event = e.copy(savedByMe = saved)
+                        scope.launch {
+                            attempt { ui.api.saveEvent(id, saved) }
+                                .onSuccess { if (saved) ui.toast("Saved. Find it under Saved on your profile.") }
+                                .onFailure { event = event?.copy(savedByMe = !saved); ui.toast(it.userMessage) }
+                        }
+                    }
+                    Spacer(Modifier.width(8.dp))
                     Box {
                         RoundIconButton(Icons.Filled.MoreVert, "More", onPhoto = true) { menu = true }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
@@ -156,7 +172,7 @@ fun EventScreen(ui: Ui, id: String) {
                 InfoRow(
                     Icons.Filled.Place,
                     e.venueName ?: "Pinned on the map",
-                    detail = distance(e.distanceM).ifEmpty { null },
+                    detail = distance(e.distanceM, LocalAppPrefs.current.miles).ifEmpty { null },
                 )
                 Row(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
