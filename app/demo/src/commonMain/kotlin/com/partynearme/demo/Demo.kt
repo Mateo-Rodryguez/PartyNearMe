@@ -59,6 +59,8 @@ object Demo {
             "search" -> nav.open(Route.Search("sa"))
             "followers" -> { nav.select(Tab.Me); nav.open(Route.People(ME, followers = true, title = "@mateo")) }
             "saved" -> { nav.select(Tab.Me); nav.open(Route.Saved) }
+            "comments" -> nav.open(Route.Comments("p1"))
+            "edit-party" -> { nav.select(Tab.Nearby); nav.open(Route.EditEvent("e1")) }
         }
         return DemoSetup(core, DemoPlatform, nav)
     }
@@ -117,16 +119,16 @@ private object FakeApi {
 
     private fun post(id: String, author: String, caption: String, likes: Int, liked: Boolean, age: Duration, media: String,
                      place: String? = null, status: String = "visible", party: Pair<String, String>? = null,
-                     saved: Boolean = false) =
+                     saved: Boolean = false, comments: Int = 0) =
         """{"id":"$id","author":$author,"event_id":${party?.let { "\"${it.first}\"" }},
            "event_title":${party?.let { "\"${it.second}\"" }},"caption":"$caption",
            "place_name":${place?.let { "\"$it\"" }},"lat":null,"lng":null,"status":"$status","like_count":$likes,
-           "liked_by_me":$liked,"saved_by_me":$saved,"media":[$media],"created_at":"${ago(age)}"}"""
+           "comment_count":$comments,"liked_by_me":$liked,"saved_by_me":$saved,"media":[$media],"created_at":"${ago(age)}"}"""
 
     private val feedPosts get() = listOf(
         post("p1", sam, "Best night of the summer", 128, true, 42.minutes,
             listOf(photo("party1", 1080, 1350), photo("party4", 1080, 1350), photo("party5", 1080, 1350)).joinToString(","),
-            "Fabric, London", party = "e1" to "Rooftop Sunset Party", saved = true),
+            "Fabric, London", party = "e1" to "Rooftop Sunset Party", saved = true, comments = 3),
         post("p2", alex, "Warming up for Saturday", 37, false, 5.hours, photo("party2", 1080, 1080)),
         post("p3", sam, "Sunset session on the roof", 412, false, 2.days, photo("party3", 1350, 1080), "Shoreditch"),
     ).joinToString(",")
@@ -179,15 +181,28 @@ private object FakeApi {
             "last_message_at":"${ago(1.days)}"}],"next_cursor":null}"""
 
     private fun notification(type: String, actor: String?, age: Duration, unread: Boolean, post: String? = null,
-                             thumb: String? = null, event: String? = null, title: String? = null, cover: String? = null) =
+                             thumb: String? = null, event: String? = null, title: String? = null, cover: String? = null,
+                             text: String? = null) =
         """{"id":"$type:$age","type":"$type","actor":$actor,"post_id":${post?.let { "\"$it\"" }},
+           "comment_text":${text?.let { "\"$it\"" }},
            "post_thumbnail_url":${thumb?.let { "\"https://picsum.photos/seed/$it/150/150\"" }},
            "event_id":${event?.let { "\"$it\"" }},"event_title":${title?.let { "\"$it\"" }},
            "event_cover_url":${cover?.let { "\"https://picsum.photos/seed/$it/150/150\"" }},
            "created_at":"${ago(age)}","unread":$unread}"""
 
+    private fun comment(id: String, author: String, body: String, age: Duration, canDelete: Boolean) =
+        """{"id":"$id","post_id":"p1","author":$author,"body":"$body","status":"visible",
+           "can_delete":$canDelete,"created_at":"${ago(age)}"}"""
+
+    private val comments get() = listOf(
+        comment("c3", mateo, "Count me in next time", 3.minutes, true),
+        comment("c2", alex, "That sunset though", 20.minutes, false),
+        comment("c1", sam, "Thanks for coming everyone!", 40.minutes, false),
+    ).joinToString(",")
+
     private val notifications get() = listOf(
         notification("like", sam, 4.minutes, true, post = "p4", thumb = "mine1"),
+        notification("comment", alex, 12.minutes, true, post = "p4", thumb = "mine1", text = "Saving this for Saturday"),
         notification("rsvp", alex, 25.minutes, true, event = "e1", title = "Rooftop Sunset Party", cover = "rooftop"),
         notification("reminder", null, 2.hours, true, event = "e1", title = "Rooftop Sunset Party", cover = "rooftop"),
         notification("follow", alex, 1.days, false),
@@ -211,6 +226,8 @@ private object FakeApi {
         path == "/users/search" -> HttpStatusCode.OK to """{"users":[$people]}"""
         path.endsWith("/followers") || path.endsWith("/following") ->
             HttpStatusCode.OK to """{"users":[$people],"next_cursor":null}"""
+        path.matches(Regex("/posts/[^/]+/comments")) && method == HttpMethod.Get ->
+            HttpStatusCode.OK to """{"comments":[$comments],"next_cursor":null}"""
         path == "/feed" -> HttpStatusCode.OK to """{"posts":[$feedPosts],"next_cursor":null}"""
         path == "/interactions" -> HttpStatusCode.Accepted to ""
         path == "/users/$ME/posts" -> HttpStatusCode.OK to """{"posts":[$myPosts],"next_cursor":null}"""

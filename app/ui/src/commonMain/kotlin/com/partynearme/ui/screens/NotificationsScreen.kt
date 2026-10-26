@@ -45,10 +45,10 @@ import com.partynearme.ui.timeAgo
 import com.partynearme.ui.userMessage
 import kotlinx.coroutines.launch
 
-private val known = setOf("like", "follow", "rsvp", "reminder")
+private val known = setOf("like", "comment", "follow", "rsvp", "reminder")
 
 /**
- * Likes, follows, people going to your parties and reminders for the ones you're going to,
+ * Likes, comments, follows, people going to your parties and reminders for the ones you're going to,
  * opened from the bell on Home. New ones are marked and split from the rest, as on Instagram.
  */
 @Composable
@@ -79,7 +79,7 @@ fun NotificationsScreen(ui: Ui) {
             list.isEmpty() -> EmptyState(
                 Icons.Outlined.Notifications,
                 "Nothing yet",
-                body = "When people like your photos, follow you or say they're going to your parties, you'll see it here.",
+                body = "When people like or comment on your photos, follow you or say they're going to your parties, you'll see it here.",
             )
             else -> {
                 val (fresh, earlier) = list.partition { it.unread }
@@ -107,6 +107,7 @@ private fun NotificationRow(ui: Ui, n: Notification) {
     val open: () -> Unit = {
         when {
             n.type == "like" && postId != null -> ui.nav.open(Route.Post(postId))
+            n.type == "comment" && postId != null -> ui.nav.open(Route.Comments(postId))
             n.type == "follow" && actor != null -> ui.nav.open(Route.User(actor.id))
             eventId != null -> ui.nav.open(Route.Event(eventId))
         }
@@ -115,6 +116,11 @@ private fun NotificationRow(ui: Ui, n: Notification) {
         val bold = SpanStyle(fontWeight = FontWeight.SemiBold)
         when (n.type) {
             "like" -> { withStyle(bold) { append(actor?.name ?: "Someone") }; append(" liked your photo.") }
+            "comment" -> {
+                withStyle(bold) { append(actor?.name ?: "Someone") }
+                append(" commented: ")
+                append(n.commentText.orEmpty())
+            }
             "follow" -> { withStyle(bold) { append(actor?.name ?: "Someone") }; append(" started following you.") }
             "rsvp" -> { withStyle(bold) { append(actor?.name ?: "Someone") }; append(" is going to "); withStyle(bold) { append(party) }; append(".") }
             else -> { withStyle(bold) { append(party) }; append(" is coming up soon. Get ready!") }

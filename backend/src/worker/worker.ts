@@ -78,6 +78,12 @@ async function handle(deps: WorkerDeps, row: OutboxRow): Promise<void> {
       return notifyRsvp(deps, String(row.payload.event_id), String(row.payload.user_id));
     case "event.reminder":
       return notifyReminder(deps, String(row.payload.event_id));
+    case "event.cancelled":
+      return notifyCancelled(deps, String(row.payload.event_id));
+    case "comment.created":
+      return processComment(deps, String(row.payload.comment_id));
+    case "post.caption_changed":
+      return recheckCaption(deps, String(row.payload.post_id));
     default:
       // Unknown topics are left for a future worker version rather than failing.
       deps.log.info({ id: row.id, topic: row.topic }, "no handler for topic");
@@ -237,7 +243,7 @@ const nameOf = (p: { display_name: string | null; username: string | null }) =>
  * send is logged rather than retried, so nobody gets the same alert twice.
  */
 /** The setting in user_settings that turns each kind of push off. */
-type PushSetting = "push_messages" | "push_rsvps" | "push_reminders";
+type PushSetting = "push_messages" | "push_rsvps" | "push_reminders" | "push_comments";
 
 async function pushTo(
   { db, pusher, log }: WorkerDeps,
@@ -317,6 +323,71 @@ async function notifyReminder(deps: WorkerDeps, eventId: string): Promise<void> 
     body: event.venue_name ? `Starts ${when} at ${event.venue_name}` : `Starts ${when}`,
     data: { type: "event_reminder", event_id: eventId },
   });
+}
+
+async function notifyCancelled(deps: WorkerDeps, eventId: string): Promise<void> {
+  const [event] = await deps.db<{ title: string; organiser_id: string }[]>`
+    select title, organiser_id from public.events where id = ${eventId} and status = 'cancelled'
+  `;
+  if (!event) return;
+  const guests = await deps.db<{ user_id: string }[]>`
+    select user_id from public.rsvps where event_id = ${eventId} and user_id <> ${event.organiser_id}
+  `;
+  await pushTo(deps, guests.map((g) => g.user_id), "push_reminders", {
+    title: event.title,
+    body: "This party has been cancelled",
+    data: { type: "event_cancelled", event_id: eventId },
+  });
+}
+
+/**
+ * Checks a new comment's text and hides it if it isn't allowed; otherwise lets
+ * the post's author know. Comments show before this runs, like on Instagram.
+ */
+async function processComment(deps: WorkerDeps, commentId: string): Promise<void> {
+  const { db, moderator, log } = deps;
+  const [c] = await db<{ body: string; post_id: string; post_author_id: string; author_id: string; status: string; display_name: string | null; username: string | null }[]>`
+    select c.body, c.post_id, p.author_id as post_author_id, c.author_id, c.status, a.display_name, a.username
+    from public.comments c
+    join public.posts p on p.id = c.post_id
+    join public.profiles a on a.id = c.author_id
+    where c.id = ${commentId}
+  `;
+  if (!c || c.status !== "visible") return;
+  const check = await moderator.check({ text: c.body });
+  if (check.flagged) {
+    await db`update public.comments set status = 'hidden' where id = ${commentId} and status = 'visible'`;
+    log.info({ comment_id: commentId, categories: check.categories }, "comment hidden by moderation");
+    return;
+  }
+  if (c.post_author_id === c.author_id) return;
+  const [blocked] = await db`
+    select 1 from public.blocks
+    where (blocker_id = ${c.post_author_id} and blocked_id = ${c.author_id})
+       or (blocker_id = ${c.author_id} and blocked_id = ${c.post_author_id})
+  `;
+  if (blocked) return;
+  await pushTo(deps, [c.post_author_id], "push_comments", {
+    title: `${nameOf(c)} commented`,
+    body: preview(c.body),
+    data: { type: "comment", post_id: c.post_id },
+  });
+}
+
+/** An edited caption gets the same check as a new post's; a visible post is hidden if it fails. */
+async function recheckCaption({ db, moderator, log }: WorkerDeps, postId: string): Promise<void> {
+  const [post] = await db<{ caption: string | null; status: string }[]>`
+    select caption, status from public.posts where id = ${postId}
+  `;
+  // Pending posts are checked in full, caption included, by processPost.
+  if (!post?.caption || post.status !== "visible") return;
+  const check = await moderator.check({ text: post.caption });
+  if (!check.flagged) return;
+  await db`
+    update public.posts set status = 'hidden', moderation_labels = ${check.categories}
+    where id = ${postId} and status = 'visible'
+  `;
+  log.info({ post_id: postId, categories: check.categories }, "post hidden after caption edit");
 }
 
 /** Runs until stopped, polling when there's nothing to do. */

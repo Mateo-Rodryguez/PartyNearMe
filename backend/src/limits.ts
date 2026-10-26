@@ -11,6 +11,7 @@ export const LIMITS = {
   post: { table: "posts", column: "author_id", windows: [{ max: 20, interval: "1 hour" }, { max: 60, interval: "1 day" }] },
   event: { table: "events", column: "organiser_id", windows: [{ max: 10, interval: "1 day" }] },
   message: { table: "messages", column: "sender_id", windows: [{ max: 20, interval: "1 minute" }, { max: 1000, interval: "1 day" }] },
+  comment: { table: "comments", column: "author_id", windows: [{ max: 60, interval: "1 hour" }, { max: 500, interval: "1 day" }] },
   report: { table: "reports", column: "reporter_id", windows: [{ max: 30, interval: "1 day" }] },
 } as const;
 
@@ -21,6 +22,7 @@ const MESSAGES: Record<LimitedAction, string> = {
   post: "You've posted a lot recently. Try again later.",
   event: "You've created a lot of parties today. Try again tomorrow.",
   message: "You're sending messages too fast. Wait a moment and try again.",
+  comment: "You're commenting a lot. Take a break and try again later.",
   report: "You've sent a lot of reports today. Try again tomorrow.",
 };
 

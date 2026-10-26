@@ -48,6 +48,7 @@ private fun actionsFor(type: String): List<Pair<ModerationAction, String>> = whe
     "event" -> listOf(ModerationAction.Remove to "Remove party", ModerationAction.Restore to "Put back")
     "user" -> listOf(ModerationAction.RemovePicture to "Remove picture", ModerationAction.DeleteAccount to "Delete account")
     "message" -> listOf(ModerationAction.Remove to "Delete message")
+    "comment" -> listOf(ModerationAction.Remove to "Remove comment", ModerationAction.Restore to "Put back")
     else -> emptyList()
 } + (ModerationAction.Dismiss to "Nothing wrong")
 
@@ -56,6 +57,7 @@ private fun kindName(type: String) = when (type) {
     "event" -> "Party"
     "user" -> "Person"
     "message" -> "Message"
+    "comment" -> "Comment"
     else -> type
 }
 

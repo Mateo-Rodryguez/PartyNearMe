@@ -4,6 +4,7 @@ import com.partynearme.core.api.FeedExpiredException
 import com.partynearme.core.api.ReportTarget
 import com.partynearme.core.auth.MemorySessionStore
 import com.partynearme.core.auth.Session
+import com.partynearme.core.model.EventUpdate
 import com.partynearme.core.model.Interaction
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.MockRequestHandleScope
@@ -11,6 +12,7 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.client.request.HttpRequestData
 import io.ktor.client.request.HttpResponseData
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.OutgoingContent
 import io.ktor.http.content.TextContent
@@ -98,6 +100,29 @@ class ClientTest {
         assertEquals("@sam", post.author.name)
         assertEquals("https://m/1080.jpg", post.media.single().urlFor(500))
         assertEquals("https://m/full.jpg", post.media.single().urlFor(2000))
+    }
+
+    @Test
+    fun partyEditsSendOnlyWhatChanged() = runTest {
+        val app = app(MemorySessionStore(session())) { request ->
+            assertEquals(HttpMethod.Patch, request.method)
+            assertEquals("/events/e1", request.url.encodedPath)
+            assertEquals("""{"title":"Rooftop","description":""}""", request.text())
+            json("""{"error":"stop"}""", HttpStatusCode.BadRequest)
+        }
+        assertFailsWith<ApiException> { app.api.updateEvent("e1", EventUpdate(title = "Rooftop", description = "")) }
+    }
+
+    @Test
+    fun commentsParse() = runTest {
+        val app = app(MemorySessionStore(session())) { request ->
+            assertEquals("/posts/p1/comments", request.url.encodedPath)
+            json("""{"comments":[{"id":"c1","post_id":"p1","author":{"id":"u2","username":"sam","display_name":null},
+                "body":"great","status":"visible","can_delete":true,"created_at":"2026-10-26T20:00:00Z"}],"next_cursor":null}""")
+        }
+        val comment = app.api.comments("p1").comments.single()
+        assertEquals("great", comment.body)
+        assertTrue(comment.canDelete)
     }
 
     @Test

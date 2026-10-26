@@ -181,11 +181,11 @@ describe("settings", () => {
   it("starts with the defaults and changes only what is sent", async () => {
     const alice = await ctx.createUser();
     const defaults = await ctx.as(alice, { method: "GET", url: "/me/settings" });
-    expect(defaults.json()).toEqual({ messages_from: "everyone", push_messages: true, push_rsvps: true, push_reminders: true });
+    expect(defaults.json()).toEqual({ messages_from: "everyone", push_messages: true, push_rsvps: true, push_reminders: true, push_comments: true });
 
     await ctx.as(alice, { method: "PATCH", url: "/me/settings", payload: { push_rsvps: false } });
     const changed = await ctx.as(alice, { method: "PATCH", url: "/me/settings", payload: { messages_from: "following" } });
-    expect(changed.json()).toEqual({ messages_from: "following", push_messages: true, push_rsvps: false, push_reminders: true });
+    expect(changed.json()).toEqual({ messages_from: "following", push_messages: true, push_rsvps: false, push_reminders: true, push_comments: true });
 
     expect((await ctx.as(alice, { method: "PATCH", url: "/me/settings", payload: {} })).statusCode).toBe(400);
     expect((await ctx.as(alice, { method: "PATCH", url: "/me/settings", payload: { user_id: alice } })).statusCode).toBe(400);

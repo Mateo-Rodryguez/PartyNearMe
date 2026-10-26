@@ -242,3 +242,84 @@ describe("push notifications", () => {
     expect(rows.every((r) => r.processed_at !== null)).toBe(true);
   });
 });
+
+describe("comments, captions and cancellations", () => {
+  const register = (userId: string, token: string) =>
+    ctx.as(userId, { method: "PUT", url: `/devices/${token}`, payload: { platform: "android" } });
+  const drain = async () => {
+    while ((await processBatch(deps())) > 0);
+  };
+  const visiblePost = async (authorId: string, caption: string | null = null) => {
+    const [row] = await ctx.db<{ id: string }[]>`
+      insert into public.posts (author_id, status, caption) values (${authorId}, 'visible', ${caption}) returning id
+    `;
+    return row?.id ?? "";
+  };
+
+  it("tells the post's author about a comment, unless they turned it off", async () => {
+    const alice = await ctx.createUser();
+    const bob = await ctx.createUser();
+    await ctx.db`update public.profiles set display_name = 'Bob' where id = ${bob}`;
+    await register(alice, "alice-phone");
+    const post = await visiblePost(alice);
+    await ctx.as(bob, { method: "POST", url: `/posts/${post}/comments`, payload: { body: "what a night" } });
+    await drain();
+    expect(push.sent.map((s) => s.message)).toEqual([
+      { title: "Bob commented", body: "what a night", data: { type: "comment", post_id: post } },
+    ]);
+
+    await ctx.as(alice, { method: "PATCH", url: "/me/settings", payload: { push_comments: false } });
+    await ctx.as(bob, { method: "POST", url: `/posts/${post}/comments`, payload: { body: "again" } });
+    await drain();
+    expect(push.sent).toHaveLength(1);
+  });
+
+  it("hides comments that fail moderation, without telling anyone", async () => {
+    const alice = await ctx.createUser();
+    const bob = await ctx.createUser();
+    await register(alice, "alice-phone");
+    const post = await visiblePost(alice);
+    flagCaption = "nasty";
+    await ctx.as(bob, { method: "POST", url: `/posts/${post}/comments`, payload: { body: "something nasty" } });
+    await drain();
+    expect(await ctx.db`select status from public.comments`).toEqual([{ status: "hidden" }]);
+    expect(await ctx.db`select comment_count from public.posts where id = ${post}`).toEqual([{ comment_count: 0 }]);
+    expect(push.sent).toEqual([]);
+  });
+
+  it("checks edited captions again", async () => {
+    const alice = await ctx.createUser();
+    const post = await visiblePost(alice, "fine");
+    flagCaption = "nasty";
+    await ctx.as(alice, { method: "PATCH", url: `/posts/${post}`, payload: { caption: "now nasty" } });
+    await drain();
+    expect(await ctx.db`select status, moderation_labels from public.posts`).toEqual([
+      { status: "hidden", moderation_labels: ["harassment"] },
+    ]);
+  });
+
+  it("tells guests when a party is cancelled", async () => {
+    const organiser = await ctx.createUser();
+    const guest = await ctx.createUser();
+    const maybe = await ctx.createUser();
+    await register(organiser, "organiser-phone");
+    await register(guest, "guest-phone");
+    await register(maybe, "maybe-phone");
+    const ev = (await ctx.as(organiser, {
+      method: "POST",
+      url: "/events",
+      payload: { title: "Rooftop", starts_at: new Date(Date.now() + 86400_000).toISOString(), lat: 51.5, lng: -0.12, publish: true },
+    })).json() as { id: string };
+    await ctx.as(guest, { method: "PUT", url: `/events/${ev.id}/rsvp`, payload: { status: "going" } });
+    await ctx.as(maybe, { method: "PUT", url: `/events/${ev.id}/rsvp`, payload: { status: "interested" } });
+    await drain();
+    push.sent.length = 0;
+
+    await ctx.as(organiser, { method: "PATCH", url: `/events/${ev.id}`, payload: { status: "cancelled" } });
+    await drain();
+    expect(push.sent.map((s) => [s.token, s.message.body]).sort()).toEqual([
+      ["guest-phone", "This party has been cancelled"],
+      ["maybe-phone", "This party has been cancelled"],
+    ]);
+  });
+});

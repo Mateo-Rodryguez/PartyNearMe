@@ -4,11 +4,14 @@ import com.partynearme.core.ApiException
 import com.partynearme.core.AppConfig
 import com.partynearme.core.auth.SessionManager
 import com.partynearme.core.model.AccountSettings
+import com.partynearme.core.model.Comment
+import com.partynearme.core.model.CommentPage
 import com.partynearme.core.model.Conversation
 import com.partynearme.core.model.ConversationPage
 import com.partynearme.core.model.Event
 import com.partynearme.core.model.EventList
 import com.partynearme.core.model.EventPage
+import com.partynearme.core.model.EventUpdate
 import com.partynearme.core.model.Interaction
 import com.partynearme.core.model.Interest
 import com.partynearme.core.model.ListedPerson
@@ -93,6 +96,9 @@ class ApiClient(
     suspend fun createPost(post: NewPost): Post = call(HttpMethod.Post, "/posts") { json(post) }
     suspend fun post(id: String): Post = call(HttpMethod.Get, "/posts/${id.path()}")
     suspend fun deletePost(id: String) = callUnit(HttpMethod.Delete, "/posts/${id.path()}")
+    /** An empty [caption] removes it. The server checks the new words, so a post can be hidden afterwards. */
+    suspend fun updateCaption(id: String, caption: String): Post =
+        call(HttpMethod.Patch, "/posts/${id.path()}") { json(CaptionBody(caption)) }
     suspend fun like(id: String) = callUnit(HttpMethod.Put, "/posts/${id.path()}/like")
     suspend fun unlike(id: String) = callUnit(HttpMethod.Delete, "/posts/${id.path()}/like")
     suspend fun savePost(id: String, saved: Boolean) =
@@ -100,6 +106,13 @@ class ApiClient(
     /** Saved posts, most recently saved first. */
     suspend fun savedPosts(cursor: String? = null): PostPage =
         call(HttpMethod.Get, "/me/saved/posts") { parameter("cursor", cursor) }
+
+    /** Newest first. */
+    suspend fun comments(postId: String, cursor: String? = null): CommentPage =
+        call(HttpMethod.Get, "/posts/${postId.path()}/comments") { parameter("cursor", cursor) }
+    suspend fun addComment(postId: String, body: String): Comment =
+        call(HttpMethod.Post, "/posts/${postId.path()}/comments") { json(SendBody(body)) }
+    suspend fun deleteComment(id: String) = callUnit(HttpMethod.Delete, "/comments/${id.path()}")
 
     suspend fun userPosts(userId: String, cursor: String? = null): PostPage =
         call(HttpMethod.Get, "/users/${userId.path()}/posts") { parameter("cursor", cursor) }
@@ -119,6 +132,10 @@ class ApiClient(
     suspend fun eventPosts(id: String, cursor: String? = null): PostPage =
         call(HttpMethod.Get, "/events/${id.path()}/posts") { parameter("cursor", cursor) }
     suspend fun createEvent(event: NewEvent): Event = call(HttpMethod.Post, "/events") { json(event) }
+    /** Organiser only. Cancelling tells guests with a push. */
+    suspend fun updateEvent(id: String, update: EventUpdate): Event =
+        call(HttpMethod.Patch, "/events/${id.path()}") { json(update) }
+    suspend fun deleteEvent(id: String) = callUnit(HttpMethod.Delete, "/events/${id.path()}")
     suspend fun saveEvent(id: String, saved: Boolean) =
         callUnit(if (saved) HttpMethod.Put else HttpMethod.Delete, "/events/${id.path()}/save")
     /** Saved parties, most recently saved first. */
@@ -207,7 +224,7 @@ class ApiClient(
 
     // Notifications
 
-    /** Likes, follows, RSVPs and party reminders, newest first. */
+    /** Likes, comments, follows, RSVPs and party reminders, newest first. */
     suspend fun notifications(): NotificationPage = call(HttpMethod.Get, "/notifications")
     suspend fun unreadNotifications(): Int = call<UnreadCount>(HttpMethod.Get, "/notifications/unread").unreadCount
     /** Called when the user opens their notifications, so the bell's count clears. */
@@ -265,6 +282,7 @@ class ApiClient(
         @SerialName("size_bytes") val sizeBytes: Long,
     )
     @Serializable private data class RsvpBody(val status: String)
+    @Serializable private data class CaptionBody(val caption: String)
     @Serializable private data class ProfileUpdate(
         val username: String? = null,
         @SerialName("display_name") val displayName: String? = null,
@@ -306,7 +324,7 @@ class ApiClient(
 /** The feed snapshot behind a cursor has expired; reload from the top. */
 class FeedExpiredException : Exception("The feed has moved on")
 
-enum class ReportTarget(val wire: String) { Post("post"), Event("event"), User("user"), Message("message") }
+enum class ReportTarget(val wire: String) { Post("post"), Event("event"), User("user"), Message("message"), Comment("comment") }
 
 enum class ModerationAction(val wire: String) {
     Remove("remove"), Restore("restore"), Dismiss("dismiss"), RemovePicture("remove_picture"), DeleteAccount("delete_account"),

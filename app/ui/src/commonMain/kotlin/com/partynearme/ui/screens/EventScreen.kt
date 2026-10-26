@@ -24,12 +24,14 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.partynearme.core.api.ReportTarget
 import com.partynearme.core.model.Event
+import com.partynearme.core.model.EventUpdate
 import com.partynearme.core.model.LatLng
 import com.partynearme.core.model.Post
 import com.partynearme.ui.Brand
@@ -70,6 +73,7 @@ fun EventScreen(ui: Ui, id: String) {
     var busy by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     var reporting by remember { mutableStateOf(false) }
+    var confirm by remember { mutableStateOf<HostAction?>(null) }
     var photos by remember { mutableStateOf<List<Post>?>(null) }
     LaunchedEffect(id) {
         attempt { ui.api.event(id) }.onSuccess { event = it }.onFailure { error = it.userMessage }
@@ -137,6 +141,7 @@ fun EventScreen(ui: Ui, id: String) {
                         RoundIconButton(Icons.Filled.MoreVert, "More", onPhoto = true) { menu = true }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                             if (mine) {
+                                DropdownMenuItem(text = { Text("Edit party") }, onClick = { menu = false; ui.nav.open(Route.EditEvent(id)) })
                                 DropdownMenuItem(text = { Text("Change cover photo") }, onClick = { menu = false; pickCover() })
                                 if (e.coverUrl != null) {
                                     DropdownMenuItem(text = { Text("Remove cover photo") }, onClick = {
@@ -148,6 +153,16 @@ fun EventScreen(ui: Ui, id: String) {
                                         }
                                     })
                                 }
+                                when (e.status) {
+                                    "published" -> DropdownMenuItem(text = { Text("Cancel party") },
+                                        onClick = { menu = false; confirm = HostAction.Cancel })
+                                    "cancelled" -> DropdownMenuItem(text = { Text("Put the party back on") },
+                                        onClick = { menu = false; confirm = HostAction.Restore })
+                                }
+                                DropdownMenuItem(
+                                    text = { Text("Delete party", color = MaterialTheme.colorScheme.error) },
+                                    onClick = { menu = false; confirm = HostAction.Delete },
+                                )
                             } else {
                                 DropdownMenuItem(text = { Text("Report party") }, onClick = { menu = false; reporting = true })
                             }
@@ -209,6 +224,61 @@ fun EventScreen(ui: Ui, id: String) {
         }
     }
     if (reporting) ReportDialog(ui, ReportTarget.Event, id) { reporting = false }
+    confirm?.let { action ->
+        HostActionDialog(action, e, onDismiss = { confirm = null }) {
+            confirm = null
+            scope.launch {
+                when (action) {
+                    HostAction.Delete -> attempt { ui.api.deleteEvent(id) }
+                        .onSuccess { ui.toast("Party deleted"); ui.nav.back() }
+                        .onFailure { ui.toast(it.userMessage) }
+                    else -> attempt {
+                        ui.api.updateEvent(id, EventUpdate(status = if (action == HostAction.Cancel) "cancelled" else "published"))
+                    }
+                        .onSuccess {
+                            event = it
+                            ui.toast(
+                                if (action == HostAction.Cancel) "Party cancelled. Guests have been told." else "Your party is back on",
+                            )
+                        }
+                        .onFailure { ui.toast(it.userMessage) }
+                }
+            }
+        }
+    }
+}
+
+private enum class HostAction { Cancel, Restore, Delete }
+
+/** Asks the host to confirm cancelling, restoring or deleting their party, saying what happens. */
+@Composable
+private fun HostActionDialog(action: HostAction, e: Event, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    val guests = e.goingCount + e.interestedCount
+    val (title, body, button) = when (action) {
+        HostAction.Cancel -> Triple(
+            "Cancel this party?",
+            (if (guests > 0) "The $guests people who RSVP'd get a notification. " else "") +
+                "It comes off the map, its page says it's cancelled, and you can put it back on later.",
+            "Cancel party",
+        )
+        HostAction.Restore -> Triple("Put the party back on?", "People can RSVP again.", "Put it back on")
+        HostAction.Delete -> Triple(
+            "Delete this party?",
+            "It disappears for everyone, along with its RSVPs. Photos posted at it stay on people's profiles. This can't be undone.",
+            "Delete",
+        )
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Text(body) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(button, color = if (action == HostAction.Restore) Color.Unspecified else MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Not now") } },
+    )
 }
 
 /** Going and Interested, pinned to the bottom so they're always in reach. */

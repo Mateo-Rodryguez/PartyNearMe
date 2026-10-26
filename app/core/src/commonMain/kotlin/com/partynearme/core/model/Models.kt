@@ -81,6 +81,7 @@ data class AccountSettings(
     @SerialName("push_messages") val pushMessages: Boolean = true,
     @SerialName("push_rsvps") val pushRsvps: Boolean = true,
     @SerialName("push_reminders") val pushReminders: Boolean = true,
+    @SerialName("push_comments") val pushComments: Boolean = true,
 )
 
 /** Something people reported, with all its open reports, for moderators. */
@@ -143,6 +144,7 @@ data class Post(
     val lng: Double? = null,
     val status: String,
     @SerialName("like_count") val likeCount: Int,
+    @SerialName("comment_count") val commentCount: Int = 0,
     @SerialName("liked_by_me") val likedByMe: Boolean,
     @SerialName("saved_by_me") val savedByMe: Boolean = false,
     val media: List<Media> = emptyList(),
@@ -191,12 +193,46 @@ data class NewEvent(
     val publish: Boolean = true,
 )
 
+/**
+ * Changes to a party. Only the fields that are set are sent; [description] and
+ * [venueName] are cleared by sending an empty string.
+ */
+@Serializable
+data class EventUpdate(
+    val title: String? = null,
+    val description: String? = null,
+    @SerialName("starts_at") val startsAt: String? = null,
+    @SerialName("ends_at") val endsAt: String? = null,
+    @SerialName("venue_name") val venueName: String? = null,
+    val lat: Double? = null,
+    val lng: Double? = null,
+    /** "published" or "cancelled". */
+    val status: String? = null,
+)
+
 @Serializable
 data class UploadTicket(
     @SerialName("upload_id") val uploadId: String,
     @SerialName("upload_url") val uploadUrl: String,
     val headers: Map<String, String>,
 )
+
+/** A comment under a post. */
+@Serializable
+data class Comment(
+    val id: String,
+    @SerialName("post_id") val postId: String,
+    val author: Person,
+    val body: String,
+    /** "hidden" only reaches the comment's author, after moderation took it down. */
+    val status: String = "visible",
+    /** The author, or the post's author, may delete it. */
+    @SerialName("can_delete") val canDelete: Boolean = false,
+    @SerialName("created_at") val createdAt: String,
+)
+
+@Serializable
+data class CommentPage(val comments: List<Comment>, @SerialName("next_cursor") val nextCursor: String? = null)
 
 @Serializable
 data class NewPost(
@@ -235,13 +271,15 @@ data class ConversationPage(
 @Serializable
 data class MessagePage(val messages: List<Message>, @SerialName("has_more") val hasMore: Boolean)
 
-/** Something that happened to the user: a like, a new follower, an RSVP or a party reminder. */
+/** Something that happened to the user: a like, a comment, a new follower, an RSVP or a party reminder. */
 @Serializable
 data class Notification(
     val id: String,
-    /** "like", "follow", "rsvp" or "reminder"; unknown types are skipped by the app. */
+    /** "like", "comment", "follow", "rsvp" or "reminder"; unknown types are skipped by the app. */
     val type: String,
     val actor: Person? = null,
+    /** What they wrote, for comments. */
+    @SerialName("comment_text") val commentText: String? = null,
     @SerialName("post_id") val postId: String? = null,
     @SerialName("post_thumbnail_url") val postThumbnailUrl: String? = null,
     @SerialName("event_id") val eventId: String? = null,

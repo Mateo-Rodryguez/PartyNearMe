@@ -257,6 +257,9 @@ export const eventsRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string 
   }, (request) => {
     const me = request.userId;
     const { lat: latitude, lng: longitude, ...fields } = request.body;
+    // Clearing a box in the app sends an empty string; store that as "no value".
+    if (fields.description === "") fields.description = null;
+    if (fields.venue_name === "") fields.venue_name = null;
     return asUser(db, me, async (tx) => {
       const [current] = await tx`
         select starts_at, ends_at from public.events where id = ${request.params.id} and organiser_id = ${me}
