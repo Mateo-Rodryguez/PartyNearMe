@@ -28,6 +28,7 @@ export const post = z.object({
   lng: z.number().nullable(),
   status: z.enum(["pending", "visible", "hidden", "removed"]),
   like_count: z.number().int(),
+  comment_count: z.number().int(),
   liked_by_me: z.boolean(),
   saved_by_me: z.boolean(),
   media: z.array(media),
@@ -41,7 +42,7 @@ export interface PostRow extends Omit<Post, "media"> {
 
 /** Columns every post response needs; run inside asUser so RLS decides visibility. */
 export const postSelect = (tx: Tx, me: string, base: string | undefined) => tx`
-  p.id, p.event_id, (select e.title from public.events e where e.id = p.event_id) as event_title, p.caption, p.place_name, p.status, p.like_count, p.created_at,
+  p.id, p.event_id, (select e.title from public.events e where e.id = p.event_id) as event_title, p.caption, p.place_name, p.status, p.like_count, p.comment_count, p.created_at,
   extensions.st_y(p.location::extensions.geometry) as lat,
   extensions.st_x(p.location::extensions.geometry) as lng,
   json_build_object('id', a.id, 'username', a.username, 'display_name', a.display_name,

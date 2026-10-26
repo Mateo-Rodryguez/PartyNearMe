@@ -8,6 +8,7 @@ import { registerErrorHandler } from "./errors.js";
 import type { ErrorReporter } from "./monitoring.js";
 import type { MediaStorage } from "./storage.js";
 import { chatRoutes } from "./modules/chat/routes.js";
+import { commentsRoutes } from "./modules/comments/routes.js";
 import { eventsRoutes } from "./modules/events/routes.js";
 import { feedRoutes } from "./modules/feed/routes.js";
 import { legalRoutes } from "./modules/legal/routes.js";
@@ -53,6 +54,7 @@ export async function buildApp({ config, db, verifyToken, storage, reportError }
     await authed.register(usersRoutes, { db, mediaBaseUrl: config.MEDIA_BASE_URL });
     await authed.register(eventsRoutes, { db, mediaBaseUrl: config.MEDIA_BASE_URL });
     await authed.register(postsRoutes, { db, storage, mediaBaseUrl: config.MEDIA_BASE_URL });
+    await authed.register(commentsRoutes, { db, mediaBaseUrl: config.MEDIA_BASE_URL });
     await authed.register(feedRoutes, { db, mediaBaseUrl: config.MEDIA_BASE_URL });
     await authed.register(chatRoutes, { db, mediaBaseUrl: config.MEDIA_BASE_URL });
     await authed.register(moderationRoutes, { db, mediaBaseUrl: config.MEDIA_BASE_URL });

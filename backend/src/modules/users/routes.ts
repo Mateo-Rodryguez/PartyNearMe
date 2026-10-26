@@ -63,12 +63,14 @@ const settings = z.object({
   push_messages: z.boolean(),
   push_rsvps: z.boolean(),
   push_reminders: z.boolean(),
+  push_comments: z.boolean(),
 });
 const DEFAULT_SETTINGS: z.infer<typeof settings> = {
   messages_from: "everyone",
   push_messages: true,
   push_rsvps: true,
   push_reminders: true,
+  push_comments: true,
 };
 
 const userParams = z.object({ id: z.guid() });
@@ -296,7 +298,7 @@ export const usersRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string |
 
   const loadSettings = async (me: string) => {
     const [row] = await asUser(db, me, (tx) => tx`
-      select messages_from, push_messages, push_rsvps, push_reminders from public.user_settings where user_id = ${me}
+      select messages_from, push_messages, push_rsvps, push_reminders, push_comments from public.user_settings where user_id = ${me}
     `);
     return (row ?? DEFAULT_SETTINGS) as z.infer<typeof settings>;
   };

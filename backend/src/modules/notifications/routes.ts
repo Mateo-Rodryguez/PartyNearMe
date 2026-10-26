@@ -13,11 +13,13 @@ const person = z.object({
 const notification = z.object({
   /** Stable for the same activity, so the app can use it as a list key. */
   id: z.string(),
-  type: z.enum(["like", "follow", "rsvp", "reminder"]),
+  type: z.enum(["like", "comment", "follow", "rsvp", "reminder"]),
   /** Who did it; null for reminders, which come from the app itself. */
   actor: person.nullable(),
   post_id: z.guid().nullable(),
   post_thumbnail_url: z.string().nullable(),
+  /** What they wrote, for comments. */
+  comment_text: z.string().nullable(),
   event_id: z.guid().nullable(),
   event_title: z.string().nullable(),
   event_cover_url: z.string().nullable(),
@@ -36,20 +38,24 @@ const HISTORY = "30 days";
  * People the user blocked are left out.
  */
 const activity = (tx: Tx, me: string) => tx`
-  select 'like' as type, l.user_id as actor_id, l.post_id, null::uuid as event_id, l.created_at
+  select 'like' as type, l.user_id as actor_id, l.post_id, null::uuid as event_id, null::uuid as comment_id, l.created_at
   from public.likes l join public.posts p on p.id = l.post_id
   where p.author_id = ${me} and l.user_id <> ${me}
   union all
-  select 'follow', f.follower_id, null, null, f.created_at
+  select 'comment', c.author_id, c.post_id, null, c.id, c.created_at
+  from public.comments c join public.posts p on p.id = c.post_id
+  where p.author_id = ${me} and c.author_id <> ${me} and c.status = 'visible'
+  union all
+  select 'follow', f.follower_id, null, null, null, f.created_at
   from public.follows f
   where f.followee_id = ${me}
   union all
-  select 'rsvp', r.user_id, null, r.event_id, r.created_at
+  select 'rsvp', r.user_id, null, r.event_id, null, r.created_at
   from public.rsvps r join public.events e on e.id = r.event_id
   where e.organiser_id = ${me} and r.user_id <> ${me} and r.status = 'going'
   union all
   -- A day before a party you're going to; shown once that time has come.
-  select 'reminder', null, null, r.event_id, greatest(r.created_at, e.starts_at - interval '1 day')
+  select 'reminder', null, null, r.event_id, null, greatest(r.created_at, e.starts_at - interval '1 day')
   from public.rsvps r join public.events e on e.id = r.event_id
   where r.user_id = ${me} and r.status = 'going' and e.status = 'published'
     and e.starts_at > now() and e.starts_at - interval '1 day' <= now()
@@ -74,7 +80,7 @@ export const notificationsRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: 
     const me = request.userId;
     return asUser(db, me, async (tx) => {
       const rows = await tx<z.infer<typeof notification>[]>`
-        select n.type || ':' || coalesce(n.actor_id::text, '') || ':' || coalesce(n.post_id::text, n.event_id::text, '') as id,
+        select n.type || ':' || coalesce(n.actor_id::text, '') || ':' || coalesce(n.comment_id::text, n.post_id::text, n.event_id::text, '') as id,
                n.type, n.post_id, n.event_id, n.created_at,
                n.created_at > ${seenAt(tx, me)} as unread,
                case when a.id is null then null else json_build_object(
@@ -84,6 +90,7 @@ export const notificationsRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: 
                 from public.post_media m join public.posts p on p.id = m.post_id
                 where m.post_id = n.post_id and p.status = 'visible'
                 order by m.position limit 1) as post_thumbnail_url,
+               (select c.body from public.comments c where c.id = n.comment_id) as comment_text,
                e.title as event_title,
                ${pictureUrl(tx, mediaBaseUrl, "e.cover_variants", "150")} as event_cover_url
         from (${activity(tx, me)}) n

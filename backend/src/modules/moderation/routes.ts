@@ -10,13 +10,13 @@ export const AUTO_HIDE_REPORTS = 3;
 
 const reportBody = z
   .object({
-    target_type: z.enum(["post", "event", "user", "message"]),
+    target_type: z.enum(["post", "event", "user", "message", "comment"]),
     target_id: z.string().min(1).max(100),
     reason: z.string().trim().min(1).max(500),
   })
   .strict();
 
-const TARGET_TYPES = ["post", "event", "user", "message"] as const;
+const TARGET_TYPES = ["post", "event", "user", "message", "comment"] as const;
 type TargetType = (typeof TARGET_TYPES)[number];
 
 /** What a moderator can do to each kind of thing; "dismiss" closes the reports and changes nothing. */
@@ -25,6 +25,7 @@ const ACTIONS: Record<TargetType, readonly string[]> = {
   event: ["remove", "restore", "dismiss"],
   user: ["remove_picture", "delete_account", "dismiss"],
   message: ["remove", "dismiss"],
+  comment: ["remove", "restore", "dismiss"],
 };
 
 const preview = z.object({
@@ -88,6 +89,12 @@ export const moderationRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: str
           : [];
         if (!visible) throw new HttpError(404, "Message not found");
       }
+      if (target_type === "comment") {
+        const [visible] = z.guid().safeParse(target_id).success
+          ? await tx`select 1 from public.comments where id = ${target_id}`
+          : [];
+        if (!visible) throw new HttpError(404, "Comment not found");
+      }
       await tx`
         insert into public.reports (reporter_id, target_type, target_id, reason)
         values (${me}, ${target_type}, ${target_id}, ${reason})
@@ -134,6 +141,13 @@ export const moderationRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: str
           from public.posts p join public.profiles a on a.id = p.author_id where p.id = ${id}
         `;
         return p ? { title: `Post by ${p.name ?? "someone"}`, body: p.caption, image_url: mediaUrl(p.key), status: p.status, user_id: p.author_id } : null;
+      }
+      if (type === "comment") {
+        const [c] = await db<{ body: string; status: string; author_id: string; name: string | null }[]>`
+          select c.body, c.status, c.author_id, coalesce(a.display_name, a.username) as name
+          from public.comments c join public.profiles a on a.id = c.author_id where c.id = ${id}
+        `;
+        return c ? { title: `Comment by ${c.name ?? "someone"}`, body: c.body, image_url: null, status: c.status, user_id: c.author_id } : null;
       }
       if (type === "event") {
         const [e] = await db<{ title: string; description: string | null; status: string; organiser_id: string; key: string | null }[]>`
@@ -182,6 +196,10 @@ export const moderationRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: str
         changed = (await db`update public.events set status = 'removed' where id = ${id}`).count;
       } else if (type === "event" && action === "restore") {
         changed = (await db`update public.events set status = 'published' where id = ${id} and status = 'removed'`).count;
+      } else if (type === "comment" && action === "remove") {
+        changed = (await db`update public.comments set status = 'removed' where id = ${id}`).count;
+      } else if (type === "comment" && action === "restore") {
+        changed = (await db`update public.comments set status = 'visible' where id = ${id} and status in ('hidden', 'removed')`).count;
       } else if (type === "message" && action === "remove") {
         changed = (await db`delete from public.messages where id = ${id}::bigint`).count;
       } else if (type === "user" && action === "remove_picture") {
