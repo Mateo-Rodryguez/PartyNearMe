@@ -25,13 +25,16 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -61,7 +64,7 @@ import com.partynearme.ui.LocalAppPrefs
 import com.partynearme.ui.timeAgo
 import kotlinx.coroutines.delay
 
-/** One post: author, swipeable photos with rounded corners, likes and caption. */
+/** One post: author, swipeable photos with rounded corners, likes, comments and caption. */
 @Composable
 fun PostCard(
     post: Post,
@@ -73,8 +76,12 @@ fun PostCard(
     onReport: () -> Unit = {},
     onEvent: (String) -> Unit = {},
     onSave: ((Boolean) -> Unit)? = null,
+    onComments: (() -> Unit)? = null,
+    /** Called with the new caption; empty removes it. */
+    onEditCaption: ((String) -> Unit)? = null,
 ) {
     var menu by remember { mutableStateOf(false) }
+    var editing by remember { mutableStateOf(false) }
     var bursts by remember { mutableIntStateOf(0) }
     val visible = post.status == "visible"
     Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
@@ -99,6 +106,10 @@ fun PostCard(
                 }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                     if (isMine) {
+                        if (onEditCaption != null) {
+                            DropdownMenuItem(text = { Text(if (post.caption.isNullOrBlank()) "Add caption" else "Edit caption") },
+                                onClick = { menu = false; editing = true })
+                        }
                         DropdownMenuItem(text = { Text("Delete post") }, onClick = { menu = false; onDelete() })
                     } else {
                         if (onNotInterested != null) {
@@ -137,6 +148,12 @@ fun PostCard(
                     tint = if (post.likedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                 )
             }
+            if (onComments != null) {
+                IconButton(onClick = onComments, enabled = visible) {
+                    Icon(PartyIcons.ChatBubbleOutline, "Comments", modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.onSurface)
+                }
+            }
             // People can hide counts on others' posts in settings; your own always show.
             if (isMine || !LocalAppPrefs.current.hideLikeCounts) {
                 Text(
@@ -168,7 +185,36 @@ fun PostCard(
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
+        if (onComments != null && visible) {
+            Text(
+                when (post.commentCount) {
+                    0 -> "Add a comment…"
+                    1 -> "View 1 comment"
+                    else -> "View all ${post.commentCount} comments"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp).clickable(onClick = onComments),
+            )
+        }
     }
+    if (editing && onEditCaption != null) {
+        EditCaptionDialog(post.caption.orEmpty(), onDismiss = { editing = false }) { editing = false; onEditCaption(it) }
+    }
+}
+
+@Composable
+private fun EditCaptionDialog(current: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var text by remember { mutableStateOf(current) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit caption") },
+        text = {
+            OutlinedTextField(text, { text = it.take(2200) }, placeholder = { Text("Write a caption…") }, minLines = 3)
+        },
+        confirmButton = { TextButton(onClick = { onSave(text.trim()) }, enabled = text.trim() != current) { Text("Save") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)

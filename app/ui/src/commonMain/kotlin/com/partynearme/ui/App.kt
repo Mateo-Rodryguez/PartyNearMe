@@ -72,6 +72,8 @@ import com.partynearme.core.prefs.LocalPrefs
 import com.partynearme.core.prefs.ThemeMode
 import com.partynearme.ui.screens.BlockedScreen
 import com.partynearme.ui.screens.ChatScreen
+import com.partynearme.ui.screens.CommentsScreen
+import com.partynearme.ui.screens.EditEventScreen
 import com.partynearme.ui.screens.EmptyState
 import com.partynearme.ui.screens.EventScreen
 import com.partynearme.ui.screens.FeedScreen
@@ -217,9 +219,11 @@ private fun Main(app: PartyNearMe, platform: Platform, nav: Navigator, userId: S
             when (val route = nav.top) {
                 is Route.Event -> EventScreen(ui, route.id)
                 is Route.NewEvent -> NewEventScreen(ui, route.pickOnMap) { nearby.paged.refresh() }
+                is Route.EditEvent -> EditEventScreen(ui, route.id)
                 is Route.User -> UserScreen(ui, route.id)
                 is Route.Chat -> ChatScreen(ui, route.conversationId, route.title) { inbox.paged.refresh() }
                 is Route.Post -> PostScreen(ui, route.id)
+                is Route.Comments -> CommentsScreen(ui, route.postId)
                 is Route.NewPost -> NewPostScreen(ui, PartyRef(route.eventId, route.eventTitle)) { feed.paged.refresh() }
                 Route.Moderation -> ModerationScreen(ui)
                 Route.Notifications -> NotificationsScreen(ui)

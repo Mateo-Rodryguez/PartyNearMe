@@ -193,10 +193,13 @@ fun SettingsScreen(ui: Ui, relationshipPicker: Boolean = false) {
                     changeAccount { it.copy(pushMessages = on) }
                 }
                 Divider()
+                ToggleRow(PartyIcons.ChatBubbleOutline, "Comments", "When someone comments on your photos",
+                    account?.pushComments) { on -> changeAccount { it.copy(pushComments = on) } }
+                Divider()
                 ToggleRow(Icons.Filled.Notifications, "Guests for your parties", "When someone says they're going",
                     account?.pushRsvps) { on -> changeAccount { it.copy(pushRsvps = on) } }
                 Divider()
-                ToggleRow(Icons.Filled.DateRange, "Party reminders", "Before parties you're going to",
+                ToggleRow(Icons.Filled.DateRange, "Party reminders", "Before parties you're going to, or if one is cancelled",
                     account?.pushReminders) { on -> changeAccount { it.copy(pushReminders = on) } }
             }
 

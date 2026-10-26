@@ -26,7 +26,7 @@ Most screens use sample data built into debug builds, so no server or account is
 needed: `adb shell am start -n com.partynearme.app/.MainActivity --es demo feed`
 opens the feed. The other screens are `sign_in`, `nearby`, `event`, `new_event`,
 `map_picker`, `post`, `inbox`, `chat`, `profile`, `user`, `moderation`, `settings`, `relationship`,
-`search`, `followers` and `saved`. Release builds ignore this.
+`search`, `followers`, `saved`, `comments` and `edit-party`. Release builds ignore this.
 
 ## iPhone
 
@@ -134,11 +134,31 @@ cards. Only you can see what you saved; posts hidden by moderation drop out.
 The gear at the top left of your profile. On your account (synced to the server):
 edit profile, profile picture, relationship status, interests, who can message you
 (everyone, or only people you follow; existing chats carry on), blocked accounts,
-and which push notifications you get (messages, guests for your parties, party
-reminders). On this phone only: theme (automatic, day or night), hiding like counts
+and which push notifications you get (messages, comments, guests for your parties,
+party reminders and cancellations). On this phone only: theme (automatic, day or night), hiding like counts
 on other people's posts, the Nearby search distance (5 to 50 km) and kilometres or
 miles. Also privacy policy, terms, sign out and delete account; moderators get
 **Reports to review** here.
+
+## Comments
+
+The speech bubble under a post, or "View all comments" below the caption, opens its
+comments, newest first, with a box at the bottom to add one (up to 1,000
+characters). Comments show straight away; the server then checks the words with
+moderation and hides any that break the rules, which only their author still sees,
+marked as hidden. Holding a comment down deletes it (yours, or any on your own
+post) or reports it. The post's author gets a notification and a push, which can be
+turned off under Comments in settings. Nobody can comment across a block.
+
+## Editing posts and parties
+
+Your post's ⋮ menu has **Edit caption** (or **Add caption**). The new words are
+checked by moderation again, and a post whose caption fails is hidden.
+
+Your party's ⋮ menu has **Edit party**, which opens the party form filled in, plus
+**Cancel party** (it leaves the map, its page says cancelled, and everyone who
+RSVP'd gets a push), **Put the party back on**, and **Delete party**, which removes
+it and its RSVPs for good. Photos posted at a deleted party stay on profiles.
 
 ## Relationship hearts
 

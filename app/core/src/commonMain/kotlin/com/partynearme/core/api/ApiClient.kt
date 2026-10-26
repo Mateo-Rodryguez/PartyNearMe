@@ -224,7 +224,7 @@ class ApiClient(
 
     // Notifications
 
-    /** Likes, follows, RSVPs and party reminders, newest first. */
+    /** Likes, comments, follows, RSVPs and party reminders, newest first. */
     suspend fun notifications(): NotificationPage = call(HttpMethod.Get, "/notifications")
     suspend fun unreadNotifications(): Int = call<UnreadCount>(HttpMethod.Get, "/notifications/unread").unreadCount
     /** Called when the user opens their notifications, so the bell's count clears. */

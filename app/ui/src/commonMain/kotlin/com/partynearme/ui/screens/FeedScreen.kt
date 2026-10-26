@@ -105,6 +105,8 @@ class FeedState(private val ui: Ui, private val scope: CoroutineScope) {
 
     fun save(post: Post, saved: Boolean) = savePost(ui, scope, paged, post, saved)
 
+    fun editCaption(post: Post, caption: String) = editPostCaption(ui, scope, paged, post, caption)
+
     fun notInterested(post: Post) {
         paged.remove { it.id == post.id }
         scope.launch { ui.app.interactions.notInterested(post.id) }
@@ -129,6 +131,19 @@ fun savePost(ui: Ui, scope: CoroutineScope, paged: Paged<Post>, post: Post, save
             .onSuccess { if (saved) ui.toast("Saved. Find it under Saved on your profile.") }
             .onFailure { error ->
                 paged.update { if (it.id == post.id) it.withSave(!saved) else it }
+                ui.toast(error.userMessage)
+            }
+    }
+}
+
+/** Shows the new caption at once and puts the old one back if the server refuses it. */
+fun editPostCaption(ui: Ui, scope: CoroutineScope, paged: Paged<Post>, post: Post, caption: String) {
+    paged.update { if (it.id == post.id) it.copy(caption = caption.ifEmpty { null }) else it }
+    scope.launch {
+        attempt { ui.api.updateCaption(post.id, caption) }
+            .onSuccess { updated -> paged.update { if (it.id == post.id) updated else it } }
+            .onFailure { error ->
+                paged.update { if (it.id == post.id) it.copy(caption = post.caption) else it }
                 ui.toast(error.userMessage)
             }
     }
@@ -212,6 +227,8 @@ fun FeedScreen(ui: Ui, state: FeedState, nearby: NearbyState) {
                             onReport = { reporting = post.id },
                             onEvent = { ui.nav.open(Route.Event(it)) },
                             onSave = { state.save(post, it) },
+                            onComments = { ui.nav.open(Route.Comments(post.id)) },
+                            onEditCaption = { state.editCaption(post, it) },
                         )
                     }
                     if (paged.error != null) {

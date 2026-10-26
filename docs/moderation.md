@@ -7,18 +7,20 @@ policy). The terms promise a review within 24 hours.
 ## What happens automatically
 
 - Every photo and caption is checked by OpenAI moderation before a post goes public.
+  Edited captions are checked again, and comments are checked just after they are
+  posted; a flagged comment is hidden from everyone but its author.
   Profile pictures and party covers are checked the same way; a flagged one is
   thrown away and the old picture stays.
-- Anyone can report a post, party or user from the app. A post reported by three
+- Anyone can report a post, comment, party or user from the app. A post reported by three
   different people is hidden straight away until a moderator looks at it.
 - Blocking a user stops them messaging you and removes their posts from your feed.
 
 ## Reviewing reports in the app
 
 Moderators get **Reports to review** in the Profile tab's ⋮ menu. It lists each
-reported post, party, person or message once, with how many people reported it,
+reported post, comment, party, person or message once, with how many people reported it,
 their reasons and a preview (moderators see hidden posts too). The buttons remove
-or put back a post or party, delete a message, remove a profile picture, delete an
+or put back a post, comment or party, delete a message, remove a profile picture, delete an
 account, or mark it as "Nothing wrong"; each closes the open reports and is logged
 in `public.moderation_actions` with an optional note.
 

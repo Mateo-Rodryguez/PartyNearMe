@@ -59,6 +59,15 @@ fun PostScreen(ui: Ui, id: String) {
                         attempt { ui.api.savePost(id, saved) }.onFailure { post = current; ui.toast(it.userMessage) }
                     }
                 },
+                onComments = { ui.nav.open(Route.Comments(id)) },
+                onEditCaption = { caption ->
+                    post = current.copy(caption = caption.ifEmpty { null })
+                    scope.launch {
+                        attempt { ui.api.updateCaption(id, caption) }
+                            .onSuccess { post = it }
+                            .onFailure { post = current; ui.toast(it.userMessage) }
+                    }
+                },
             )
             error != null -> Message(error!!, null)
         }

@@ -12,9 +12,13 @@ sealed interface Route {
     data class Event(val id: String) : Route
     /** [pickOnMap] opens straight onto the map, for screenshots. */
     data class NewEvent(val pickOnMap: Boolean = false) : Route
+    /** The party form for one of your parties. */
+    data class EditEvent(val id: String) : Route
     data class User(val id: String) : Route
     data class Chat(val conversationId: String, val title: String) : Route
     data class Post(val id: String) : Route
+    /** A post's comments, newest first, with a box to add yours. */
+    data class Comments(val postId: String) : Route
     /** The new-post screen opened from a party, with that party already picked. */
     data class NewPost(val eventId: String, val eventTitle: String) : Route
     /** Likes, follows, RSVPs and reminders, opened from the bell on Home. */

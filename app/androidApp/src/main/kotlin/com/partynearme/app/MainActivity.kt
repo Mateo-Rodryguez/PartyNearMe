@@ -56,7 +56,11 @@ class MainActivity : ComponentActivity() {
                 nav.select(Tab.Chat)
                 nav.open(Route.Chat(it, "Chat"))
             }
-            "rsvp", "event_reminder" -> intent.getStringExtra("event_id")?.let {
+            "comment" -> intent.getStringExtra("post_id")?.let {
+                nav.select(Tab.Feed)
+                nav.open(Route.Comments(it))
+            }
+            "rsvp", "event_reminder", "event_cancelled" -> intent.getStringExtra("event_id")?.let {
                 nav.select(Tab.Nearby)
                 nav.open(Route.Event(it))
             }

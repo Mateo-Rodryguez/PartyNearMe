@@ -49,6 +49,9 @@ object PartyIcons {
                 "H8v-2h8v2zM13,9V3.5L18.5,9H13z",
         )
     }
+    val ChatBubbleOutline: ImageVector by lazy {
+        icon("ChatBubbleOutline", "M20,2H4c-1.1,0 -2,0.9 -2,2v18l4,-4h14c1.1,0 2,-0.9 2,-2V4c0,-1.1 -0.9,-2 -2,-2zM20,16H6l-2,2V4h16v12z")
+    }
     val Shield: ImageVector by lazy {
         icon("Shield", "M12,1L3,5v6c0,5.55 3.84,10.74 9,12 5.16,-1.26 9,-6.45 9,-12V5l-9,-4z")
     }
