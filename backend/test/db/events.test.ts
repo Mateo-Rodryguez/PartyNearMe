@@ -216,3 +216,32 @@ describe("GET /events/nearby", () => {
     expect((await nearby(alice, { lng: 0 })).statusCode).toBe(400);
   });
 });
+
+describe("friends going", () => {
+  it("shows the people you follow who are going, newest first", async () => {
+    const [host, me, sam, alex, jo, stranger] = (await Promise.all(Array.from({ length: 6 }, () => ctx.createUser()))) as [
+      string, string, string, string, string, string,
+    ];
+    for (const friend of [sam, alex, jo]) {
+      await ctx.as(me, { method: "PUT", url: `/users/${friend}/follow` });
+    }
+    const ev = await createEvent(host);
+    for (const guest of [sam, alex, jo, stranger]) {
+      await ctx.as(guest, { method: "PUT", url: `/events/${ev.id}/rsvp`, payload: { status: "going" } });
+    }
+    // Interested doesn't count as going.
+    await ctx.as(jo, { method: "PUT", url: `/events/${ev.id}/rsvp`, payload: { status: "interested" } });
+    await ctx.as(me, { method: "PUT", url: `/users/${alex}/block` });
+
+    const seen = (await ctx.as(me, { method: "GET", url: `/events/${ev.id}` })).json();
+    expect(seen.friends_going_count).toBe(1);
+    expect(seen.friends_going.map((p: { id: string }) => p.id)).toEqual([sam]);
+    expect(seen.going_count).toBe(3);
+
+    const nearby = (await ctx.as(me, { method: "GET", url: `/events/nearby?lat=${LONDON.lat}&lng=${LONDON.lng}` })).json();
+    expect(nearby.events[0].friends_going_count).toBe(1);
+
+    const hosts = (await ctx.as(host, { method: "GET", url: `/events/${ev.id}` })).json();
+    expect(hosts.friends_going).toEqual([]);
+  });
+});

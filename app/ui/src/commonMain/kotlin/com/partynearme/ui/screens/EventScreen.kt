@@ -202,6 +202,7 @@ fun EventScreen(ui: Ui, id: String) {
                     }
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                FriendsGoing(e, Modifier.padding(vertical = 4.dp))
                 if (e.status == "cancelled") {
                     Text("This party was cancelled.", color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(vertical = 8.dp))

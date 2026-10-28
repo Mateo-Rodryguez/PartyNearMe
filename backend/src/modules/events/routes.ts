@@ -11,14 +11,16 @@ const lat = z.number().min(-90).max(90);
 const lng = z.number().min(-180).max(180);
 const timestamp = z.iso.datetime({ offset: true });
 
+const person = z.object({
+  id: z.guid(),
+  username: z.string().nullable(),
+  display_name: z.string().nullable(),
+  avatar_url: z.string().nullable(),
+});
+
 const event = z.object({
   id: z.guid(),
-  organiser: z.object({
-    id: z.guid(),
-    username: z.string().nullable(),
-    display_name: z.string().nullable(),
-    avatar_url: z.string().nullable(),
-  }),
+  organiser: person,
   title: z.string(),
   description: z.string().nullable(),
   starts_at: z.date(),
@@ -32,6 +34,9 @@ const event = z.object({
   interested_count: z.number().int(),
   my_rsvp: z.enum(["going", "interested"]).nullable(),
   saved_by_me: z.boolean(),
+  /** Up to three people the viewer follows who are going, most recent first. */
+  friends_going: z.array(person),
+  friends_going_count: z.number().int(),
   created_at: z.date(),
 });
 type Event = z.infer<typeof event>;
@@ -116,7 +121,25 @@ const eventSelect = (tx: Tx, me: string, base: string | undefined) => tx`
   (select count(*)::int from public.rsvps r where r.event_id = e.id and r.status = 'going') as going_count,
   (select count(*)::int from public.rsvps r where r.event_id = e.id and r.status = 'interested') as interested_count,
   (select r.status from public.rsvps r where r.event_id = e.id and r.user_id = ${me}) as my_rsvp,
-  exists (select 1 from public.saved_events s where s.event_id = e.id and s.user_id = ${me}) as saved_by_me
+  exists (select 1 from public.saved_events s where s.event_id = e.id and s.user_id = ${me}) as saved_by_me,
+  (select coalesce(json_agg(json_build_object('id', f.id, 'username', f.username, 'display_name', f.display_name,
+                                              'avatar_url', ${pictureUrl(tx, base, "f.avatar_variants", "150")})
+                            order by f.going_since desc), '[]'::json)
+   from (select fp.*, r.created_at as going_since from ${friendsGoing(tx, me)} order by r.created_at desc limit 3) f
+  ) as friends_going,
+  (select count(*)::int from ${friendsGoing(tx, me)}) as friends_going_count
+`;
+
+/**
+ * People the viewer follows who said they're going to event e, the social proof
+ * event apps lead with ("Sam and 2 friends are going"). Blocked people are left out.
+ */
+const friendsGoing = (tx: Tx, me: string) => tx`
+  public.rsvps r
+  join public.follows fo on fo.followee_id = r.user_id and fo.follower_id = ${me}
+  join public.profiles fp on fp.id = r.user_id
+  where r.event_id = e.id and r.status = 'going'
+    and not exists (select 1 from public.blocks b where b.blocker_id = ${me} and b.blocked_id = r.user_id)
 `;
 
 export const eventsRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string | undefined }> = async (

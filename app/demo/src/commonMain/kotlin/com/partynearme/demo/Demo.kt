@@ -149,15 +149,17 @@ private object FakeApi {
     ).joinToString(",")
 
     private fun event(id: String, title: String, venue: String, starts: Duration, going: Int, interested: Int,
-                      mine: String?, distance: Int, cover: String?, saved: Boolean = false) =
+                      mine: String?, distance: Int, cover: String?, saved: Boolean = false,
+                      friends: List<String> = emptyList(), friendCount: Int = friends.size) =
         """{"id":"$id","organiser":$sam,"title":"$title","description":"Bring your friends. Doors at 9, music until late.",
            "starts_at":"${ahead(starts)}","ends_at":"${ahead(starts + 5.hours)}","venue_name":"$venue",
            "lat":51.51,"lng":-0.13,"cover_url":${cover?.let { "\"https://picsum.photos/seed/$it/1280/800\"" }},"status":"published","going_count":$going,
            "interested_count":$interested,"my_rsvp":${mine?.let { "\"$it\"" }},"saved_by_me":$saved,"created_at":"${ago(2.days)}",
-           "distance_m":$distance}"""
+           "friends_going":[${friends.joinToString(",")}],"friends_going_count":$friendCount,"distance_m":$distance}"""
 
     private val events get() = listOf(
-        event("e1", "Rooftop Sunset Party", "Skyline Bar", 6.hours, 42, 17, "going", 650, cover = "rooftop"),
+        event("e1", "Rooftop Sunset Party", "Skyline Bar", 6.hours, 42, 17, "going", 650, cover = "rooftop",
+            friends = listOf(alex), friendCount = 3),
         event("e2", "House Night", "Warehouse 9", 1.days + 3.hours, 120, 48, null, 2300, cover = "house-night", saved = true),
         // No cover: shows the gradient parties get until their host adds a photo.
         event("e3", "Student Mixer", "Union Hall", 3.days, 18, 30, "interested", 4100, cover = null),

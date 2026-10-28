@@ -171,6 +171,9 @@ data class Event(
     @SerialName("interested_count") val interestedCount: Int,
     @SerialName("my_rsvp") val myRsvp: String? = null,
     @SerialName("saved_by_me") val savedByMe: Boolean = false,
+    /** Up to three people the user follows who are going. */
+    @SerialName("friends_going") val friendsGoing: List<Person> = emptyList(),
+    @SerialName("friends_going_count") val friendsGoingCount: Int = 0,
     @SerialName("created_at") val createdAt: String,
     @SerialName("distance_m") val distanceM: Int? = null,
 )

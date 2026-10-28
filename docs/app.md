@@ -169,6 +169,11 @@ Your party's ⋮ menu has **Edit party**, which opens the party form filled in, 
 RSVP'd gets a push), **Put the party back on**, and **Delete party**, which removes
 it and its RSVPs for good. Photos posted at a deleted party stay on profiles.
 
+## Friends going
+
+Party cards and pages show who you follow that's going, with up to three faces:
+"Sam and 2 others you follow are going". People you blocked are left out.
+
 ## Relationship hearts
 
 People can show a small heart next to their name: full red for in a relationship,

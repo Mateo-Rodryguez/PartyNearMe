@@ -1,11 +1,15 @@
 package com.partynearme.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -175,19 +179,51 @@ fun EventCard(event: Event, onClick: () -> Unit) {
                 )
             }
         }
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FriendsGoing(event)
+            Text(
+                buildString {
+                    append("${event.goingCount} going")
+                    if (event.interestedCount > 0) append(" · ${event.interestedCount} interested")
+                    append(" · Hosted by ${event.organiser.name}")
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/** "Sam and 2 others you follow are going", with their faces overlapping, as event apps show it. */
+@Composable
+fun FriendsGoing(event: Event, modifier: Modifier = Modifier) {
+    val friends = event.friendsGoing
+    if (friends.isEmpty()) return
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.width((22 + 16 * (friends.size - 1)).dp)) {
+            friends.forEachIndexed { i, friend ->
+                Avatar(
+                    friend.avatarUrl, friend.name, 22.dp,
+                    Modifier.offset(x = (16 * i).dp).border(1.5.dp, MaterialTheme.colorScheme.surfaceContainer, CircleShape),
+                )
+            }
+        }
         Text(
-            buildString {
-                append("${event.goingCount} going")
-                if (event.interestedCount > 0) append(" · ${event.interestedCount} interested")
-                append(" · Hosted by ${event.organiser.name}")
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            friendsGoingText(friends.first().name, event.friendsGoingCount),
+            style = MaterialTheme.typography.labelLarge,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.padding(start = 8.dp),
         )
     }
+}
+
+fun friendsGoingText(first: String, count: Int): String = when (count) {
+    1 -> "$first is going"
+    2 -> "$first and 1 other you follow are going"
+    else -> "$first and ${count - 1} others you follow are going"
 }
 
 /** The month and day on a small white tile, like a calendar page. */
