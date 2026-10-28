@@ -269,3 +269,65 @@ describe("party types and time filters", () => {
     expect(bad.statusCode).toBe(400);
   });
 });
+
+describe("private parties", () => {
+  const create = async (host: string, extra: Record<string, unknown> = {}) => {
+    const res = await ctx.as(host, {
+      method: "POST",
+      url: "/events",
+      payload: {
+        title: "House party", starts_at: new Date(Date.now() + 86400_000).toISOString(),
+        lat: 51.51234, lng: -0.12345, venue_name: "12 Secret St", publish: true, is_private: true, ...extra,
+      },
+    });
+    expect(res.statusCode, res.body).toBe(201);
+    return res.json() as { id: string; is_private: boolean; details_hidden: boolean };
+  };
+  type Ev = { venue_name: string | null; lat: number; details_hidden: boolean; my_rsvp: string | null; requested_count: number };
+  const view = async (me: string, id: string) => (await ctx.as(me, { method: "GET", url: `/events/${id}` })).json() as Ev;
+
+  it("hides the venue until the host approves, and stays off Nearby", async () => {
+    const [host, guest] = (await Promise.all([1, 2].map(() => ctx.createUser()))) as [string, string];
+    const party = await create(host);
+    expect(party).toMatchObject({ is_private: true, details_hidden: false });
+
+    expect(await view(guest, party.id)).toMatchObject({ venue_name: null, lat: 51.51, details_hidden: true });
+    const nearby = await ctx.as(guest, { method: "GET", url: "/events/nearby?lat=51.51&lng=-0.12" });
+    expect((nearby.json() as { events: unknown[] }).events).toEqual([]);
+
+    const asked = await ctx.as(guest, { method: "PUT", url: `/events/${party.id}/rsvp`, payload: { status: "going" } });
+    expect(asked.json()).toMatchObject({ my_rsvp: "requested", details_hidden: true });
+    expect((await view(host, party.id)).requested_count).toBe(1);
+
+    const guests = (await ctx.as(host, { method: "GET", url: `/events/${party.id}/guests` })).json() as {
+      requested: { id: string }[];
+      going: { id: string }[];
+    };
+    expect(guests.requested.map((g) => g.id)).toEqual([guest]);
+    expect((await ctx.as(guest, { method: "GET", url: `/events/${party.id}/guests` })).statusCode).toBe(404);
+    expect((await ctx.as(guest, { method: "POST", url: `/events/${party.id}/guests/${guest}/approve` })).statusCode).toBe(404);
+
+    expect((await ctx.as(host, { method: "POST", url: `/events/${party.id}/guests/${guest}/approve` })).statusCode).toBe(204);
+    expect(await view(guest, party.id)).toMatchObject({ venue_name: "12 Secret St", lat: 51.51234, my_rsvp: "going", details_hidden: false });
+    const outbox = await ctx.db<{ topic: string }[]>`select topic from public.outbox where topic like 'rsvp.%' order by id`;
+    expect(outbox.map((o) => o.topic)).toEqual(["rsvp.requested", "rsvp.approved"]);
+
+    // Declining takes them off again.
+    expect((await ctx.as(host, { method: "DELETE", url: `/events/${party.id}/guests/${guest}` })).statusCode).toBe(204);
+    expect((await view(guest, party.id)).my_rsvp).toBeNull();
+  });
+
+  it("keeps ticket links to https and lets the host clear them", async () => {
+    const host = await ctx.createUser();
+    const bad = await ctx.as(host, {
+      method: "POST",
+      url: "/events",
+      payload: { title: "Gig", starts_at: new Date(Date.now() + 86400_000).toISOString(), lat: 51.5, lng: -0.1, ticket_url: "javascript:alert(1)" },
+    });
+    expect(bad.statusCode).toBe(400);
+    const party = await create(host, { is_private: false, ticket_url: "https://dice.fm/event/abc" });
+    expect(party).toMatchObject({ ticket_url: "https://dice.fm/event/abc", is_private: false });
+    const cleared = await ctx.as(host, { method: "PATCH", url: `/events/${party.id}`, payload: { ticket_url: "" } });
+    expect(cleared.json()).toMatchObject({ ticket_url: null });
+  });
+});

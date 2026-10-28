@@ -182,7 +182,15 @@ data class Event(
     val status: String,
     @SerialName("going_count") val goingCount: Int,
     @SerialName("interested_count") val interestedCount: Int,
+    /** "going", "interested", or "requested" while a private party's host hasn't answered. */
     @SerialName("my_rsvp") val myRsvp: String? = null,
+    /** Off Nearby; the venue shows only to the host and approved guests. */
+    @SerialName("is_private") val isPrivate: Boolean = false,
+    /** You can't see the venue yet; lat and lng are only the rough area. */
+    @SerialName("details_hidden") val detailsHidden: Boolean = false,
+    /** Requests waiting for your answer, on your own private party. */
+    @SerialName("requested_count") val requestedCount: Int = 0,
+    @SerialName("ticket_url") val ticketUrl: String? = null,
     @SerialName("saved_by_me") val savedByMe: Boolean = false,
     /** Up to three people the user follows who are going. */
     @SerialName("friends_going") val friendsGoing: List<Person> = emptyList(),
@@ -207,6 +215,8 @@ data class NewEvent(
     @SerialName("ends_at") val endsAt: String? = null,
     @SerialName("venue_name") val venueName: String? = null,
     @SerialName("interest_id") val interestId: Int? = null,
+    @SerialName("is_private") val isPrivate: Boolean = false,
+    @SerialName("ticket_url") val ticketUrl: String? = null,
     val lat: Double,
     val lng: Double,
     val publish: Boolean = true,
@@ -224,6 +234,9 @@ data class EventUpdate(
     @SerialName("ends_at") val endsAt: String? = null,
     @SerialName("venue_name") val venueName: String? = null,
     @SerialName("interest_id") val interestId: Int? = null,
+    @SerialName("is_private") val isPrivate: Boolean? = null,
+    /** An empty string removes the link. */
+    @SerialName("ticket_url") val ticketUrl: String? = null,
     val lat: Double? = null,
     val lng: Double? = null,
     /** "published" or "cancelled". */
@@ -295,6 +308,10 @@ data class Conversation(
     @SerialName("unread_count") val unreadCount: Int,
     @SerialName("last_message_at") val lastMessageAt: String? = null,
 )
+
+/** A private party's guest list, for its host. */
+@Serializable
+data class GuestList(val requested: List<Person>, val going: List<Person>)
 
 @Serializable
 data class ChatParty(val id: String, val title: String, @SerialName("cover_url") val coverUrl: String? = null)

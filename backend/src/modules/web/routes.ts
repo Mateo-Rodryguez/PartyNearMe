@@ -39,7 +39,9 @@ export const webRoutes: FastifyPluginAsync<{
     const id = parseId(request);
     const [party] = id
       ? await db<SharedParty[]>`
-          select e.id, e.title, e.starts_at, e.venue_name, e.status,
+          -- A private party's venue is only for its guest list, never on a public page.
+          select e.id, e.title, e.starts_at, case when e.is_private then null else e.venue_name end as venue_name,
+                 e.status, e.is_private,
                  (select count(*)::int from public.rsvps r where r.event_id = e.id and r.status = 'going') as going_count,
                  ${pictureUrl(db, mediaBaseUrl, "e.cover_variants", "1080")} as cover_url
           from public.events e

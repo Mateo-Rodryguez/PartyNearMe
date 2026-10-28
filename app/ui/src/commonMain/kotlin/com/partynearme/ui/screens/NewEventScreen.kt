@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.AlertDialog
@@ -32,6 +33,7 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -54,6 +56,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
@@ -133,6 +136,8 @@ fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, editing: Event? = null, o
     LaunchedEffect(Unit) { mapStart = ui.location.current() }
     var error by remember { mutableStateOf<String?>(null) }
     var kind by remember { mutableStateOf(editing?.interestId) }
+    var isPrivate by remember { mutableStateOf(editing?.isPrivate ?: false) }
+    var tickets by remember { mutableStateOf(editing?.ticketUrl.orEmpty()) }
     var kinds by remember { mutableStateOf(emptyList<Interest>()) }
     LaunchedEffect(Unit) { attempt { ui.api.interests() }.onSuccess { kinds = it } }
     var cover by remember { mutableStateOf<PickedPhoto?>(null) }
@@ -194,6 +199,8 @@ fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, editing: Event? = null, o
                         endsAt = (start + hours.hours).toString(),
                         venueName = venue.trim(),
                         interestId = kind,
+                        isPrivate = isPrivate,
+                        ticketUrl = tickets.trim(),
                         lat = here.lat,
                         lng = here.lng,
                     ),
@@ -229,6 +236,8 @@ fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, editing: Event? = null, o
                             endsAt = (start + hours.hours).toString(),
                             venueName = venue.trim().ifEmpty { null },
                             interestId = kind,
+                            isPrivate = isPrivate,
+                            ticketUrl = tickets.trim().ifEmpty { null },
                             lat = here.lat,
                             lng = here.lng,
                             publish = true,
@@ -321,6 +330,17 @@ fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, editing: Event? = null, o
                 FormLabel("Details")
                 PartyField(description, { description = it.take(2000) }, "Dress code, tickets, what to bring (optional)",
                     singleLine = false, minLines = 3)
+                PartyField(tickets, { tickets = it.trim().take(500) }, "Ticket link (optional)",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
+                    supportingText = if (tickets.isNotEmpty() && !tickets.startsWith("https://")) "Starts with https://" else null,
+                    isError = tickets.isNotEmpty() && !tickets.startsWith("https://"))
+                InfoRow(
+                    Icons.Filled.Lock,
+                    "Private party",
+                    detail = "Not on Nearby. You approve who comes, and only they see the venue.",
+                    onClick = { isPrivate = !isPrivate },
+                    trailing = { Switch(isPrivate, { isPrivate = it }) },
+                )
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 Spacer(Modifier.height(96.dp))
             }
@@ -334,7 +354,7 @@ fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, editing: Event? = null, o
                 if (editing == null) "Publish party" else "Save changes",
                 { if (editing == null) publish() else save(editing) },
                 Modifier.fillMaxWidth(),
-                enabled = title.isNotBlank() || busy,
+                enabled = (title.isNotBlank() && (tickets.isEmpty() || tickets.startsWith("https://"))) || busy,
                 busy = busy,
             )
         }

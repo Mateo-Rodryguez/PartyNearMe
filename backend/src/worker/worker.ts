@@ -76,6 +76,10 @@ async function handle(deps: WorkerDeps, row: OutboxRow): Promise<void> {
       return notifyMessage(deps, String(row.payload.message_id));
     case "rsvp.going":
       return notifyRsvp(deps, String(row.payload.event_id), String(row.payload.user_id));
+    case "rsvp.requested":
+      return notifyRsvp(deps, String(row.payload.event_id), String(row.payload.user_id), "asked to come");
+    case "rsvp.approved":
+      return notifyApproved(deps, String(row.payload.event_id), String(row.payload.user_id));
     case "event.reminder":
       return notifyReminder(deps, String(row.payload.event_id));
     case "event.cancelled":
@@ -301,7 +305,7 @@ async function notifyMessage(deps: WorkerDeps, messageId: string): Promise<void>
   });
 }
 
-async function notifyRsvp(deps: WorkerDeps, eventId: string, userId: string): Promise<void> {
+async function notifyRsvp(deps: WorkerDeps, eventId: string, userId: string, what = "is going"): Promise<void> {
   const [row] = await deps.db<{ organiser_id: string; title: string; display_name: string | null; username: string | null }[]>`
     select e.organiser_id, e.title, p.display_name, p.username
     from public.events e, public.profiles p
@@ -313,8 +317,21 @@ async function notifyRsvp(deps: WorkerDeps, eventId: string, userId: string): Pr
   if (!row) return;
   await pushTo(deps, [row.organiser_id], "push_rsvps", {
     title: row.title,
-    body: `${nameOf(row)} is going`,
+    body: `${nameOf(row)} ${what}`,
     data: { type: "rsvp", event_id: eventId, user_id: userId },
+  });
+}
+
+/** Tells a guest the host of a private party let them in. */
+async function notifyApproved(deps: WorkerDeps, eventId: string, userId: string): Promise<void> {
+  const [event] = await deps.db<{ title: string }[]>`
+    select title from public.events where id = ${eventId} and status = 'published'
+  `;
+  if (!event) return;
+  await pushTo(deps, [userId], "push_reminders", {
+    title: event.title,
+    body: "You're on the guest list. The venue is on the party's page.",
+    data: { type: "event_reminder", event_id: eventId },
   });
 }
 

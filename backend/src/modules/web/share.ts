@@ -13,6 +13,7 @@ export interface SharedParty {
   starts_at: Date;
   venue_name: string | null;
   status: string;
+  is_private: boolean;
   going_count: number;
   cover_url: string | null;
 }
@@ -93,7 +94,7 @@ ${o.body}
 
 export function partyPage(p: SharedParty, url: string): string {
   const cancelled = p.status === "cancelled";
-  const details = [when(p.starts_at), p.venue_name].filter(Boolean).join(" · ");
+  const details = [when(p.starts_at), p.is_private ? "Private party" : p.venue_name].filter(Boolean).join(" · ");
   const going = p.going_count === 1 ? "1 person going" : `${p.going_count} people going`;
   return sharePage({
     title: p.title,

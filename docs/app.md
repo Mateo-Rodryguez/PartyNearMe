@@ -26,7 +26,7 @@ Most screens use sample data built into debug builds, so no server or account is
 needed: `adb shell am start -n com.partynearme.app/.MainActivity --es demo feed`
 opens the feed. The other screens are `sign_in`, `nearby`, `event`, `new_event`,
 `map_picker`, `post`, `inbox`, `chat`, `profile`, `user`, `moderation`, `settings`, `relationship`,
-`search`, `followers`, `saved`, `comments`, `edit-party`, `invite` and `party-chat`. Release builds ignore this.
+`search`, `followers`, `saved`, `comments`, `edit-party`, `invite`, `party-chat` and `guests`. Release builds ignore this.
 
 ## iPhone
 
@@ -209,6 +209,17 @@ preview with the title, time, venue and cover, or the photo and caption, plus an
 Drafts, removed parties and hidden posts show "isn't available". Shares are logged
 as a ranking signal. Opening the https link straight in the app (Android App Links,
 iOS Universal Links) needs our own domain first.
+
+## Private parties and tickets
+
+The party form has **Private party** and **Ticket link** (https only). A private
+party stays off Nearby; people reach it through an invite or a shared link and see
+its title, time and rough area, but not the venue or the exact spot. Their **I'm
+going** becomes **Ask to join**; the host gets a notification and a push, and
+**Guest list** on the party page shows requests to **Let in** or decline, and who's
+going. Once let in, the guest gets a push and sees the address, and joins the party
+chat. Shared links to a private party never show the venue. A ticket link adds a
+**Get tickets** button that opens it in the browser.
 
 ## Party chats
 

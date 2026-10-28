@@ -12,6 +12,7 @@ import com.partynearme.core.model.Event
 import com.partynearme.core.model.EventList
 import com.partynearme.core.model.EventPage
 import com.partynearme.core.model.EventUpdate
+import com.partynearme.core.model.GuestList
 import com.partynearme.core.model.Interaction
 import com.partynearme.core.model.Interest
 import com.partynearme.core.model.InviteResult
@@ -157,6 +158,13 @@ class ApiClient(
             contentType(ContentType.Application.Json)
             setBody("""{"interest_id":null}""")
         }
+    /** Who asked to come and who's going, for the host of a private party. */
+    suspend fun guests(id: String): GuestList = call(HttpMethod.Get, "/events/${id.path()}/guests")
+    suspend fun approveGuest(id: String, userId: String) =
+        callUnit(HttpMethod.Post, "/events/${id.path()}/guests/${userId.path()}/approve")
+    /** Declines a request, or takes someone off the guest list. */
+    suspend fun removeGuest(id: String, userId: String) =
+        callUnit(HttpMethod.Delete, "/events/${id.path()}/guests/${userId.path()}")
     suspend fun deleteEvent(id: String) = callUnit(HttpMethod.Delete, "/events/${id.path()}")
     suspend fun saveEvent(id: String, saved: Boolean) =
         callUnit(if (saved) HttpMethod.Put else HttpMethod.Delete, "/events/${id.path()}/save")

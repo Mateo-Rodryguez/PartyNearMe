@@ -13,7 +13,7 @@ const person = z.object({
 const notification = z.object({
   /** Stable for the same activity, so the app can use it as a list key. */
   id: z.string(),
-  type: z.enum(["like", "comment", "tag", "follow", "rsvp", "reminder"]),
+  type: z.enum(["like", "comment", "tag", "follow", "rsvp", "request", "reminder"]),
   /** Who did it; null for reminders, which come from the app itself. */
   actor: person.nullable(),
   post_id: z.guid().nullable(),
@@ -57,6 +57,11 @@ const activity = (tx: Tx, me: string) => tx`
   select 'rsvp', r.user_id, null, r.event_id, null, r.created_at
   from public.rsvps r join public.events e on e.id = r.event_id
   where e.organiser_id = ${me} and r.user_id <> ${me} and r.status = 'going'
+  union all
+  -- Someone asking to come to your private party, until you answer.
+  select 'request', r.user_id, null, r.event_id, null, r.created_at
+  from public.rsvps r join public.events e on e.id = r.event_id
+  where e.organiser_id = ${me} and r.status = 'requested'
   union all
   -- A day before a party you're going to; shown once that time has come.
   select 'reminder', null, null, r.event_id, null, greatest(r.created_at, e.starts_at - interval '1 day')

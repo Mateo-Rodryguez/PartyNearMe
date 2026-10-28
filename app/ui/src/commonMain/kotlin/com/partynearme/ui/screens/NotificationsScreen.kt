@@ -45,7 +45,7 @@ import com.partynearme.ui.timeAgo
 import com.partynearme.ui.userMessage
 import kotlinx.coroutines.launch
 
-private val known = setOf("like", "comment", "tag", "follow", "rsvp", "reminder")
+private val known = setOf("like", "comment", "tag", "follow", "rsvp", "request", "reminder")
 
 /**
  * Likes, comments, follows, people going to your parties and reminders for the ones you're going to,
@@ -109,6 +109,7 @@ private fun NotificationRow(ui: Ui, n: Notification) {
             (n.type == "like" || n.type == "tag") && postId != null -> ui.nav.open(Route.Post(postId))
             n.type == "comment" && postId != null -> ui.nav.open(Route.Comments(postId))
             n.type == "follow" && actor != null -> ui.nav.open(Route.User(actor.id))
+            n.type == "request" && eventId != null -> ui.nav.open(Route.Guests(eventId, party))
             eventId != null -> ui.nav.open(Route.Event(eventId))
         }
     }
@@ -123,6 +124,9 @@ private fun NotificationRow(ui: Ui, n: Notification) {
             }
             "tag" -> { withStyle(bold) { append(actor?.name ?: "Someone") }; append(" tagged you in a photo.") }
             "follow" -> { withStyle(bold) { append(actor?.name ?: "Someone") }; append(" started following you.") }
+            "request" -> {
+                withStyle(bold) { append(actor?.name ?: "Someone") }; append(" asked to come to "); withStyle(bold) { append(party) }; append(".")
+            }
             "rsvp" -> { withStyle(bold) { append(actor?.name ?: "Someone") }; append(" is going to "); withStyle(bold) { append(party) }; append(".") }
             else -> { withStyle(bold) { append(party) }; append(" is coming up soon. Get ready!") }
         }
@@ -151,7 +155,7 @@ private fun NotificationRow(ui: Ui, n: Notification) {
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.size(48.dp).clip(thumbShape),
             )
-            n.type == "rsvp" -> Cover(n.eventCoverUrl, n.eventId ?: n.id, Modifier.size(48.dp).clip(thumbShape))
+            n.type == "rsvp" || n.type == "request" -> Cover(n.eventCoverUrl, n.eventId ?: n.id, Modifier.size(48.dp).clip(thumbShape))
         }
     }
 }

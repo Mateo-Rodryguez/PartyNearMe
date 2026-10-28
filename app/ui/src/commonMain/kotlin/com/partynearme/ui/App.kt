@@ -78,6 +78,7 @@ import com.partynearme.ui.screens.EmptyState
 import com.partynearme.ui.screens.EventScreen
 import com.partynearme.ui.screens.FeedScreen
 import com.partynearme.ui.screens.FeedState
+import com.partynearme.ui.screens.GuestListScreen
 import com.partynearme.ui.screens.InboxScreen
 import com.partynearme.ui.screens.InboxState
 import com.partynearme.ui.screens.InviteScreen
@@ -247,6 +248,7 @@ private fun Main(app: PartyNearMe, platform: Platform, nav: Navigator, userId: S
                 Route.Saved -> SavedScreen(ui)
                 Route.Blocked -> BlockedScreen(ui)
                 is Route.Invite -> InviteScreen(ui, route.eventId, route.eventTitle)
+                is Route.Guests -> GuestListScreen(ui, route.eventId, route.eventTitle)
                 null -> when (nav.tab) {
                     Tab.Feed -> FeedScreen(ui, feed, nearby)
                     Tab.Nearby -> NearbyScreen(ui, nearby)

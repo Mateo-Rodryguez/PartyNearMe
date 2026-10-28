@@ -50,6 +50,7 @@ object Demo {
             "post" -> nav.select(Tab.Post)
             "inbox" -> nav.select(Tab.Chat)
             "chat" -> { nav.select(Tab.Chat); nav.open(Route.Chat("c1", "@sam")) }
+            "guests" -> { nav.select(Tab.Nearby); nav.open(Route.Guests("e1", "Rooftop Sunset Party")) }
             "party-chat" -> { nav.select(Tab.Chat); nav.open(Route.Chat("c3", "Rooftop Sunset Party")) }
             "profile" -> nav.select(Tab.Me)
             "user" -> nav.open(Route.User(SAM))
@@ -220,6 +221,7 @@ private object FakeApi {
 
     private val notifications get() = listOf(
         notification("like", sam, 4.minutes, true, post = "p4", thumb = "mine1"),
+        notification("request", alex, 6.minutes, true, event = "e1", title = "Rooftop Sunset Party", cover = "rooftop"),
         notification("tag", sam, 8.minutes, true, post = "p1", thumb = "party1"),
         notification("comment", alex, 12.minutes, true, post = "p4", thumb = "mine1", text = "Saving this for Saturday"),
         notification("rsvp", alex, 25.minutes, true, event = "e1", title = "Rooftop Sunset Party", cover = "rooftop"),
@@ -259,6 +261,7 @@ private object FakeApi {
             "followers":1890,"following":312,"is_following":true}"""
         path == "/events/nearby" -> HttpStatusCode.OK to """{"events":[${events.joinToString(",")}],"next_cursor":null}"""
         path.matches(Regex("/events/[^/]+/posts")) -> HttpStatusCode.OK to """{"posts":[$feedPosts],"next_cursor":null}"""
+        path.endsWith("/guests") -> HttpStatusCode.OK to """{"requested":[$alex],"going":[$sam,$mateo]}"""
         path.endsWith("/tags/me") -> HttpStatusCode.NoContent to ""
         path.endsWith("/invites") -> HttpStatusCode.OK to """{"sent":2,"skipped":0}"""
         path.startsWith("/events/") -> HttpStatusCode.OK to events.first()
