@@ -186,6 +186,12 @@ fun SettingsScreen(ui: Ui, relationshipPicker: Boolean = false) {
                 Divider()
                 InfoRow(PartyIcons.Block, "Blocked accounts", detail = "See and unblock people",
                     onClick = { ui.nav.open(Route.Blocked) }, trailing = { Chevron() })
+                if (ui.app.config.posthogKey != null) {
+                    Divider()
+                    // Kept on this phone, like the other display choices.
+                    ToggleRow(PartyIcons.Description, "Share usage stats", "Which features get used, never what you post or say",
+                        prefs.shareUsage) { on -> ui.prefs.update { it.copy(shareUsage = on) } }
+                }
             }
 
             Group("Notifications") {

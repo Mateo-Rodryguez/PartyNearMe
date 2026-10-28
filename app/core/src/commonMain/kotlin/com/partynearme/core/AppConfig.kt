@@ -8,6 +8,9 @@ data class AppConfig(
     val supabaseUrl: String,
     /** Supabase's publishable (anon) key, which is safe to embed. */
     val supabaseKey: String,
+    /** PostHog's project key (public, write-only). Null turns analytics off. */
+    val posthogKey: String? = null,
+    val posthogHost: String = "https://eu.i.posthog.com",
 ) {
     /** Links starting with this open the app: browser sign-in coming back, and shared parties and posts. */
     val appScheme: String get() = "partynearme"

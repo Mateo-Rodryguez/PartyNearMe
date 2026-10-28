@@ -127,6 +127,7 @@ fun NewPostScreen(ui: Ui, preset: PartyRef? = null, onPosted: () -> Unit) {
                     ),
                 )
             }.onSuccess {
+                ui.track("post_created", "photos" to photos.size, "tagged" to tagged.size, "at_party" to (party != null))
                 photos.clear()
                 caption = ""
                 place = ""

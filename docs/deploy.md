@@ -65,6 +65,22 @@ Both are set up in the Supabase dashboard, under Authentication:
 4. **Apple** works the same way once the Apple developer account exists, and Apple
    requires it next to Google before the App Store review.
 
+## Usage statistics (PostHog)
+
+The app can count which features get used (app opened, post created, party
+created, RSVP, comment, share, invites sent), sent straight from the phone to
+PostHog's EU cloud. It is off until the app has a project key:
+
+1. Sign up at eu.posthog.com (free tier, EU region) and create a project.
+2. Project settings: turn on **Discard client IP data**, so no addresses are kept.
+3. Copy the **Project API key** (starts with `phc_`; it is public and write-only)
+   into `posthogKey` in `app/androidApp/.../PartyApp.kt` and
+   `app/iosKit/.../MainViewController.kt`.
+
+Events carry the account id, the platform and plain counts only, and no person
+profiles are made. People can turn it off under Settings > Share usage stats, which
+appears once a key is set. The privacy policy already describes it.
+
 ## Error reports (Sentry)
 
 Unexpected server errors (anything that returns a 500) and worker failures go to

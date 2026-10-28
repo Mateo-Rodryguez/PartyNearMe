@@ -64,8 +64,11 @@ Questions: ${contact}.</p>
   <li><strong>Activity in the app</strong>, such as which posts you viewed or liked, used only to order your feed.</li>
   <li><strong>A push notification token</strong> for your phone, if you allow notifications.</li>
   <li><strong>Reports</strong> you file about content or users, which only moderators see.</li>
+  <li><strong>Usage statistics:</strong> which features get used (for example "posted a photo with 3 pictures" or
+    "shared a party"), counted under your account ID only. They never include your posts, messages, location, name
+    or email. You can turn them off under Settings &gt; Share usage stats.</li>
 </ul>
-<p>We don't sell your data, show ads, or use advertising or analytics trackers.</p>
+<p>We don't sell your data, show ads, or use advertising trackers.</p>
 
 <h2>Why we use it</h2>
 <p>To run the service you asked for (your account, feed, map, chat and notifications), to keep it safe
@@ -81,6 +84,7 @@ community safe.</p>
   <li>OpenAI (automatic moderation of photos and captions; not used to train their models through this API).</li>
   <li>Google Firebase Cloud Messaging (delivering notifications), and Google sign-in if you choose it.</li>
   <li>Sentry (crash and error reports, stored in the EU; these hold technical details and your account ID, not your posts or messages).</li>
+  <li>PostHog (usage statistics, stored in the EU).</li>
 </ul>
 <p>They process data only on our behalf. Some may process it outside the EU under standard contractual clauses.</p>
 

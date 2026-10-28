@@ -93,6 +93,6 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         // Send what the user looked at before the app goes to the background.
-        app.scope.launch { app.core.interactions.flush() }
+        app.scope.launch { app.core.interactions.flush(); app.core.analytics.flush() }
     }
 }

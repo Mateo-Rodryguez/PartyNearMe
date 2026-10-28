@@ -235,6 +235,7 @@ fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, editing: Event? = null, o
                         ),
                     )
                 }.onSuccess { created ->
+                    ui.track("party_created", "has_cover" to (cover != null), "has_kind" to (created.interestId != null))
                     // The party is live either way; a cover that fails to upload can be added later.
                     cover?.let { photo ->
                         attempt { ui.api.setCover(created.id, ui.api.uploadPhoto(photo.contentType, photo.bytes)) }

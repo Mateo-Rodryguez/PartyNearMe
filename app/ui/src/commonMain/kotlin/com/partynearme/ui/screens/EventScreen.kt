@@ -100,7 +100,7 @@ fun EventScreen(ui: Ui, id: String) {
         busy = true
         scope.launch {
             attempt { ui.api.rsvp(id, status) }
-                .onSuccess { event = it }
+                .onSuccess { event = it; ui.track("rsvp", "status" to (status ?: "none")) }
                 .onFailure { ui.toast(it.userMessage) }
             busy = false
         }

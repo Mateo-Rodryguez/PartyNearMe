@@ -17,6 +17,8 @@ private val CONFIG = AppConfig(
     apiBaseUrl = "https://partynearme-api.onrender.com",
     supabaseUrl = "https://vvkckzrhzgdrazhjitse.supabase.co",
     supabaseKey = "sb_publishable_lU8CqYjRgUy5kr9Y8QbBNQ_NiPtoCil",
+    // Usage stats stay off until the PostHog project key goes here (docs/deploy.md).
+    posthogKey = null,
 )
 
 class PartyApp : Application() {
@@ -30,7 +32,7 @@ class PartyApp : Application() {
         val settings = SharedPreferencesSettings(getSharedPreferences("partynearme", Context.MODE_PRIVATE))
         core = PartyNearMe(
             CONFIG, SettingsSessionStore(settings), OkHttp.create(),
-            feedCache = SettingsFeedCache(settings), preferences = Preferences(settings),
+            feedCache = SettingsFeedCache(settings), preferences = Preferences(settings), platform = "android",
         )
         createPushChannel(this)
     }

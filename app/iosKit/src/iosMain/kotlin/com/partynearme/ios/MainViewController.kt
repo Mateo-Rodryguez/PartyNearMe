@@ -28,6 +28,8 @@ private val CONFIG = AppConfig(
     apiBaseUrl = "https://partynearme-api.onrender.com",
     supabaseUrl = "https://vvkckzrhzgdrazhjitse.supabase.co",
     supabaseKey = "sb_publishable_lU8CqYjRgUy5kr9Y8QbBNQ_NiPtoCil",
+    // Usage stats stay off until the PostHog project key goes here (docs/deploy.md).
+    posthogKey = null,
 )
 
 /** Called once by the Swift app to get the whole UI. */
@@ -38,7 +40,7 @@ fun MainViewController(): UIViewController {
     val core = demo?.core ?: NSUserDefaultsSettings(defaults).let { settings ->
         PartyNearMe(
             CONFIG, SettingsSessionStore(settings), Darwin.create(),
-            feedCache = SettingsFeedCache(settings), preferences = Preferences(settings),
+            feedCache = SettingsFeedCache(settings), preferences = Preferences(settings), platform = "ios",
         )
     }
     val platform = demo?.platform ?: IosPlatform()
@@ -49,7 +51,7 @@ fun MainViewController(): UIViewController {
     val scope = MainScope()
     NSNotificationCenter.defaultCenter.addObserverForName(
         UIApplicationDidEnterBackgroundNotification, null, NSOperationQueue.mainQueue,
-    ) { _ -> scope.launch { core.interactions.flush() } }
+    ) { _ -> scope.launch { core.interactions.flush(); core.analytics.flush() } }
 
     val controller = ComposeUIViewController { App(core, platform, nav) }
     // A theme picked in settings overrides the phone's, so the status bar matches the app.

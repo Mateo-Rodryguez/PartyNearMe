@@ -108,9 +108,15 @@ class Ui(
     val myId: String,
     val location: LocationProvider,
     val platform: Platform,
+    private val scope: CoroutineScope,
     val toast: (String) -> Unit,
 ) {
     val api get() = app.api
+
+    /** Counts a feature being used (see Analytics); does nothing when usage stats are off. */
+    fun track(event: String, vararg properties: Pair<String, Any?>) {
+        scope.launch { app.analytics.capture(event, properties.toMap()) }
+    }
     /** Choices kept on this phone: theme, units, radius, like counts. */
     val prefs get() = app.preferences
 
@@ -161,6 +167,7 @@ private fun SignedIn(app: PartyNearMe, platform: Platform, nav: Navigator, userI
     var attemptNo by remember { mutableIntStateOf(0) }
     // New accounts go through interests and location once, right after the username.
     var onboarding by remember { mutableStateOf(false) }
+    var firstRun by remember { mutableStateOf(false) }
     LaunchedEffect(attemptNo) {
         error = null
         attempt { app.api.me() }.onSuccess { me = it }.onFailure { error = it.userMessage }
@@ -175,23 +182,25 @@ private fun SignedIn(app: PartyNearMe, platform: Platform, nav: Navigator, userI
             CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
         }
         profile.username == null -> ProfileSetupScreen(app, profile) { me = it; onboarding = true }
-        onboarding -> OnboardingScreen(app, platform) { onboarding = false }
-        else -> Main(app, platform, nav, userId)
+        onboarding -> OnboardingScreen(app, platform) { onboarding = false; firstRun = true }
+        else -> Main(app, platform, nav, userId, firstRun)
     }
 }
 
 @Composable
-private fun Main(app: PartyNearMe, platform: Platform, nav: Navigator, userId: String) {
+private fun Main(app: PartyNearMe, platform: Platform, nav: Navigator, userId: String, firstRun: Boolean) {
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
     val location = platform.rememberLocationProvider()
     val pushToken = platform.rememberPushTokenProvider()
     // Ask for notifications once the account is set up, then tell the server where to send them.
     LaunchedEffect(userId) {
+        app.analytics.identify(userId)
+        app.analytics.capture("app_opened", mapOf("first_run" to firstRun))
         pushToken()?.let { token -> attempt { app.registerForPush(token, platform.pushPlatform) } }
     }
     val ui = remember(location) {
-        Ui(app, nav, userId, location, platform) { text -> scope.launch { snackbar.showSnackbar(text) } }
+        Ui(app, nav, userId, location, platform, scope) { text -> scope.launch { snackbar.showSnackbar(text) } }
     }
     // Lists keep their place while you open something on top of them.
     val feed = remember { FeedState(ui, scope) }

@@ -177,6 +177,7 @@ fun InviteScreen(ui: Ui, eventId: String, eventTitle: String) {
         scope.launch {
             attempt { ui.api.invite(eventId, people.map { it.id }) }
                 .onSuccess {
+                    ui.track("invites_sent", "sent" to it.sent, "skipped" to it.skipped)
                     ui.toast(inviteResultText(it.sent, it.skipped))
                     if (it.sent > 0) ui.nav.back()
                 }
