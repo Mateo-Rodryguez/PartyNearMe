@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -21,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.AlertDialog
@@ -30,6 +33,7 @@ import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -52,11 +56,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.partynearme.core.model.Event
 import com.partynearme.core.model.EventUpdate
+import com.partynearme.core.model.Interest
 import com.partynearme.core.model.LatLng
 import com.partynearme.core.model.NewEvent
 import com.partynearme.ui.Brand
@@ -129,6 +135,11 @@ fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, editing: Event? = null, o
     var mapStart by remember { mutableStateOf<LatLng?>(null) }
     LaunchedEffect(Unit) { mapStart = ui.location.current() }
     var error by remember { mutableStateOf<String?>(null) }
+    var kind by remember { mutableStateOf(editing?.interestId) }
+    var isPrivate by remember { mutableStateOf(editing?.isPrivate ?: false) }
+    var tickets by remember { mutableStateOf(editing?.ticketUrl.orEmpty()) }
+    var kinds by remember { mutableStateOf(emptyList<Interest>()) }
+    LaunchedEffect(Unit) { attempt { ui.api.interests() }.onSuccess { kinds = it } }
     var cover by remember { mutableStateOf<PickedPhoto?>(null) }
     val pickCover = ui.platform.rememberPhotoPicker(1) { picked -> picked.firstOrNull()?.let { cover = it } }
 
@@ -187,11 +198,15 @@ fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, editing: Event? = null, o
                         startsAt = start.toString(),
                         endsAt = (start + hours.hours).toString(),
                         venueName = venue.trim(),
+                        interestId = kind,
+                        isPrivate = isPrivate,
+                        ticketUrl = tickets.trim(),
                         lat = here.lat,
                         lng = here.lng,
                     ),
                 )
             }.onSuccess {
+                if (kind == null && e.interestId != null) attempt { ui.api.clearEventKind(e.id) }
                 cover?.let { photo ->
                     attempt { ui.api.setCover(e.id, ui.api.uploadPhoto(photo.contentType, photo.bytes)) }
                         .onFailure { ui.toast("Saved, but the cover didn't upload. Try again from the party's menu.") }
@@ -220,12 +235,16 @@ fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, editing: Event? = null, o
                             startsAt = start.toString(),
                             endsAt = (start + hours.hours).toString(),
                             venueName = venue.trim().ifEmpty { null },
+                            interestId = kind,
+                            isPrivate = isPrivate,
+                            ticketUrl = tickets.trim().ifEmpty { null },
                             lat = here.lat,
                             lng = here.lng,
                             publish = true,
                         ),
                     )
                 }.onSuccess { created ->
+                    ui.track("party_created", "has_cover" to (cover != null), "has_kind" to (created.interestId != null))
                     // The party is live either way; a cover that fails to upload can be added later.
                     cover?.let { photo ->
                         attempt { ui.api.setCover(created.id, ui.api.uploadPhoto(photo.contentType, photo.bytes)) }
@@ -274,6 +293,13 @@ fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, editing: Event? = null, o
                 PartyField(venue, { venue = it.take(120) }, "Venue (optional)",
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done))
 
+                if (kinds.isNotEmpty()) {
+                    FormLabel("What kind of party?")
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(kinds, key = { it.id }) { k -> ChoiceChip(k.name, kind == k.id, { kind = if (kind == k.id) null else k.id }) }
+                    }
+                }
+
                 FormLabel("When")
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     PickerTile(Icons.Filled.DateRange, "Date", dayLabel(start.toString()), Modifier.weight(1f)) { pickDate = true }
@@ -304,6 +330,17 @@ fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, editing: Event? = null, o
                 FormLabel("Details")
                 PartyField(description, { description = it.take(2000) }, "Dress code, tickets, what to bring (optional)",
                     singleLine = false, minLines = 3)
+                PartyField(tickets, { tickets = it.trim().take(500) }, "Ticket link (optional)",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Done),
+                    supportingText = if (tickets.isNotEmpty() && !tickets.startsWith("https://")) "Starts with https://" else null,
+                    isError = tickets.isNotEmpty() && !tickets.startsWith("https://"))
+                InfoRow(
+                    Icons.Filled.Lock,
+                    "Private party",
+                    detail = "Not on Nearby. You approve who comes, and only they see the venue.",
+                    onClick = { isPrivate = !isPrivate },
+                    trailing = { Switch(isPrivate, { isPrivate = it }) },
+                )
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 Spacer(Modifier.height(96.dp))
             }
@@ -317,7 +354,7 @@ fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, editing: Event? = null, o
                 if (editing == null) "Publish party" else "Save changes",
                 { if (editing == null) publish() else save(editing) },
                 Modifier.fillMaxWidth(),
-                enabled = title.isNotBlank() || busy,
+                enabled = (title.isNotBlank() && (tickets.isEmpty() || tickets.startsWith("https://"))) || busy,
                 busy = busy,
             )
         }

@@ -2,8 +2,10 @@ package com.partynearme.app
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -19,6 +21,7 @@ import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -136,6 +139,24 @@ class AndroidPlatform(private val context: Context) : Platform {
                 }
             }
         }
+    }
+
+    /** Opens the page in a Custom Tab; MainActivity passes the partynearme:// address back through [AuthRedirect]. */
+    override suspend fun openSignIn(url: String, callbackScheme: String): String? {
+        val result = AuthRedirect.start()
+        try {
+            CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse(url))
+        } catch (_: ActivityNotFoundException) {
+            AuthRedirect.abandoned()
+        }
+        return result.await()
+    }
+
+    override fun share(text: String, url: String) {
+        val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "$text $url")
+        val chooser = Intent.createChooser(send, null)
+        if (context !is Activity) chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(chooser)
     }
 
     override val pushPlatform = "android"

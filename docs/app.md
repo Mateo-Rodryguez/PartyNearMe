@@ -26,7 +26,7 @@ Most screens use sample data built into debug builds, so no server or account is
 needed: `adb shell am start -n com.partynearme.app/.MainActivity --es demo feed`
 opens the feed. The other screens are `sign_in`, `nearby`, `event`, `new_event`,
 `map_picker`, `post`, `inbox`, `chat`, `profile`, `user`, `moderation`, `settings`, `relationship`,
-`search`, `followers`, `saved`, `comments` and `edit-party`. Release builds ignore this.
+`search`, `followers`, `saved`, `comments`, `edit-party`, `invite`, `party-chat` and `guests`. Release builds ignore this.
 
 ## iPhone
 
@@ -47,6 +47,23 @@ to compile the Kotlin code first.
 GitHub Actions builds the app on every change (`.github/workflows/app.yml`).
 Locally, with the Android SDK installed, run `./gradlew :androidApp:assembleDebug` in `app/`.
 Without the Android SDK, `./gradlew -Ppnm.noAndroid :core:jvmTest` still runs the shared tests.
+
+## Signing in
+
+Email and password, plus **Forgot password?**, which emails a link to a page where
+people choose a new password, and **Continue with Google** once Google is switched
+on in Supabase (see docs/deploy.md). Google sign-in opens in a Custom Tab on
+Android and Apple's sign-in sheet on iPhone, then comes back to the app on a
+`partynearme://auth-callback` link. The same `partynearme://` scheme opens shared
+parties and posts (`partynearme://party/<id>`, `partynearme://post/<id>`).
+
+## First run
+
+A new account picks a username first (also after Google sign-in), then two
+skippable steps: **What are you into?** (interest chips, saved to the profile,
+which the feed and party filters use) and **Find parties near you**, which explains
+how location is used before the phone's own permission prompt. Notifications are
+asked for when the main app opens, as before.
 
 ## Feed loading
 
@@ -159,6 +176,68 @@ Your party's ⋮ menu has **Edit party**, which opens the party form filled in, 
 **Cancel party** (it leaves the map, its page says cancelled, and everyone who
 RSVP'd gets a push), **Put the party back on**, and **Delete party**, which removes
 it and its RSVPs for good. Photos posted at a deleted party stay on profiles.
+
+## Finding parties
+
+Nearby has a row of filters at the top: **Any time**, **Tonight** (now until 6 the
+next morning) and **This weekend** (Friday 17:00 to Monday 6:00), then the kinds
+of party (the same list as interests: music, sports, food...). Hosts pick the kind
+in the party form; it's optional, and parties without one only show unfiltered.
+
+## Friends going
+
+Party cards and pages show who you follow that's going, with up to three faces:
+"Sam and 2 others you follow are going". People you blocked are left out.
+
+## Tagging people
+
+**Tag people** on the New post screen, or **Tag people / Edit tags** in your post's ⋮
+menu, picks up to 20 people (the ones you follow first, or anyone by search). Posts
+then read "with Sam and 2 others", which lists them. Anyone tagged can tap that and
+**Remove me**. Tagged people get a notification and a push once the photo has passed
+moderation, never twice for the same post; the push follows the **Comments and
+tags** setting. Nobody can tag across a block, and tags of people you blocked don't
+show.
+
+## Sharing
+
+The share button on a party's cover, and the paper plane under a post, open the
+phone's share sheet with a link like `https://partynearme-api.onrender.com/e/<id>`.
+That page (served by the API, no sign-in) gives WhatsApp, iMessage and the rest a
+preview with the title, time, venue and cover, or the photo and caption, plus an
+**Open in PartyNearMe** button that opens the app on a `partynearme://` link.
+Drafts, removed parties and hidden posts show "isn't available". Shares are logged
+as a ranking signal. Opening the https link straight in the app (Android App Links,
+iOS Universal Links) needs our own domain first.
+
+## Private parties and tickets
+
+The party form has **Private party** and **Ticket link** (https only). A private
+party stays off Nearby; people reach it through an invite or a shared link and see
+its title, time and rough area, but not the venue or the exact spot. Their **I'm
+going** becomes **Ask to join**; the host gets a notification and a push, and
+**Guest list** on the party page shows requests to **Let in** or decline, and who's
+going. Once let in, the guest gets a push and sees the address, and joins the party
+chat. Shared links to a private party never show the venue. A ticket link adds a
+**Get tickets** button that opens it in the browser.
+
+## Party chats
+
+Every party gets a group chat once someone says they're going: the host and
+everyone going are in it, and people leave it when they stop going (the host always
+stays). It opens from **Party chat** on the party's page and sits in Messages with the
+party's cover and title; messages show the sender's name. Blocks work differently
+from one-to-one chats, where they stop messages: in a party chat the person you
+blocked can still talk, but you don't see or get pushed their messages. Pushes read
+"Rooftop / Alex: on my way".
+
+## Inviting friends
+
+**Invite friends** on a published party opens a list of the people you follow (or
+search for anyone), and sends each one you pick a message in your chat with them:
+"You're invited to <party>", drawn as a card that opens the party. Up to 20 people at
+a time; people who don't accept messages from you, or blocked either way, are
+skipped and counted. The server endpoint is `POST /events/:id/invites`.
 
 ## Relationship hearts
 

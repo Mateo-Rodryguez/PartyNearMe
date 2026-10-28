@@ -67,6 +67,7 @@ import com.partynearme.ui.Tab
 import com.partynearme.ui.Ui
 import com.partynearme.ui.Wordmark
 import com.partynearme.ui.attempt
+import com.partynearme.ui.sharePost
 import com.partynearme.ui.userMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
@@ -107,6 +108,10 @@ class FeedState(private val ui: Ui, private val scope: CoroutineScope) {
 
     fun editCaption(post: Post, caption: String) = editPostCaption(ui, scope, paged, post, caption)
 
+    fun untag(post: Post) = untagMe(ui, scope, paged, post)
+
+    fun share(post: Post) = sharePost(ui, scope, post)
+
     fun notInterested(post: Post) {
         paged.remove { it.id == post.id }
         scope.launch { ui.app.interactions.notInterested(post.id) }
@@ -131,6 +136,19 @@ fun savePost(ui: Ui, scope: CoroutineScope, paged: Paged<Post>, post: Post, save
             .onSuccess { if (saved) ui.toast("Saved. Find it under Saved on your profile.") }
             .onFailure { error ->
                 paged.update { if (it.id == post.id) it.withSave(!saved) else it }
+                ui.toast(error.userMessage)
+            }
+    }
+}
+
+/** Takes you off someone's post straight away, and puts the tag back if the server refuses. */
+fun untagMe(ui: Ui, scope: CoroutineScope, paged: Paged<Post>, post: Post) {
+    paged.update { if (it.id == post.id) it.copy(tags = it.tags.filter { t -> t.id != ui.myId }) else it }
+    scope.launch {
+        attempt { ui.api.untagMe(post.id) }
+            .onSuccess { ui.toast("You're no longer tagged") }
+            .onFailure { error ->
+                paged.update { if (it.id == post.id) it.copy(tags = post.tags) else it }
                 ui.toast(error.userMessage)
             }
     }
@@ -162,6 +180,7 @@ fun deletePost(ui: Ui, scope: CoroutineScope, paged: Paged<Post>, post: Post) {
 fun FeedScreen(ui: Ui, state: FeedState, nearby: NearbyState) {
     val paged = state.paged
     var reporting by remember { mutableStateOf<String?>(null) }
+    var tagging by remember { mutableStateOf<Post?>(null) }
     LaunchedEffect(Unit) { if (!paged.loadedOnce && !paged.loading) paged.refresh() }
     LaunchedEffect(Unit) {
         if (!nearby.paged.loadedOnce && !nearby.paged.loading) nearby.paged.refresh() else nearby.refreshIfRadiusChanged()
@@ -229,6 +248,11 @@ fun FeedScreen(ui: Ui, state: FeedState, nearby: NearbyState) {
                             onSave = { state.save(post, it) },
                             onComments = { ui.nav.open(Route.Comments(post.id)) },
                             onEditCaption = { state.editCaption(post, it) },
+                            me = ui.myId,
+                            onPerson = { ui.nav.open(Route.User(it)) },
+                            onEditTags = { tagging = post },
+                            onUntagMe = { state.untag(post) },
+                            onShare = { state.share(post) },
                         )
                     }
                     if (paged.error != null) {
@@ -239,6 +263,12 @@ fun FeedScreen(ui: Ui, state: FeedState, nearby: NearbyState) {
         }
     }
     reporting?.let { ReportDialog(ui, ReportTarget.Post, it) { reporting = null } }
+    tagging?.let { post ->
+        TagPeopleDialog(ui, post, onDismiss = { tagging = null }) { updated ->
+            paged.update { if (it.id == updated.id) updated else it }
+            tagging = null
+        }
+    }
 }
 
 /** How many posts below the screen get their photos loaded early, so scrolling doesn't wait. */

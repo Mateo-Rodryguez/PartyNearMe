@@ -17,6 +17,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import platform.AuthenticationServices.ASWebAuthenticationPresentationContextProvidingProtocol
+import platform.AuthenticationServices.ASWebAuthenticationSession
 import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGSizeMake
 import platform.CoreLocation.CLLocation
@@ -30,11 +32,13 @@ import platform.Foundation.NSData
 import platform.Foundation.NSDate
 import platform.Foundation.timeIntervalSinceDate
 import platform.Foundation.NSError
+import platform.Foundation.NSURL
 import platform.PhotosUI.PHPickerConfiguration
 import platform.PhotosUI.PHPickerFilter
 import platform.PhotosUI.PHPickerResult
 import platform.PhotosUI.PHPickerViewController
 import platform.PhotosUI.PHPickerViewControllerDelegateProtocol
+import platform.UIKit.UIActivityViewController
 import platform.UIKit.UIApplication
 import platform.UIKit.UIGraphicsImageRenderer
 import platform.UIKit.UIGraphicsImageRendererFormat
@@ -46,6 +50,7 @@ import platform.UIKit.UIImagePickerControllerOriginalImage
 import platform.UIKit.UIImagePickerControllerSourceType
 import platform.UIKit.UINavigationControllerDelegateProtocol
 import platform.UIKit.UIViewController
+import platform.UIKit.UIWindow
 import platform.darwin.NSObject
 import platform.posix.memcpy
 import kotlin.coroutines.resume
@@ -112,7 +117,43 @@ class IosPlatform : Platform {
     @Composable
     override fun rememberPushTokenProvider(): suspend () -> String? = { null }
 
+    /** The sign-in running now; iOS only keeps it alive while something holds on to it. */
+    private var signIn: ASWebAuthenticationSession? = null
+    private val anchor = SignInAnchor()
+
+    /** Apple's sign-in browser, which hands back the partynearme:// address itself. */
+    override suspend fun openSignIn(url: String, callbackScheme: String): String? = withContext(Dispatchers.Main) {
+        val page = NSURL.URLWithString(url) ?: return@withContext null
+        suspendCancellableCoroutine { cont ->
+            val session = ASWebAuthenticationSession(page, callbackScheme) { callback: NSURL?, _: NSError? ->
+                signIn = null
+                if (cont.isActive) cont.resume(callback?.absoluteString)
+            }
+            session.presentationContextProvider = anchor
+            signIn = session
+            cont.invokeOnCancellation { session.cancel() }
+            if (!session.start()) {
+                signIn = null
+                if (cont.isActive) cont.resume(null)
+            }
+        }
+    }
+
+    override fun share(text: String, url: String) {
+        val items = listOfNotNull<Any>(text, NSURL.URLWithString(url))
+        val sheet = UIActivityViewController(activityItems = items, applicationActivities = null)
+        topViewController()?.presentViewController(sheet, animated = true, completion = null)
+    }
+
     override val pushPlatform = "ios"
+}
+
+/** Shows the sign-in browser over the app's window. */
+private class SignInAnchor : NSObject(), ASWebAuthenticationPresentationContextProvidingProtocol {
+    override fun presentationAnchorForWebAuthenticationSession(session: ASWebAuthenticationSession): UIWindow {
+        @Suppress("DEPRECATION")
+        return UIApplication.sharedApplication.keyWindow ?: UIWindow()
+    }
 }
 
 private class PhotoPickerDelegate(private val onResults: (List<PHPickerResult>) -> Unit) :

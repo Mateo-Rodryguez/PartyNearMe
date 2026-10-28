@@ -11,14 +11,16 @@ const lat = z.number().min(-90).max(90);
 const lng = z.number().min(-180).max(180);
 const timestamp = z.iso.datetime({ offset: true });
 
+const person = z.object({
+  id: z.guid(),
+  username: z.string().nullable(),
+  display_name: z.string().nullable(),
+  avatar_url: z.string().nullable(),
+});
+
 const event = z.object({
   id: z.guid(),
-  organiser: z.object({
-    id: z.guid(),
-    username: z.string().nullable(),
-    display_name: z.string().nullable(),
-    avatar_url: z.string().nullable(),
-  }),
+  organiser: person,
   title: z.string(),
   description: z.string().nullable(),
   starts_at: z.date(),
@@ -27,11 +29,26 @@ const event = z.object({
   lat: z.number(),
   lng: z.number(),
   cover_url: z.string().nullable(),
+  /** The kind of party, one of GET /interests; null when the host didn't pick one. */
+  interest_id: z.number().int().nullable(),
   status: z.enum(["draft", "published", "cancelled", "removed"]),
   going_count: z.number().int(),
   interested_count: z.number().int(),
-  my_rsvp: z.enum(["going", "interested"]).nullable(),
+  /** "requested" while the host of a private party hasn't approved you yet. */
+  my_rsvp: z.enum(["going", "interested", "requested"]).nullable(),
+  /** Off Nearby; the venue and exact spot show only to the host and approved guests. */
+  is_private: z.boolean(),
+  /** True when this viewer can't see the venue yet: lat/lng are then only the rough area. */
+  details_hidden: z.boolean(),
+  /** Requests waiting for the host's answer; 0 for everyone but the host. */
+  requested_count: z.number().int(),
+  ticket_url: z.string().nullable(),
   saved_by_me: z.boolean(),
+  /** Up to three people the viewer follows who are going, most recent first. */
+  friends_going: z.array(person),
+  friends_going_count: z.number().int(),
+  /** The party's group chat, when the viewer is in it (the host and people going). */
+  chat_id: z.guid().nullable(),
   created_at: z.date(),
 });
 type Event = z.infer<typeof event>;
@@ -44,6 +61,9 @@ const eventFields = {
   starts_at: timestamp,
   ends_at: timestamp.nullable(),
   venue_name: z.string().trim().max(120).nullable(),
+  interest_id: z.number().int().min(1).max(32767).nullable(),
+  is_private: z.boolean(),
+  ticket_url: z.string().trim().max(500).regex(/^(https:\/\/\S+)?$/, "Ticket links start with https://").nullable(),
   lat,
   lng,
 };
@@ -61,6 +81,9 @@ const createEvent = z
     description: eventFields.description.optional(),
     ends_at: eventFields.ends_at.optional(),
     venue_name: eventFields.venue_name.optional(),
+    interest_id: eventFields.interest_id.optional(),
+    is_private: eventFields.is_private.default(false),
+    ticket_url: eventFields.ticket_url.optional(),
     publish: z.boolean().default(false),
   })
   .strict()
@@ -84,11 +107,17 @@ const nearbyQuery = z.object({
   radius_km: z.coerce.number().positive().max(100).default(10),
   from: timestamp.optional(),
   to: timestamp.optional(),
+  /** Only parties of this kind. */
+  interest_id: z.coerce.number().int().min(1).max(32767).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
   cursor: z.string().max(200).optional(),
 });
 
 const eventParams = z.object({ id: z.guid() });
+const guestParams = z.object({ id: z.guid(), userId: z.guid() });
+
+/** Most guests the guest list returns. */
+const MAX_GUESTS = 1000;
 const noContent = { 204: z.null() };
 
 // Cursor for "starts_at, id" ordering. Opaque to clients.
@@ -105,18 +134,55 @@ const decodeCursor = (cursor: string) => {
 const point = (tx: Tx, latitude: number, longitude: number) =>
   tx`extensions.st_setsrid(extensions.st_makepoint(${longitude}, ${latitude}), 4326)::extensions.geography`;
 
+/**
+ * Whether the viewer can't see a private party's venue yet: everyone but the
+ * host and approved guests.
+ */
+const detailsHidden = (tx: Tx, me: string) => tx`
+  (e.is_private and e.organiser_id <> ${me}
+   and not exists (select 1 from public.rsvps g where g.event_id = e.id and g.user_id = ${me} and g.status = 'going'))
+`;
+
 /** Columns every event response needs; RLS decides which events are visible. */
 const eventSelect = (tx: Tx, me: string, base: string | undefined) => tx`
-  e.id, e.title, e.description, e.starts_at, e.ends_at, e.venue_name, e.status, e.created_at,
+  e.id, e.title, e.description, e.starts_at, e.ends_at, e.interest_id, e.status, e.created_at,
+  e.is_private, e.ticket_url, ${detailsHidden(tx, me)} as details_hidden,
+  case when ${detailsHidden(tx, me)} then null else e.venue_name end as venue_name,
   ${pictureUrl(tx, base, "e.cover_variants", "1080")} as cover_url,
-  extensions.st_y(e.location::extensions.geometry) as lat,
-  extensions.st_x(e.location::extensions.geometry) as lng,
+  -- Rounded to about a kilometre while hidden: the area, not the door.
+  case when ${detailsHidden(tx, me)} then round(extensions.st_y(e.location::extensions.geometry)::numeric, 2)::float8
+       else extensions.st_y(e.location::extensions.geometry) end as lat,
+  case when ${detailsHidden(tx, me)} then round(extensions.st_x(e.location::extensions.geometry)::numeric, 2)::float8
+       else extensions.st_x(e.location::extensions.geometry) end as lng,
+  case when e.organiser_id = ${me}
+       then (select count(*)::int from public.rsvps r where r.event_id = e.id and r.status = 'requested') else 0 end
+    as requested_count,
   json_build_object('id', p.id, 'username', p.username, 'display_name', p.display_name,
                     'avatar_url', ${pictureUrl(tx, base, "p.avatar_variants", "150")}) as organiser,
   (select count(*)::int from public.rsvps r where r.event_id = e.id and r.status = 'going') as going_count,
   (select count(*)::int from public.rsvps r where r.event_id = e.id and r.status = 'interested') as interested_count,
   (select r.status from public.rsvps r where r.event_id = e.id and r.user_id = ${me}) as my_rsvp,
-  exists (select 1 from public.saved_events s where s.event_id = e.id and s.user_id = ${me}) as saved_by_me
+  exists (select 1 from public.saved_events s where s.event_id = e.id and s.user_id = ${me}) as saved_by_me,
+  (select coalesce(json_agg(json_build_object('id', f.id, 'username', f.username, 'display_name', f.display_name,
+                                              'avatar_url', ${pictureUrl(tx, base, "f.avatar_variants", "150")})
+                            order by f.going_since desc), '[]'::json)
+   from (select fp.*, r.created_at as going_since from ${friendsGoing(tx, me)} order by r.created_at desc limit 3) f
+  ) as friends_going,
+  (select count(*)::int from ${friendsGoing(tx, me)}) as friends_going_count,
+  (select c.id from public.conversations c join public.conversation_members cm on cm.conversation_id = c.id
+   where c.event_id = e.id and cm.user_id = ${me}) as chat_id
+`;
+
+/**
+ * People the viewer follows who said they're going to event e, the social proof
+ * event apps lead with ("Sam and 2 friends are going"). Blocked people are left out.
+ */
+const friendsGoing = (tx: Tx, me: string) => tx`
+  public.rsvps r
+  join public.follows fo on fo.followee_id = r.user_id and fo.follower_id = ${me}
+  join public.profiles fp on fp.id = r.user_id
+  where r.event_id = e.id and r.status = 'going'
+    and not exists (select 1 from public.blocks b where b.blocker_id = ${me} and b.blocked_id = r.user_id)
 `;
 
 export const eventsRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string | undefined }> = async (
@@ -147,9 +213,11 @@ export const eventsRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string 
     const b = request.body;
     const created = await asUser(db, me, async (tx) => {
       const [row] = await tx`
-        insert into public.events (organiser_id, title, description, starts_at, ends_at, venue_name, location, status)
+        insert into public.events (organiser_id, title, description, starts_at, ends_at, venue_name, interest_id,
+                                   is_private, ticket_url, location, status)
         values (${me}, ${b.title}, ${b.description ?? null}, ${b.starts_at}, ${b.ends_at ?? null},
-                ${b.venue_name ?? null}, ${point(tx, b.lat, b.lng)}, ${b.publish ? "published" : "draft"})
+                ${b.venue_name ?? null}, ${b.interest_id ?? null}, ${b.is_private}, ${b.ticket_url || null},
+                ${point(tx, b.lat, b.lng)}, ${b.publish ? "published" : "draft"})
         returning id
       `;
       if (!row) throw new Error("insert returned no row");
@@ -177,11 +245,12 @@ export const eventsRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string 
         select ${eventSelect(tx, me, mediaBaseUrl)},
                extensions.st_distance(e.location, ${here})::int as distance_m
         from public.events e join public.profiles p on p.id = e.organiser_id
-        where e.status = 'published'
+        where e.status = 'published' and not e.is_private
           and extensions.st_dwithin(e.location, ${here}, ${q.radius_km * 1000})
           -- Still going on, or starting within the window.
           and coalesce(e.ends_at, e.starts_at + interval '6 hours') >= ${from}::timestamptz
           and e.starts_at < ${to}::timestamptz
+          ${q.interest_id ? tx`and e.interest_id = ${q.interest_id}` : tx``}
           and not exists (select 1 from public.blocks b where b.blocker_id = ${me} and b.blocked_id = e.organiser_id)
           ${after ? tx`and (e.starts_at, e.id) > (${after.startsAt}::timestamptz, ${after.id}::uuid)` : tx``}
         order by e.starts_at, e.id
@@ -260,6 +329,7 @@ export const eventsRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string 
     // Clearing a box in the app sends an empty string; store that as "no value".
     if (fields.description === "") fields.description = null;
     if (fields.venue_name === "") fields.venue_name = null;
+    if (fields.ticket_url === "") fields.ticket_url = null;
     return asUser(db, me, async (tx) => {
       const [current] = await tx`
         select starts_at, ends_at from public.events where id = ${request.params.id} and organiser_id = ${me}
@@ -331,6 +401,52 @@ export const eventsRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string 
       `;
       return loadEvent(tx, me, request.params.id);
     });
+  });
+
+  /** The guest list, for the host: requests waiting for an answer, then who's going. */
+  app.get("/events/:id/guests", {
+    schema: {
+      params: eventParams,
+      response: { 200: z.object({ requested: z.array(person), going: z.array(person) }) },
+    },
+  }, async (request) => {
+    const me = request.userId;
+    await ownEvent(me, request.params.id);
+    const rows = await asUser(db, me, (tx) => tx<(z.infer<typeof person> & { status: string })[]>`
+      select r.status, p.id, p.username, p.display_name,
+             ${pictureUrl(tx, mediaBaseUrl, "p.avatar_variants", "150")} as avatar_url
+      from public.rsvps r join public.profiles p on p.id = r.user_id
+      where r.event_id = ${request.params.id} and r.status in ('requested', 'going')
+      order by r.created_at
+      limit ${MAX_GUESTS}
+    `);
+    const pick = (status: string) =>
+      rows.filter((r) => r.status === status).map((r) => ({ id: r.id, username: r.username, display_name: r.display_name, avatar_url: r.avatar_url }));
+    return { requested: pick("requested"), going: pick("going") };
+  });
+
+  /** The host lets someone in. Runs as the owner: rsvps are otherwise only writable by the guest. */
+  app.post("/events/:id/guests/:userId/approve", {
+    schema: { params: guestParams, response: noContent },
+  }, async (request, reply) => {
+    await ownEvent(request.userId, request.params.id);
+    const updated = await db`
+      update public.rsvps set status = 'going'
+      where event_id = ${request.params.id} and user_id = ${request.params.userId} and status = 'requested'
+      returning user_id
+    `;
+    if (updated.length === 0) throw new HttpError(404, "No request from them");
+    return reply.status(204).send(null);
+  });
+
+  /** The host declines a request or takes someone off the list. */
+  app.delete("/events/:id/guests/:userId", {
+    schema: { params: guestParams, response: noContent },
+  }, async (request, reply) => {
+    await ownEvent(request.userId, request.params.id);
+    if (request.params.userId === request.userId) throw new HttpError(400, "That's you");
+    await db`delete from public.rsvps where event_id = ${request.params.id} and user_id = ${request.params.userId}`;
+    return reply.status(204).send(null);
   });
 
   app.delete("/events/:id/rsvp", { schema: { params: eventParams, response: noContent } }, async (request, reply) => {

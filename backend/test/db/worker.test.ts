@@ -33,7 +33,7 @@ const jpeg = () =>
   sharp({ create: { width: 1600, height: 1200, channels: 3, background: "#3366cc" } }).jpeg().toBuffer();
 
 /** Creates a post through the API and puts its photos in storage, as the phone would. */
-async function createPost(userId: string, caption = "hello", photos = 2, upload = true) {
+async function createPost(userId: string, caption = "hello", photos = 2, upload = true, tagIds?: string[]) {
   const ids: string[] = [];
   const keys: string[] = [];
   for (let i = 0; i < photos; i++) {
@@ -44,7 +44,7 @@ async function createPost(userId: string, caption = "hello", photos = 2, upload 
     ids.push(u.upload_id);
     keys.push(key);
   }
-  const res = await ctx.as(userId, { method: "POST", url: "/posts", payload: { upload_ids: ids, caption } });
+  const res = await ctx.as(userId, { method: "POST", url: "/posts", payload: { upload_ids: ids, caption, tag_ids: tagIds } });
   expect(res.statusCode, res.body).toBe(201);
   return { id: (res.json() as { id: string }).id, keys };
 }
@@ -160,6 +160,28 @@ describe("push notifications", () => {
     expect(push.sent[0]?.message.body).toHaveLength(100);
   });
 
+  it("pushes party chat messages under the party's name, except to people who blocked the sender", async () => {
+    const [host, sam, alex] = (await Promise.all([1, 2, 3].map(() => ctx.createUser()))) as [string, string, string];
+    await ctx.db`update public.profiles set display_name = 'Alex' where id = ${alex}`;
+    const party = (await ctx.as(host, {
+      method: "POST",
+      url: "/events",
+      payload: { title: "Rooftop", starts_at: new Date(Date.now() + 86400_000).toISOString(), lat: 51.5, lng: -0.12, publish: true },
+    })).json() as { id: string };
+    for (const guest of [sam, alex]) {
+      await ctx.as(guest, { method: "PUT", url: `/events/${party.id}/rsvp`, payload: { status: "going" } });
+    }
+    await register(host, "host-phone-1");
+    await register(sam, "sam-phone-1");
+    await ctx.as(sam, { method: "PUT", url: `/users/${alex}/block` });
+    await drain();
+    push.sent.length = 0;
+    const chat = ((await ctx.as(alex, { method: "GET", url: `/events/${party.id}` })).json() as { chat_id: string }).chat_id;
+    await ctx.as(alex, { method: "POST", url: `/conversations/${chat}/messages`, payload: { body: "on my way" } });
+    await drain();
+    expect(push.sent.map((s) => [s.token, s.message.title, s.message.body])).toEqual([["host-phone-1", "Rooftop", "Alex: on my way"]]);
+  });
+
   it("skips the kinds of push the user turned off in settings", async () => {
     const alice = await ctx.createUser();
     const bob = await ctx.createUser();
@@ -205,7 +227,7 @@ describe("push notifications", () => {
     ]);
   });
 
-  it("reminds people going to an event shortly before it starts, once", async () => {
+  it("reminds people going to or interested in an event shortly before it starts, once", async () => {
     const organiser = await ctx.createUser();
     const guest = await ctx.createUser();
     const maybe = await ctx.createUser();
@@ -228,8 +250,9 @@ describe("push notifications", () => {
     await drain();
     await drain();
     const reminders = push.sent.filter((s) => s.message.data.type === "event_reminder");
-    expect(reminders.map((s) => [s.token, s.message.title])).toEqual([["guest-phone-1", "In 1h"]]);
+    expect(reminders.map((s) => [s.token, s.message.title])).toEqual([["guest-phone-1", "In 1h"], ["maybe-phone-1", "In 1h"]]);
     expect(reminders[0]?.message.body).toMatch(/^Starts in (59|60) min$/);
+    expect(reminders[1]?.message.body).toMatch(/^Still thinking about it\? Starts in (59|60) min$/);
   });
 
   it("skips alerts but finishes the work when Firebase isn't set up", async () => {
@@ -272,6 +295,34 @@ describe("comments, captions and cancellations", () => {
     await ctx.as(bob, { method: "POST", url: `/posts/${post}/comments`, payload: { body: "again" } });
     await drain();
     expect(push.sent).toHaveLength(1);
+  });
+
+  it("tells tagged people once the post is checked, and only once", async () => {
+    const alice = await ctx.createUser();
+    const bob = await ctx.createUser();
+    await ctx.db`update public.profiles set display_name = 'Alice' where id = ${alice}`;
+    await register(bob, "bob-phone-1");
+    const post = await createPost(alice, "hello", 1, true, [bob]);
+    await drain();
+    expect(push.sent.map((s) => s.message)).toEqual([
+      { title: "Alice tagged you", body: "in a photo", data: { type: "tag", post_id: post.id } },
+    ]);
+    // Tagging again later doesn't repeat it; a newly tagged person hears.
+    const carol = await ctx.createUser();
+    await register(carol, "carol-phone-1");
+    await ctx.as(alice, { method: "PUT", url: `/posts/${post.id}/tags`, payload: { user_ids: [bob, carol] } });
+    await drain();
+    expect(push.sent.map((s) => s.token)).toEqual(["bob-phone-1", "carol-phone-1"]);
+  });
+
+  it("doesn't tell tagged people about a post that fails moderation", async () => {
+    const alice = await ctx.createUser();
+    const bob = await ctx.createUser();
+    await register(bob, "bob-phone-1");
+    flagCaption = "nasty";
+    await createPost(alice, "nasty", 1, true, [bob]);
+    await drain();
+    expect(push.sent).toEqual([]);
   });
 
   it("hides comments that fail moderation, without telling anyone", async () => {

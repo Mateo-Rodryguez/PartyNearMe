@@ -76,6 +76,10 @@ async function handle(deps: WorkerDeps, row: OutboxRow): Promise<void> {
       return notifyMessage(deps, String(row.payload.message_id));
     case "rsvp.going":
       return notifyRsvp(deps, String(row.payload.event_id), String(row.payload.user_id));
+    case "rsvp.requested":
+      return notifyRsvp(deps, String(row.payload.event_id), String(row.payload.user_id), "asked to come");
+    case "rsvp.approved":
+      return notifyApproved(deps, String(row.payload.event_id), String(row.payload.user_id));
     case "event.reminder":
       return notifyReminder(deps, String(row.payload.event_id));
     case "event.cancelled":
@@ -84,6 +88,8 @@ async function handle(deps: WorkerDeps, row: OutboxRow): Promise<void> {
       return processComment(deps, String(row.payload.comment_id));
     case "post.caption_changed":
       return recheckCaption(deps, String(row.payload.post_id));
+    case "post.tagged":
+      return notifyTags(deps, String(row.payload.post_id));
     default:
       // Unknown topics are left for a future worker version rather than failing.
       deps.log.info({ id: row.id, topic: row.topic }, "no handler for topic");
@@ -95,7 +101,8 @@ async function handle(deps: WorkerDeps, row: OutboxRow): Promise<void> {
  * caption with the moderator, then publishes or hides the post. Safe to run
  * again after a partial failure: outputs are written to fixed keys.
  */
-async function processPost({ db, store, moderator }: WorkerDeps, postId: string): Promise<void> {
+async function processPost(deps: WorkerDeps, postId: string): Promise<void> {
+  const { db, store, moderator } = deps;
   const [post] = await db<{ id: string; caption: string | null; status: string }[]>`
     select id, caption, status from public.posts where id = ${postId}
   `;
@@ -153,6 +160,8 @@ async function processPost({ db, store, moderator }: WorkerDeps, postId: string)
 
   // Originals may carry GPS and camera metadata; only the cleaned sizes are kept.
   for (const p of processed) await store.delete(p.original);
+  // People tagged while the post was being checked hear about it now.
+  if (!flagged) await notifyTags(deps, postId);
 }
 
 interface PicturePayload {
@@ -274,24 +283,29 @@ async function pushTo(
 }
 
 async function notifyMessage(deps: WorkerDeps, messageId: string): Promise<void> {
-  const [m] = await deps.db<{ conversation_id: string; sender_id: string; body: string; display_name: string | null; username: string | null }[]>`
-    select m.conversation_id, m.sender_id, m.body, p.display_name, p.username
-    from public.messages m join public.profiles p on p.id = m.sender_id
+  const [m] = await deps.db<{ conversation_id: string; sender_id: string; body: string; display_name: string | null; username: string | null; party: string | null }[]>`
+    select m.conversation_id, m.sender_id, m.body, p.display_name, p.username, e.title as party
+    from public.messages m
+    join public.profiles p on p.id = m.sender_id
+    join public.conversations c on c.id = m.conversation_id
+    left join public.events e on e.id = c.event_id
     where m.id = ${messageId}
   `;
   if (!m) return;
+  // In party chats, people who blocked the sender don't hear from them.
   const recipients = await deps.db<{ user_id: string }[]>`
-    select user_id from public.conversation_members
-    where conversation_id = ${m.conversation_id} and user_id <> ${m.sender_id}
+    select cm.user_id from public.conversation_members cm
+    where cm.conversation_id = ${m.conversation_id} and cm.user_id <> ${m.sender_id}
+      and not exists (select 1 from public.blocks b where b.blocker_id = cm.user_id and b.blocked_id = ${m.sender_id})
   `;
   await pushTo(deps, recipients.map((r) => r.user_id), "push_messages", {
-    title: nameOf(m),
-    body: preview(m.body),
+    title: m.party ?? nameOf(m),
+    body: preview(m.party ? `${nameOf(m)}: ${m.body}` : m.body),
     data: { type: "message", conversation_id: m.conversation_id },
   });
 }
 
-async function notifyRsvp(deps: WorkerDeps, eventId: string, userId: string): Promise<void> {
+async function notifyRsvp(deps: WorkerDeps, eventId: string, userId: string, what = "is going"): Promise<void> {
   const [row] = await deps.db<{ organiser_id: string; title: string; display_name: string | null; username: string | null }[]>`
     select e.organiser_id, e.title, p.display_name, p.username
     from public.events e, public.profiles p
@@ -303,8 +317,21 @@ async function notifyRsvp(deps: WorkerDeps, eventId: string, userId: string): Pr
   if (!row) return;
   await pushTo(deps, [row.organiser_id], "push_rsvps", {
     title: row.title,
-    body: `${nameOf(row)} is going`,
+    body: `${nameOf(row)} ${what}`,
     data: { type: "rsvp", event_id: eventId, user_id: userId },
+  });
+}
+
+/** Tells a guest the host of a private party let them in. */
+async function notifyApproved(deps: WorkerDeps, eventId: string, userId: string): Promise<void> {
+  const [event] = await deps.db<{ title: string }[]>`
+    select title from public.events where id = ${eventId} and status = 'published'
+  `;
+  if (!event) return;
+  await pushTo(deps, [userId], "push_reminders", {
+    title: event.title,
+    body: "You're on the guest list. The venue is on the party's page.",
+    data: { type: "event_reminder", event_id: eventId },
   });
 }
 
@@ -313,15 +340,23 @@ async function notifyReminder(deps: WorkerDeps, eventId: string): Promise<void> 
     select title, venue_name, starts_at from public.events where id = ${eventId} and status = 'published'
   `;
   if (!event) return;
-  const going = await deps.db<{ user_id: string }[]>`
-    select user_id from public.rsvps where event_id = ${eventId} and status = 'going'
+  const guests = await deps.db<{ user_id: string; status: string }[]>`
+    select user_id, status from public.rsvps where event_id = ${eventId} and status in ('going', 'interested')
   `;
   const minutes = Math.max(0, Math.round((event.starts_at.getTime() - Date.now()) / 60_000));
   const when = minutes <= 90 ? `in ${minutes} min` : `in about ${Math.round(minutes / 60)} h`;
-  await pushTo(deps, going.map((g) => g.user_id), "push_reminders", {
+  const starts = event.venue_name ? `Starts ${when} at ${event.venue_name}` : `Starts ${when}`;
+  const data = { type: "event_reminder", event_id: eventId };
+  await pushTo(deps, guests.filter((g) => g.status === "going").map((g) => g.user_id), "push_reminders", {
     title: event.title,
-    body: event.venue_name ? `Starts ${when} at ${event.venue_name}` : `Starts ${when}`,
-    data: { type: "event_reminder", event_id: eventId },
+    body: starts,
+    data,
+  });
+  // People who were only "interested" get a nudge to make up their mind.
+  await pushTo(deps, guests.filter((g) => g.status === "interested").map((g) => g.user_id), "push_reminders", {
+    title: event.title,
+    body: `Still thinking about it? ${starts}`,
+    data,
   });
 }
 
@@ -371,6 +406,33 @@ async function processComment(deps: WorkerDeps, commentId: string): Promise<void
     title: `${nameOf(c)} commented`,
     body: preview(c.body),
     data: { type: "comment", post_id: c.post_id },
+  });
+}
+
+/**
+ * Tells people they were tagged, once the post is visible. Each tag is pushed
+ * at most once (notified_at), whichever of processPost and the post.tagged
+ * event gets there first.
+ */
+async function notifyTags(deps: WorkerDeps, postId: string): Promise<void> {
+  const [post] = await deps.db<{ author_id: string; display_name: string | null; username: string | null }[]>`
+    select p.author_id, a.display_name, a.username
+    from public.posts p join public.profiles a on a.id = p.author_id
+    where p.id = ${postId} and p.status = 'visible'
+  `;
+  if (!post) return;
+  const tagged = await deps.db<{ user_id: string }[]>`
+    update public.post_tags t set notified_at = now()
+    where t.post_id = ${postId} and t.notified_at is null
+      and not exists (select 1 from public.blocks b
+                      where (b.blocker_id = t.user_id and b.blocked_id = ${post.author_id})
+                         or (b.blocker_id = ${post.author_id} and b.blocked_id = t.user_id))
+    returning t.user_id
+  `;
+  await pushTo(deps, tagged.map((t) => t.user_id), "push_comments", {
+    title: `${nameOf(post)} tagged you`,
+    body: "in a photo",
+    data: { type: "tag", post_id: postId },
   });
 }
 

@@ -214,3 +214,54 @@ describe("a party's photos", () => {
     expect((await ctx.as(viewer, { method: "GET", url: `/events/${draft.json().id}/posts` })).statusCode).toBe(404);
   });
 });
+
+describe("photo tags", () => {
+  type Tagged = { tags: { id: string }[] };
+  const tagsOf = async (userId: string, postId: string) =>
+    ((await ctx.as(userId, { method: "GET", url: `/posts/${postId}` })).json() as Tagged).tags.map((t) => t.id);
+
+  it("tags people when posting, skipping yourself and people blocked either way", async () => {
+    const alice = await ctx.createUser();
+    const bob = await ctx.createUser();
+    const carol = await ctx.createUser();
+    const dave = await ctx.createUser();
+    await ctx.as(dave, { method: "PUT", url: `/users/${alice}/block` });
+    const created = await createPost(alice, { tag_ids: [bob, alice, carol, dave, crypto.randomUUID()] });
+    expect((created as unknown as Tagged).tags.map((t) => t.id)).toEqual([bob, carol]);
+    await approve(created.id);
+    expect(await tagsOf(bob, created.id)).toEqual([bob, carol]);
+    // Someone who blocked Carol doesn't see her tag.
+    const erin = await ctx.createUser();
+    await ctx.as(erin, { method: "PUT", url: `/users/${carol}/block` });
+    expect(await tagsOf(erin, created.id)).toEqual([bob]);
+  });
+
+  it("lets the author change tags and anyone tagged take themselves off", async () => {
+    const alice = await ctx.createUser();
+    const bob = await ctx.createUser();
+    const carol = await ctx.createUser();
+    const post = await createPost(alice, { tag_ids: [bob] });
+    await approve(post.id);
+
+    expect((await ctx.as(bob, { method: "PUT", url: `/posts/${post.id}/tags`, payload: { user_ids: [bob, carol] } })).statusCode)
+      .toBe(404);
+    const changed = await ctx.as(alice, { method: "PUT", url: `/posts/${post.id}/tags`, payload: { user_ids: [carol] } });
+    expect(changed.statusCode, changed.body).toBe(200);
+    expect((changed.json() as Tagged).tags.map((t) => t.id)).toEqual([carol]);
+
+    expect((await ctx.as(carol, { method: "DELETE", url: `/posts/${post.id}/tags/me` })).statusCode).toBe(204);
+    expect(await tagsOf(alice, post.id)).toEqual([]);
+  });
+
+  it("shows up in the tagged person's notifications once the post is visible", async () => {
+    const alice = await ctx.createUser();
+    const bob = await ctx.createUser();
+    const post = await createPost(alice, { tag_ids: [bob] });
+    const types = async () =>
+      ((await ctx.as(bob, { method: "GET", url: "/notifications" })).json() as { notifications: { type: string; post_id: string }[] })
+        .notifications.map((n) => [n.type, n.post_id]);
+    expect(await types()).toEqual([]);
+    await approve(post.id);
+    expect(await types()).toEqual([["tag", post.id]]);
+  });
+});

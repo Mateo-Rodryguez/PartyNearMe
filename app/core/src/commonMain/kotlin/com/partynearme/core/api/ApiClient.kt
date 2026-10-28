@@ -12,8 +12,10 @@ import com.partynearme.core.model.Event
 import com.partynearme.core.model.EventList
 import com.partynearme.core.model.EventPage
 import com.partynearme.core.model.EventUpdate
+import com.partynearme.core.model.GuestList
 import com.partynearme.core.model.Interaction
 import com.partynearme.core.model.Interest
+import com.partynearme.core.model.InviteResult
 import com.partynearme.core.model.ListedPerson
 import com.partynearme.core.model.Message
 import com.partynearme.core.model.MessagePage
@@ -99,6 +101,11 @@ class ApiClient(
     /** An empty [caption] removes it. The server checks the new words, so a post can be hidden afterwards. */
     suspend fun updateCaption(id: String, caption: String): Post =
         call(HttpMethod.Patch, "/posts/${id.path()}") { json(CaptionBody(caption)) }
+    /** Sets everyone tagged on your post; people left out are untagged. */
+    suspend fun setTags(id: String, userIds: List<String>): Post =
+        call(HttpMethod.Put, "/posts/${id.path()}/tags") { json(TagBody(userIds)) }
+    /** Takes you off someone else's post. */
+    suspend fun untagMe(id: String) = callUnit(HttpMethod.Delete, "/posts/${id.path()}/tags/me")
     suspend fun like(id: String) = callUnit(HttpMethod.Put, "/posts/${id.path()}/like")
     suspend fun unlike(id: String) = callUnit(HttpMethod.Delete, "/posts/${id.path()}/like")
     suspend fun savePost(id: String, saved: Boolean) =
@@ -119,9 +126,19 @@ class ApiClient(
 
     // Events
 
-    suspend fun nearbyEvents(lat: Double, lng: Double, radiusKm: Double = 10.0, cursor: String? = null): EventPage =
+    /** [from] and [to] are ISO-8601 times (default: now to two weeks ahead); [interestId] picks one kind of party. */
+    suspend fun nearbyEvents(
+        lat: Double,
+        lng: Double,
+        radiusKm: Double = 10.0,
+        cursor: String? = null,
+        from: String? = null,
+        to: String? = null,
+        interestId: Int? = null,
+    ): EventPage =
         call(HttpMethod.Get, "/events/nearby") {
             parameter("lat", lat); parameter("lng", lng); parameter("radius_km", radiusKm); parameter("cursor", cursor)
+            parameter("from", from); parameter("to", to); parameter("interest_id", interestId)
         }
 
     suspend fun myEvents(organising: Boolean): List<Event> =
@@ -135,6 +152,19 @@ class ApiClient(
     /** Organiser only. Cancelling tells guests with a push. */
     suspend fun updateEvent(id: String, update: EventUpdate): Event =
         call(HttpMethod.Patch, "/events/${id.path()}") { json(update) }
+    /** Takes the party's kind off. Sent on its own so the null reaches the server. */
+    suspend fun clearEventKind(id: String): Event =
+        call(HttpMethod.Patch, "/events/${id.path()}") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"interest_id":null}""")
+        }
+    /** Who asked to come and who's going, for the host of a private party. */
+    suspend fun guests(id: String): GuestList = call(HttpMethod.Get, "/events/${id.path()}/guests")
+    suspend fun approveGuest(id: String, userId: String) =
+        callUnit(HttpMethod.Post, "/events/${id.path()}/guests/${userId.path()}/approve")
+    /** Declines a request, or takes someone off the guest list. */
+    suspend fun removeGuest(id: String, userId: String) =
+        callUnit(HttpMethod.Delete, "/events/${id.path()}/guests/${userId.path()}")
     suspend fun deleteEvent(id: String) = callUnit(HttpMethod.Delete, "/events/${id.path()}")
     suspend fun saveEvent(id: String, saved: Boolean) =
         callUnit(if (saved) HttpMethod.Put else HttpMethod.Delete, "/events/${id.path()}/save")
@@ -219,6 +249,9 @@ class ApiClient(
     suspend fun send(conversationId: String, body: String): Message =
         call(HttpMethod.Post, "/conversations/${conversationId.path()}/messages") { json(SendBody(body)) }
 
+    /** Sends a party invite to each person as a chat message; returns how many went. */
+    suspend fun invite(eventId: String, userIds: List<String>): InviteResult =
+        call(HttpMethod.Post, "/events/${eventId.path()}/invites") { json(InviteBody(userIds)) }
     suspend fun markRead(conversationId: String) =
         callUnit(HttpMethod.Post, "/conversations/${conversationId.path()}/read")
 
@@ -292,6 +325,8 @@ class ApiClient(
     @Serializable private data class StartConversation(@SerialName("user_id") val userId: String)
     @Serializable private data class UnreadCount(@SerialName("unread_count") val unreadCount: Int)
     @Serializable private data class SendBody(val body: String)
+    @Serializable private data class TagBody(@SerialName("user_ids") val userIds: List<String>)
+    @Serializable private data class InviteBody(@SerialName("user_ids") val userIds: List<String>)
     @Serializable private data class DeviceBody(val platform: String)
     @Serializable private data class ModerationBody(
         @SerialName("target_type") val targetType: String,

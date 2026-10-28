@@ -16,6 +16,8 @@ data class LocalPrefs(
     val radiusKm: Int = 25,
     /** Hides like counts on other people's posts, as Instagram allows. */
     val hideLikeCounts: Boolean = false,
+    /** Sends anonymous usage counts (see Analytics); people can turn it off in settings. */
+    val shareUsage: Boolean = true,
 ) {
     companion object {
         val RADIUS_CHOICES = listOf(5, 10, 25, 50)
@@ -36,6 +38,7 @@ class Preferences(private val settings: Settings? = null) {
             putBoolean(MILES, next.miles)
             putInt(RADIUS, next.radiusKm)
             putBoolean(HIDE_LIKES, next.hideLikeCounts)
+            putBoolean(SHARE_USAGE, next.shareUsage)
         }
     }
 
@@ -47,6 +50,7 @@ class Preferences(private val settings: Settings? = null) {
             miles = s.getBoolean(MILES, defaults.miles),
             radiusKm = s.getInt(RADIUS, defaults.radiusKm).takeIf { it in LocalPrefs.RADIUS_CHOICES } ?: defaults.radiusKm,
             hideLikeCounts = s.getBoolean(HIDE_LIKES, defaults.hideLikeCounts),
+            shareUsage = s.getBoolean(SHARE_USAGE, defaults.shareUsage),
         )
     }
 
@@ -55,5 +59,6 @@ class Preferences(private val settings: Settings? = null) {
         const val MILES = "pref_miles"
         const val RADIUS = "pref_radius_km"
         const val HIDE_LIKES = "pref_hide_like_counts"
+        const val SHARE_USAGE = "pref_share_usage"
     }
 }

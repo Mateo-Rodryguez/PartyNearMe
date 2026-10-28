@@ -19,10 +19,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,6 +46,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -61,6 +67,7 @@ import com.partynearme.ui.clockTime
 import com.partynearme.ui.dayLabel
 import com.partynearme.ui.distance
 import com.partynearme.ui.eventTime
+import com.partynearme.ui.shareParty
 import com.partynearme.ui.userMessage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -97,7 +104,7 @@ fun EventScreen(ui: Ui, id: String) {
         busy = true
         scope.launch {
             attempt { ui.api.rsvp(id, status) }
-                .onSuccess { event = it }
+                .onSuccess { event = it; ui.track("rsvp", "status" to (status ?: "none")) }
                 .onFailure { ui.toast(it.userMessage) }
             busy = false
         }
@@ -114,6 +121,7 @@ fun EventScreen(ui: Ui, id: String) {
         return
     }
     val mine = e.organiser.id == ui.myId
+    val uriHandler = LocalUriHandler.current
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             // The cover fills the top of the page, with the title on it, like a poster.
@@ -137,6 +145,10 @@ fun EventScreen(ui: Ui, id: String) {
                         }
                     }
                     Spacer(Modifier.width(8.dp))
+                    if (e.status == "published") {
+                        RoundIconButton(Icons.Filled.Share, "Share party", onPhoto = true) { shareParty(ui, scope, e) }
+                        Spacer(Modifier.width(8.dp))
+                    }
                     Box {
                         RoundIconButton(Icons.Filled.MoreVert, "More", onPhoto = true) { menu = true }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
@@ -170,10 +182,13 @@ fun EventScreen(ui: Ui, id: String) {
                     }
                 }
                 Column(Modifier.align(Alignment.BottomStart).padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (e.status == "cancelled") {
-                        Pill("Cancelled", dark = true)
-                    } else {
-                        Pill(dayLabel(e.startsAt), brand = true)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (e.status == "cancelled") {
+                            Pill("Cancelled", dark = true)
+                        } else {
+                            Pill(dayLabel(e.startsAt), brand = true)
+                        }
+                        if (e.isPrivate) Pill("Private", icon = Icons.Filled.Lock, dark = true)
                     }
                     Text(e.title, style = MaterialTheme.typography.headlineMedium, color = Color.White)
                 }
@@ -185,9 +200,16 @@ fun EventScreen(ui: Ui, id: String) {
                     detail = eventTime(e.startsAt),
                 )
                 InfoRow(
-                    Icons.Filled.Place,
-                    e.venueName ?: "Pinned on the map",
-                    detail = distance(e.distanceM, LocalAppPrefs.current.miles).ifEmpty { null },
+                    if (e.detailsHidden) Icons.Filled.Lock else Icons.Filled.Place,
+                    when {
+                        e.detailsHidden -> "Private party"
+                        else -> e.venueName ?: "Pinned on the map"
+                    },
+                    detail = if (e.detailsHidden) {
+                        "The address shows once the host lets you in"
+                    } else {
+                        distance(e.distanceM, LocalAppPrefs.current.miles).ifEmpty { null }
+                    },
                 )
                 Row(
                     Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
@@ -201,6 +223,29 @@ fun EventScreen(ui: Ui, id: String) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                FriendsGoing(e, Modifier.padding(vertical = 4.dp))
+                e.ticketUrl?.let { url ->
+                    PrimaryButton("Get tickets", { uriHandler.openUri(url) }, Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        icon = Icons.Filled.ShoppingCart)
+                }
+                if (mine && e.isPrivate) {
+                    SecondaryButton(
+                        if (e.requestedCount > 0) "Guest list · ${e.requestedCount} waiting" else "Guest list",
+                        { ui.nav.open(Route.Guests(e.id, e.title)) },
+                        Modifier.padding(vertical = 4.dp),
+                        icon = Icons.Filled.Person,
+                    )
+                }
+                Row(Modifier.padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (e.status == "published") {
+                        SecondaryButton("Invite friends", { ui.nav.open(Route.Invite(e.id, e.title)) },
+                            icon = Icons.AutoMirrored.Filled.Send)
+                    }
+                    // The host and everyone going share a group chat.
+                    e.chatId?.let { chat ->
+                        SecondaryButton("Party chat", { ui.nav.open(Route.Chat(chat, e.title)) }, icon = PartyIcons.ChatBubbleOutline)
+                    }
                 }
                 if (e.status == "cancelled") {
                     Text("This party was cancelled.", color = MaterialTheme.colorScheme.error,
@@ -220,7 +265,7 @@ fun EventScreen(ui: Ui, id: String) {
             Spacer(Modifier.height(if (e.status == "published") 96.dp else 16.dp))
         }
         if (e.status == "published") {
-            RsvpBar(e, busy, Modifier.align(Alignment.BottomCenter), ::rsvp)
+            RsvpBar(e, mine, busy, Modifier.align(Alignment.BottomCenter), ::rsvp)
         }
     }
     if (reporting) ReportDialog(ui, ReportTarget.Event, id) { reporting = false }
@@ -283,7 +328,7 @@ private fun HostActionDialog(action: HostAction, e: Event, onDismiss: () -> Unit
 
 /** Going and Interested, pinned to the bottom so they're always in reach. */
 @Composable
-private fun RsvpBar(e: Event, busy: Boolean, modifier: Modifier, rsvp: (String?) -> Unit) {
+private fun RsvpBar(e: Event, mine: Boolean, busy: Boolean, modifier: Modifier, rsvp: (String?) -> Unit) {
     Row(
         modifier.fillMaxWidth()
             .background(Brush.verticalGradient(listOf(Color.Transparent, MaterialTheme.colorScheme.background)))
@@ -292,6 +337,11 @@ private fun RsvpBar(e: Event, busy: Boolean, modifier: Modifier, rsvp: (String?)
     ) {
         if (e.myRsvp == "going") {
             SecondaryButton("You're going", { rsvp(null) }, Modifier.weight(1f).height(52.dp), enabled = !busy, icon = Icons.Filled.Check)
+        } else if (e.myRsvp == "requested") {
+            // Tapping again withdraws the request.
+            SecondaryButton("Asked the host", { rsvp(null) }, Modifier.weight(1f).height(52.dp), enabled = !busy, icon = Icons.Filled.Check)
+        } else if (e.isPrivate && !mine) {
+            PrimaryButton("Ask to join", { rsvp("going") }, Modifier.weight(1f), busy = busy)
         } else {
             PrimaryButton("I'm going", { rsvp("going") }, Modifier.weight(1f), busy = busy)
         }

@@ -8,4 +8,20 @@ data class AppConfig(
     val supabaseUrl: String,
     /** Supabase's publishable (anon) key, which is safe to embed. */
     val supabaseKey: String,
-)
+    /** PostHog's project key (public, write-only). Null turns analytics off. */
+    val posthogKey: String? = null,
+    val posthogHost: String = "https://eu.i.posthog.com",
+) {
+    /** Links starting with this open the app: browser sign-in coming back, and shared parties and posts. */
+    val appScheme: String get() = "partynearme"
+
+    /** Where browser sign-in (Google, later Apple) returns to. Supabase must allow it under Redirect URLs. */
+    val authCallback: String get() = "$appScheme://auth-callback"
+
+    /** The web page the password reset email leads to. */
+    val resetPasswordPage: String get() = "$apiBaseUrl/reset-password"
+
+    /** Share links: public pages with a preview and an "Open in PartyNearMe" button. */
+    fun partyLink(id: String): String = "$apiBaseUrl/e/$id"
+    fun postLink(id: String): String = "$apiBaseUrl/p/$id"
+}

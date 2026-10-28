@@ -31,6 +31,15 @@ interface Platform {
     @Composable
     fun rememberPushTokenProvider(): suspend () -> String?
 
+    /**
+     * Shows a sign-in page in an in-app browser and waits for it to send the browser to
+     * a [callbackScheme]:// address, which it returns. Null if the user closed the page.
+     */
+    suspend fun openSignIn(url: String, callbackScheme: String): String?
+
+    /** Opens the phone's share sheet with [text] and a link. */
+    fun share(text: String, url: String) {}
+
     /** The platform name the server expects with a push token: "android" or "ios". */
     val pushPlatform: String
 }

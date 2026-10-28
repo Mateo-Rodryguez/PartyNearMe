@@ -148,8 +148,19 @@ data class Post(
     @SerialName("liked_by_me") val likedByMe: Boolean,
     @SerialName("saved_by_me") val savedByMe: Boolean = false,
     val media: List<Media> = emptyList(),
+    /** People tagged in the photos. */
+    val tags: List<TaggedPerson> = emptyList(),
     @SerialName("created_at") val createdAt: String,
 )
+
+@Serializable
+data class TaggedPerson(
+    val id: String,
+    val username: String? = null,
+    @SerialName("display_name") val displayName: String? = null,
+) {
+    val name: String get() = displayName ?: username?.let { "@$it" } ?: "Someone"
+}
 
 @Serializable
 data class PostPage(val posts: List<Post>, @SerialName("next_cursor") val nextCursor: String? = null)
@@ -166,11 +177,26 @@ data class Event(
     val lat: Double,
     val lng: Double,
     @SerialName("cover_url") val coverUrl: String? = null,
+    /** The kind of party, one of the interests; null when the host didn't pick one. */
+    @SerialName("interest_id") val interestId: Int? = null,
     val status: String,
     @SerialName("going_count") val goingCount: Int,
     @SerialName("interested_count") val interestedCount: Int,
+    /** "going", "interested", or "requested" while a private party's host hasn't answered. */
     @SerialName("my_rsvp") val myRsvp: String? = null,
+    /** Off Nearby; the venue shows only to the host and approved guests. */
+    @SerialName("is_private") val isPrivate: Boolean = false,
+    /** You can't see the venue yet; lat and lng are only the rough area. */
+    @SerialName("details_hidden") val detailsHidden: Boolean = false,
+    /** Requests waiting for your answer, on your own private party. */
+    @SerialName("requested_count") val requestedCount: Int = 0,
+    @SerialName("ticket_url") val ticketUrl: String? = null,
     @SerialName("saved_by_me") val savedByMe: Boolean = false,
+    /** Up to three people the user follows who are going. */
+    @SerialName("friends_going") val friendsGoing: List<Person> = emptyList(),
+    @SerialName("friends_going_count") val friendsGoingCount: Int = 0,
+    /** The party's group chat, when you're in it (the host and people going). */
+    @SerialName("chat_id") val chatId: String? = null,
     @SerialName("created_at") val createdAt: String,
     @SerialName("distance_m") val distanceM: Int? = null,
 )
@@ -188,6 +214,9 @@ data class NewEvent(
     @SerialName("starts_at") val startsAt: String,
     @SerialName("ends_at") val endsAt: String? = null,
     @SerialName("venue_name") val venueName: String? = null,
+    @SerialName("interest_id") val interestId: Int? = null,
+    @SerialName("is_private") val isPrivate: Boolean = false,
+    @SerialName("ticket_url") val ticketUrl: String? = null,
     val lat: Double,
     val lng: Double,
     val publish: Boolean = true,
@@ -204,6 +233,10 @@ data class EventUpdate(
     @SerialName("starts_at") val startsAt: String? = null,
     @SerialName("ends_at") val endsAt: String? = null,
     @SerialName("venue_name") val venueName: String? = null,
+    @SerialName("interest_id") val interestId: Int? = null,
+    @SerialName("is_private") val isPrivate: Boolean? = null,
+    /** An empty string removes the link. */
+    @SerialName("ticket_url") val ticketUrl: String? = null,
     val lat: Double? = null,
     val lng: Double? = null,
     /** "published" or "cancelled". */
@@ -242,6 +275,7 @@ data class NewPost(
     val lat: Double? = null,
     val lng: Double? = null,
     @SerialName("place_name") val placeName: String? = null,
+    @SerialName("tag_ids") val tagIds: List<String>? = null,
 )
 
 @Serializable
@@ -251,16 +285,36 @@ data class Message(
     @SerialName("sender_id") val senderId: String,
     val body: String,
     @SerialName("created_at") val createdAt: String,
+    /** Set on a party invite: the party the message is about. */
+    @SerialName("event_id") val eventId: String? = null,
 )
+
+/** How a batch of party invites went: people who can't be messaged are skipped. */
+@Serializable
+data class InviteResult(val sent: Int, val skipped: Int)
 
 @Serializable
 data class Conversation(
     val id: String,
+    /** The other person in a one-to-one chat; null in a party's group chat. */
     val other: Person? = null,
+    /** Set for a party's group chat. */
+    val party: ChatParty? = null,
+    /** Everyone in a party chat, for names on messages; empty in one-to-one chats. */
+    val members: List<Person> = emptyList(),
+    /** People you blocked in this party chat: their messages stay hidden. */
+    @SerialName("hidden_sender_ids") val hiddenSenderIds: List<String> = emptyList(),
     @SerialName("last_message") val lastMessage: Message? = null,
     @SerialName("unread_count") val unreadCount: Int,
     @SerialName("last_message_at") val lastMessageAt: String? = null,
 )
+
+/** A private party's guest list, for its host. */
+@Serializable
+data class GuestList(val requested: List<Person>, val going: List<Person>)
+
+@Serializable
+data class ChatParty(val id: String, val title: String, @SerialName("cover_url") val coverUrl: String? = null)
 
 @Serializable
 data class ConversationPage(
@@ -275,7 +329,7 @@ data class MessagePage(val messages: List<Message>, @SerialName("has_more") val 
 @Serializable
 data class Notification(
     val id: String,
-    /** "like", "comment", "follow", "rsvp" or "reminder"; unknown types are skipped by the app. */
+    /** "like", "comment", "tag", "follow", "rsvp" or "reminder"; unknown types are skipped by the app. */
     val type: String,
     val actor: Person? = null,
     /** What they wrote, for comments. */

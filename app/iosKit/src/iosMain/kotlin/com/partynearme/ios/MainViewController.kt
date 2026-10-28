@@ -10,6 +10,7 @@ import com.partynearme.core.prefs.ThemeMode
 import com.partynearme.demo.Demo
 import com.partynearme.ui.App
 import com.partynearme.ui.Navigator
+import com.partynearme.ui.openLink
 import com.russhwolf.settings.NSUserDefaultsSettings
 import io.ktor.client.engine.darwin.Darwin
 import kotlinx.coroutines.MainScope
@@ -27,6 +28,8 @@ private val CONFIG = AppConfig(
     apiBaseUrl = "https://partynearme-api.onrender.com",
     supabaseUrl = "https://vvkckzrhzgdrazhjitse.supabase.co",
     supabaseKey = "sb_publishable_lU8CqYjRgUy5kr9Y8QbBNQ_NiPtoCil",
+    // Usage stats stay off until the PostHog project key goes here (docs/deploy.md).
+    posthogKey = null,
 )
 
 /** Called once by the Swift app to get the whole UI. */
@@ -37,17 +40,18 @@ fun MainViewController(): UIViewController {
     val core = demo?.core ?: NSUserDefaultsSettings(defaults).let { settings ->
         PartyNearMe(
             CONFIG, SettingsSessionStore(settings), Darwin.create(),
-            feedCache = SettingsFeedCache(settings), preferences = Preferences(settings),
+            feedCache = SettingsFeedCache(settings), preferences = Preferences(settings), platform = "ios",
         )
     }
     val platform = demo?.platform ?: IosPlatform()
     val nav = demo?.navigator ?: Navigator()
+    navigator = nav
 
     // Send what the user looked at before the app goes to the background.
     val scope = MainScope()
     NSNotificationCenter.defaultCenter.addObserverForName(
         UIApplicationDidEnterBackgroundNotification, null, NSOperationQueue.mainQueue,
-    ) { _ -> scope.launch { core.interactions.flush() } }
+    ) { _ -> scope.launch { core.interactions.flush(); core.analytics.flush() } }
 
     val controller = ComposeUIViewController { App(core, platform, nav) }
     // A theme picked in settings overrides the phone's, so the status bar matches the app.
@@ -61,6 +65,14 @@ fun MainViewController(): UIViewController {
         }
     }
     return controller
+}
+
+private var navigator: Navigator? = null
+
+/** Called by the Swift app when a partynearme:// link opens it: a shared party or post. */
+@Suppress("unused")
+fun openLink(url: String) {
+    navigator?.openLink(url)
 }
 
 /**

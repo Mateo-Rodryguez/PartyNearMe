@@ -78,8 +78,10 @@ import com.partynearme.ui.screens.EmptyState
 import com.partynearme.ui.screens.EventScreen
 import com.partynearme.ui.screens.FeedScreen
 import com.partynearme.ui.screens.FeedState
+import com.partynearme.ui.screens.GuestListScreen
 import com.partynearme.ui.screens.InboxScreen
 import com.partynearme.ui.screens.InboxState
+import com.partynearme.ui.screens.InviteScreen
 import com.partynearme.ui.screens.MeScreen
 import com.partynearme.ui.screens.ModerationScreen
 import com.partynearme.ui.screens.NearbyScreen
@@ -87,6 +89,7 @@ import com.partynearme.ui.screens.NearbyState
 import com.partynearme.ui.screens.NewEventScreen
 import com.partynearme.ui.screens.NewPostScreen
 import com.partynearme.ui.screens.NotificationsScreen
+import com.partynearme.ui.screens.OnboardingScreen
 import com.partynearme.ui.screens.PeopleScreen
 import com.partynearme.ui.screens.PartyRef
 import com.partynearme.ui.screens.PostScreen
@@ -96,6 +99,7 @@ import com.partynearme.ui.screens.SearchScreen
 import com.partynearme.ui.screens.SettingsScreen
 import com.partynearme.ui.screens.SignInScreen
 import com.partynearme.ui.screens.UserScreen
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -106,9 +110,15 @@ class Ui(
     val myId: String,
     val location: LocationProvider,
     val platform: Platform,
+    private val scope: CoroutineScope,
     val toast: (String) -> Unit,
 ) {
     val api get() = app.api
+
+    /** Counts a feature being used (see Analytics); does nothing when usage stats are off. */
+    fun track(event: String, vararg properties: Pair<String, Any?>) {
+        scope.launch { app.analytics.capture(event, properties.toMap()) }
+    }
     /** Choices kept on this phone: theme, units, radius, like counts. */
     val prefs get() = app.preferences
 
@@ -145,7 +155,7 @@ private fun AppContent(app: PartyNearMe, platform: Platform, navigator: Navigato
         val userId = session?.userId
         if (userId == null) {
             LaunchedEffect(Unit) { navigator.reset() }
-            SignInScreen(app)
+            SignInScreen(app, platform)
         } else {
             key(userId) { SignedIn(app, platform, navigator, userId) }
         }
@@ -157,6 +167,9 @@ private fun SignedIn(app: PartyNearMe, platform: Platform, nav: Navigator, userI
     var me by remember { mutableStateOf<OwnProfile?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var attemptNo by remember { mutableIntStateOf(0) }
+    // New accounts go through interests and location once, right after the username.
+    var onboarding by remember { mutableStateOf(false) }
+    var firstRun by remember { mutableStateOf(false) }
     LaunchedEffect(attemptNo) {
         error = null
         attempt { app.api.me() }.onSuccess { me = it }.onFailure { error = it.userMessage }
@@ -170,23 +183,26 @@ private fun SignedIn(app: PartyNearMe, platform: Platform, nav: Navigator, userI
             Wordmark()
             CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
         }
-        profile.username == null -> ProfileSetupScreen(app, profile) { me = it }
-        else -> Main(app, platform, nav, userId)
+        profile.username == null -> ProfileSetupScreen(app, profile) { me = it; onboarding = true }
+        onboarding -> OnboardingScreen(app, platform) { onboarding = false; firstRun = true }
+        else -> Main(app, platform, nav, userId, firstRun)
     }
 }
 
 @Composable
-private fun Main(app: PartyNearMe, platform: Platform, nav: Navigator, userId: String) {
+private fun Main(app: PartyNearMe, platform: Platform, nav: Navigator, userId: String, firstRun: Boolean) {
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
     val location = platform.rememberLocationProvider()
     val pushToken = platform.rememberPushTokenProvider()
     // Ask for notifications once the account is set up, then tell the server where to send them.
     LaunchedEffect(userId) {
+        app.analytics.identify(userId)
+        app.analytics.capture("app_opened", mapOf("first_run" to firstRun))
         pushToken()?.let { token -> attempt { app.registerForPush(token, platform.pushPlatform) } }
     }
     val ui = remember(location) {
-        Ui(app, nav, userId, location, platform) { text -> scope.launch { snackbar.showSnackbar(text) } }
+        Ui(app, nav, userId, location, platform, scope) { text -> scope.launch { snackbar.showSnackbar(text) } }
     }
     // Lists keep their place while you open something on top of them.
     val feed = remember { FeedState(ui, scope) }
@@ -232,6 +248,8 @@ private fun Main(app: PartyNearMe, platform: Platform, nav: Navigator, userId: S
                 is Route.People -> PeopleScreen(ui, route.userId, route.followers, route.title)
                 Route.Saved -> SavedScreen(ui)
                 Route.Blocked -> BlockedScreen(ui)
+                is Route.Invite -> InviteScreen(ui, route.eventId, route.eventTitle)
+                is Route.Guests -> GuestListScreen(ui, route.eventId, route.eventTitle)
                 null -> when (nav.tab) {
                     Tab.Feed -> FeedScreen(ui, feed, nearby)
                     Tab.Nearby -> NearbyScreen(ui, nearby)

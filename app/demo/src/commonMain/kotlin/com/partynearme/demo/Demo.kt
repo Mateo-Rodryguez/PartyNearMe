@@ -50,6 +50,8 @@ object Demo {
             "post" -> nav.select(Tab.Post)
             "inbox" -> nav.select(Tab.Chat)
             "chat" -> { nav.select(Tab.Chat); nav.open(Route.Chat("c1", "@sam")) }
+            "guests" -> { nav.select(Tab.Nearby); nav.open(Route.Guests("e1", "Rooftop Sunset Party")) }
+            "party-chat" -> { nav.select(Tab.Chat); nav.open(Route.Chat("c3", "Rooftop Sunset Party")) }
             "profile" -> nav.select(Tab.Me)
             "user" -> nav.open(Route.User(SAM))
             "notifications" -> nav.open(Route.Notifications)
@@ -61,6 +63,7 @@ object Demo {
             "saved" -> { nav.select(Tab.Me); nav.open(Route.Saved) }
             "comments" -> nav.open(Route.Comments("p1"))
             "edit-party" -> { nav.select(Tab.Nearby); nav.open(Route.EditEvent("e1")) }
+            "invite" -> { nav.select(Tab.Nearby); nav.open(Route.Invite("e1", "Rooftop Sunset Party")) }
         }
         return DemoSetup(core, DemoPlatform, nav)
     }
@@ -78,6 +81,8 @@ private object DemoPlatform : Platform {
 
     @Composable
     override fun rememberPushTokenProvider(): suspend () -> String? = { null }
+
+    override suspend fun openSignIn(url: String, callbackScheme: String): String? = null
 
     override val pushPlatform = "android"
 }
@@ -119,16 +124,19 @@ private object FakeApi {
 
     private fun post(id: String, author: String, caption: String, likes: Int, liked: Boolean, age: Duration, media: String,
                      place: String? = null, status: String = "visible", party: Pair<String, String>? = null,
-                     saved: Boolean = false, comments: Int = 0) =
+                     saved: Boolean = false, comments: Int = 0, tags: String = "") =
         """{"id":"$id","author":$author,"event_id":${party?.let { "\"${it.first}\"" }},
            "event_title":${party?.let { "\"${it.second}\"" }},"caption":"$caption",
            "place_name":${place?.let { "\"$it\"" }},"lat":null,"lng":null,"status":"$status","like_count":$likes,
-           "comment_count":$comments,"liked_by_me":$liked,"saved_by_me":$saved,"media":[$media],"created_at":"${ago(age)}"}"""
+           "comment_count":$comments,"liked_by_me":$liked,"saved_by_me":$saved,"media":[$media],"tags":[$tags],
+           "created_at":"${ago(age)}"}"""
 
     private val feedPosts get() = listOf(
         post("p1", sam, "Best night of the summer", 128, true, 42.minutes,
             listOf(photo("party1", 1080, 1350), photo("party4", 1080, 1350), photo("party5", 1080, 1350)).joinToString(","),
-            "Fabric, London", party = "e1" to "Rooftop Sunset Party", saved = true, comments = 3),
+            "Fabric, London", party = "e1" to "Rooftop Sunset Party", saved = true, comments = 3,
+            tags = """{"id":"$ME","username":"mateo","display_name":"Mateo"},
+                {"id":"$ALEX","username":"alex","display_name":"Alex Chen"}"""),
         post("p2", alex, "Warming up for Saturday", 37, false, 5.hours, photo("party2", 1080, 1080)),
         post("p3", sam, "Sunset session on the roof", 412, false, 2.days, photo("party3", 1350, 1080), "Shoreditch"),
     ).joinToString(",")
@@ -147,22 +155,26 @@ private object FakeApi {
     ).joinToString(",")
 
     private fun event(id: String, title: String, venue: String, starts: Duration, going: Int, interested: Int,
-                      mine: String?, distance: Int, cover: String?, saved: Boolean = false) =
+                      mine: String?, distance: Int, cover: String?, saved: Boolean = false,
+                      friends: List<String> = emptyList(), friendCount: Int = friends.size) =
         """{"id":"$id","organiser":$sam,"title":"$title","description":"Bring your friends. Doors at 9, music until late.",
            "starts_at":"${ahead(starts)}","ends_at":"${ahead(starts + 5.hours)}","venue_name":"$venue",
            "lat":51.51,"lng":-0.13,"cover_url":${cover?.let { "\"https://picsum.photos/seed/$it/1280/800\"" }},"status":"published","going_count":$going,
            "interested_count":$interested,"my_rsvp":${mine?.let { "\"$it\"" }},"saved_by_me":$saved,"created_at":"${ago(2.days)}",
-           "distance_m":$distance}"""
+           "friends_going":[${friends.joinToString(",")}],"friends_going_count":$friendCount,"distance_m":$distance,
+           "chat_id":${if (mine == "going") "\"c3\"" else "null"}}"""
 
     private val events get() = listOf(
-        event("e1", "Rooftop Sunset Party", "Skyline Bar", 6.hours, 42, 17, "going", 650, cover = "rooftop"),
+        event("e1", "Rooftop Sunset Party", "Skyline Bar", 6.hours, 42, 17, "going", 650, cover = "rooftop",
+            friends = listOf(alex), friendCount = 3),
         event("e2", "House Night", "Warehouse 9", 1.days + 3.hours, 120, 48, null, 2300, cover = "house-night", saved = true),
         // No cover: shows the gradient parties get until their host adds a photo.
         event("e3", "Student Mixer", "Union Hall", 3.days, 18, 30, "interested", 4100, cover = null),
     )
 
-    private fun message(id: Int, from: String, body: String, age: Duration) =
-        """{"id":"$id","conversation_id":"c1","sender_id":"$from","body":"$body","created_at":"${ago(age)}"}"""
+    private fun message(id: Int, from: String, body: String, age: Duration, event: String? = null) =
+        """{"id":"$id","conversation_id":"c1","sender_id":"$from","body":"$body","created_at":"${ago(age)}",
+           "event_id":${event?.let { "\"$it\"" }}}"""
 
     private val messages get() = listOf(
         message(105, SAM, "See you there!", 2.minutes),
@@ -170,10 +182,17 @@ private object FakeApi {
         message(103, SAM, "Doors at 9, let's meet at 8:45", 7.minutes),
         message(102, ME, "Yes! What time?", 12.minutes),
         message(101, SAM, "Are you coming to the rooftop party tonight?", 20.minutes),
+        message(100, SAM, "You're invited to Rooftop Sunset Party", 21.minutes, event = "e1"),
     ).joinToString(",")
 
+    private val partyChat get() =
+        """{"id":"c3","other":null,"party":{"id":"e1","title":"Rooftop Sunset Party",
+            "cover_url":"https://picsum.photos/seed/rooftop/150/150"},"members":[$sam,$alex,$mateo],"hidden_sender_ids":[],
+            "last_message":{"id":"120","conversation_id":"c3","sender_id":"$ALEX","body":"Who's bringing speakers?",
+            "created_at":"${ago(1.minutes)}"},"unread_count":2,"last_message_at":"${ago(1.minutes)}"}"""
+
     private val conversations get() =
-        """{"conversations":[
+        """{"conversations":[$partyChat,
            {"id":"c1","other":$sam,"last_message":${message(105, SAM, "See you there!", 2.minutes)},
             "unread_count":1,"last_message_at":"${ago(2.minutes)}"},
            {"id":"c2","other":$alex,"last_message":{"id":"90","conversation_id":"c2","sender_id":"$ME",
@@ -202,6 +221,8 @@ private object FakeApi {
 
     private val notifications get() = listOf(
         notification("like", sam, 4.minutes, true, post = "p4", thumb = "mine1"),
+        notification("request", alex, 6.minutes, true, event = "e1", title = "Rooftop Sunset Party", cover = "rooftop"),
+        notification("tag", sam, 8.minutes, true, post = "p1", thumb = "party1"),
         notification("comment", alex, 12.minutes, true, post = "p4", thumb = "mine1", text = "Saving this for Saturday"),
         notification("rsvp", alex, 25.minutes, true, event = "e1", title = "Rooftop Sunset Party", cover = "rooftop"),
         notification("reminder", null, 2.hours, true, event = "e1", title = "Rooftop Sunset Party", cover = "rooftop"),
@@ -240,12 +261,21 @@ private object FakeApi {
             "followers":1890,"following":312,"is_following":true}"""
         path == "/events/nearby" -> HttpStatusCode.OK to """{"events":[${events.joinToString(",")}],"next_cursor":null}"""
         path.matches(Regex("/events/[^/]+/posts")) -> HttpStatusCode.OK to """{"posts":[$feedPosts],"next_cursor":null}"""
+        path.endsWith("/guests") -> HttpStatusCode.OK to """{"requested":[$alex],"going":[$sam,$mateo]}"""
+        path.endsWith("/tags/me") -> HttpStatusCode.NoContent to ""
+        path.endsWith("/invites") -> HttpStatusCode.OK to """{"sent":2,"skipped":0}"""
         path.startsWith("/events/") -> HttpStatusCode.OK to events.first()
         path == "/notifications" -> HttpStatusCode.OK to """{"notifications":[$notifications],"unread_count":3}"""
         path == "/notifications/unread" -> HttpStatusCode.OK to """{"unread_count":3}"""
         path == "/notifications/seen" -> HttpStatusCode.NoContent to ""
         path == "/conversations/unread" -> HttpStatusCode.OK to """{"unread_count":1}"""
         path == "/conversations" && method == HttpMethod.Get -> HttpStatusCode.OK to conversations
+        path == "/conversations/c3" -> HttpStatusCode.OK to partyChat
+        path == "/conversations/c3/messages" -> HttpStatusCode.OK to """{"messages":[
+           {"id":"120","conversation_id":"c3","sender_id":"$ALEX","body":"Who's bringing speakers?","created_at":"${ago(1.minutes)}"},
+           {"id":"119","conversation_id":"c3","sender_id":"$SAM","body":"Doors at 9, see you all there","created_at":"${ago(3.minutes)}"},
+           {"id":"118","conversation_id":"c3","sender_id":"$ME","body":"Can't wait","created_at":"${ago(5.minutes)}"}],
+           "has_more":false}"""
         path.endsWith("/messages") -> HttpStatusCode.OK to """{"messages":[$messages],"has_more":false}"""
         path.endsWith("/read") -> HttpStatusCode.NoContent to ""
         path == "/me/avatar" || path.endsWith("/cover") -> HttpStatusCode.Accepted to ""

@@ -84,7 +84,7 @@ fun CommentsScreen(ui: Ui, postId: String) {
         sending = true
         scope.launch {
             attempt { ui.api.addComment(postId, body) }
-                .onSuccess { paged.items.add(0, it); draft = ""; list.scrollToItem(0) }
+                .onSuccess { paged.items.add(0, it); draft = ""; ui.track("comment_posted"); list.scrollToItem(0) }
                 .onFailure { ui.toast(it.userMessage) }
             sending = false
         }

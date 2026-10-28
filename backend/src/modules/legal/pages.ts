@@ -4,10 +4,10 @@
  * have them checked before launch. The contact address comes from CONTACT_EMAIL.
  */
 
-export const LAST_UPDATED = "17 October 2026";
+export const LAST_UPDATED = "28 October 2026";
 export const MINIMUM_AGE = 18;
 
-const page = (title: string, body: string) => `<!doctype html>
+export const page = (title: string, body: string, head = "") => `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -21,16 +21,18 @@ const page = (title: string, body: string) => `<!doctype html>
   a { color: var(--accent); }
   .updated { opacity: .7; }
 </style>
+${head}
 </head>
 <body>
 <h1>${title}</h1>
-<p class="updated">Last updated ${LAST_UPDATED}</p>
 ${body}
 </body>
 </html>`;
 
-const escapeHtml = (text: string) =>
+export const escapeHtml = (text: string) =>
   text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c);
+
+const updated = `<p class="updated">Last updated ${LAST_UPDATED}</p>`;
 
 const contactLine = (email: string | undefined) =>
   email
@@ -39,17 +41,21 @@ const contactLine = (email: string | undefined) =>
 
 export function privacyPage(contactEmail?: string): string {
   const contact = contactLine(contactEmail);
-  return page("Privacy policy", `
+  return page("Privacy policy", `${updated}
 <p>PartyNearMe helps people find parties and events near them, share photos from them and chat.
 This page explains what the app collects, why, who else handles it, and how to delete it.
 Questions: ${contact}.</p>
 
 <h2>What we collect</h2>
 <ul>
-  <li><strong>Account:</strong> your email address and a password (stored hashed by our sign-in provider, never readable by us).</li>
+  <li><strong>Account:</strong> your email address and a password (stored hashed by our sign-in provider, never readable by us),
+    or, if you sign in with Google, the email address and name Google shares with us.</li>
   <li><strong>Profile:</strong> username, display name, bio and the interests you pick. Your profile is visible to other users.</li>
   <li><strong>Photos and captions</strong> you post. Photos are shrunk on your phone and re-encoded, which removes their
     location and camera metadata. Posts are public to other users.</li>
+  <li><strong>Shared links:</strong> when someone shares a party or post, the link opens a public web page showing its
+    title, time and venue (for a party) or the first photo, caption and author's name (for a post), so link previews
+    work. Hidden posts and removed parties show nothing.</li>
   <li><strong>Location:</strong> only when you use it, to show parties near you or to place a party or post on the map.
     We store the location of the parties and posts you publish, not a history of where you go.</li>
   <li><strong>Events and RSVPs</strong> you create or answer, which other users can see.</li>
@@ -58,8 +64,11 @@ Questions: ${contact}.</p>
   <li><strong>Activity in the app</strong>, such as which posts you viewed or liked, used only to order your feed.</li>
   <li><strong>A push notification token</strong> for your phone, if you allow notifications.</li>
   <li><strong>Reports</strong> you file about content or users, which only moderators see.</li>
+  <li><strong>Usage statistics:</strong> which features get used (for example "posted a photo with 3 pictures" or
+    "shared a party"), counted under your account ID only. They never include your posts, messages, location, name
+    or email. You can turn them off under Settings &gt; Share usage stats.</li>
 </ul>
-<p>We don't sell your data, show ads, or use advertising or analytics trackers.</p>
+<p>We don't sell your data, show ads, or use advertising trackers.</p>
 
 <h2>Why we use it</h2>
 <p>To run the service you asked for (your account, feed, map, chat and notifications), to keep it safe
@@ -73,8 +82,9 @@ community safe.</p>
   <li>Render (our server), hosted in Frankfurt, EU.</li>
   <li>Cloudflare R2 (photo storage and delivery).</li>
   <li>OpenAI (automatic moderation of photos and captions; not used to train their models through this API).</li>
-  <li>Google Firebase Cloud Messaging (delivering notifications).</li>
+  <li>Google Firebase Cloud Messaging (delivering notifications), and Google sign-in if you choose it.</li>
   <li>Sentry (crash and error reports, stored in the EU; these hold technical details and your account ID, not your posts or messages).</li>
+  <li>PostHog (usage statistics, stored in the EU).</li>
 </ul>
 <p>They process data only on our behalf. Some may process it outside the EU under standard contractual clauses.</p>
 
@@ -100,7 +110,7 @@ or to stop or limit processing, and you can complain to your data protection aut
 
 export function termsPage(contactEmail?: string): string {
   const contact = contactLine(contactEmail);
-  return page("Terms of use", `
+  return page("Terms of use", `${updated}
 <p>By using PartyNearMe you agree to these terms. Questions: ${contact}.</p>
 
 <h2>Who can use it</h2>

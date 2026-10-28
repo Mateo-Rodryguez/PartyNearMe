@@ -16,6 +16,7 @@ import com.partynearme.core.model.Post
 import com.partynearme.ui.Route
 import com.partynearme.ui.Ui
 import com.partynearme.ui.attempt
+import com.partynearme.ui.sharePost
 import com.partynearme.ui.userMessage
 import kotlinx.coroutines.launch
 
@@ -25,6 +26,7 @@ fun PostScreen(ui: Ui, id: String) {
     var post by remember { mutableStateOf<Post?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var reporting by remember { mutableStateOf(false) }
+    var tagging by remember { mutableStateOf(false) }
     LaunchedEffect(id) {
         attempt { ui.api.post(id) }.onSuccess { post = it }.onFailure { error = it.userMessage }
         ui.app.interactions.open(id)
@@ -68,9 +70,25 @@ fun PostScreen(ui: Ui, id: String) {
                             .onFailure { post = current; ui.toast(it.userMessage) }
                     }
                 },
+                me = ui.myId,
+                onPerson = { ui.nav.open(Route.User(it)) },
+                onEditTags = { tagging = true },
+                onShare = { sharePost(ui, scope, current) },
+                onUntagMe = {
+                    post = current.copy(tags = current.tags.filter { it.id != ui.myId })
+                    scope.launch {
+                        attempt { ui.api.untagMe(id) }
+                            .onSuccess { ui.toast("You're no longer tagged") }
+                            .onFailure { post = current; ui.toast(it.userMessage) }
+                    }
+                },
             )
             error != null -> Message(error!!, null)
         }
     }
     if (reporting) ReportDialog(ui, ReportTarget.Post, id) { reporting = false }
+    val shown = post
+    if (tagging && shown != null) {
+        TagPeopleDialog(ui, shown, onDismiss = { tagging = false }) { post = it; tagging = false }
+    }
 }

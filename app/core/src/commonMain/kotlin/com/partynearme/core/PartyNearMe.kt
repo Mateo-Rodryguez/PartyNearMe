@@ -1,5 +1,6 @@
 package com.partynearme.core
 
+import com.partynearme.core.analytics.Analytics
 import com.partynearme.core.api.ApiClient
 import com.partynearme.core.api.InteractionLog
 import com.partynearme.core.api.Realtime
@@ -13,6 +14,10 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.HttpClientEngine
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.websocket.WebSockets
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.http.ContentType
+import io.ktor.http.contentType
 import kotlin.time.Clock
 
 /** Wires the shared pieces together once per app. */
@@ -25,6 +30,8 @@ class PartyNearMe(
     val feedCache: FeedCache = NoFeedCache,
     /** Theme, units and other choices kept on this phone. */
     val preferences: Preferences = Preferences(),
+    /** "android" or "ios", sent with analytics. */
+    platform: String = "unknown",
 ) {
     private val http = HttpClient(engine) {
         expectSuccess = false
@@ -38,6 +45,12 @@ class PartyNearMe(
     val sessions = SessionManager(auth, store, now)
     val api = ApiClient(http, config, sessions)
     val interactions = InteractionLog(api::logInteractions)
+    val analytics = Analytics(config.posthogKey, platform, enabled = { preferences.current.shareUsage }, post = { body ->
+        http.post("${config.posthogHost}/batch/") {
+            contentType(ContentType.Application.Json)
+            setBody(body)
+        }
+    })
 
     // A separate client: the request timeout above would cut long-lived sockets.
     private val sockets = HttpClient(engine) { install(WebSockets) }
@@ -52,6 +65,16 @@ class PartyNearMe(
         pushToken = token
     }
 
+    /** Emails a link to choose a new password; the link opens a page on our server. */
+    suspend fun sendPasswordReset(email: String) = auth.recover(email, config.resetPasswordPage)
+
+    /**
+     * Signs in with [provider] ("google") in the browser; see [SessionManager.signInWith].
+     * Returns false when the user closed the page.
+     */
+    suspend fun signInWith(provider: String, openBrowser: suspend (String) -> String?): Boolean =
+        sessions.signInWith(provider, config.authCallback, openBrowser)
+
     /** Signs out, first stopping this phone getting the user's notifications. */
     suspend fun signOut() {
         pushToken?.let { token ->
@@ -64,6 +87,7 @@ class PartyNearMe(
         }
         pushToken = null
         feedCache.clear()
+        analytics.reset()
         sessions.signOut()
     }
 
@@ -72,6 +96,7 @@ class PartyNearMe(
         api.deleteAccount()
         pushToken = null
         feedCache.clear()
+        analytics.reset()
         sessions.forget()
     }
 }

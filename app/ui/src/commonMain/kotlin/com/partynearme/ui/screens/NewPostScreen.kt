@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -50,6 +51,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.partynearme.core.model.ListedPerson
 import com.partynearme.core.model.NewPost
 import com.partynearme.ui.Brand
 import com.partynearme.ui.Overline
@@ -94,6 +96,8 @@ fun NewPostScreen(ui: Ui, preset: PartyRef? = null, onPosted: () -> Unit) {
     var caption by remember { mutableStateOf("") }
     var place by remember { mutableStateOf("") }
     var tagLocation by remember { mutableStateOf(true) }
+    var tagged by remember { mutableStateOf(emptyList<ListedPerson>()) }
+    var picking by remember { mutableStateOf(false) }
     var progress by remember { mutableStateOf<Float?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     val pick = ui.platform.rememberPhotoPicker(MAX_PHOTOS - photos.size) { photos.addAll(it.take(MAX_PHOTOS - photos.size)) }
@@ -119,12 +123,15 @@ fun NewPostScreen(ui: Ui, preset: PartyRef? = null, onPosted: () -> Unit) {
                         lat = here?.lat,
                         lng = here?.lng,
                         placeName = place.trim().ifEmpty { null },
+                        tagIds = tagged.map { it.id }.ifEmpty { null },
                     ),
                 )
             }.onSuccess {
+                ui.track("post_created", "photos" to photos.size, "tagged" to tagged.size, "at_party" to (party != null))
                 photos.clear()
                 caption = ""
                 place = ""
+                tagged = emptyList()
                 ui.toast("Posted. It shows up for everyone once the photo is checked.")
                 onPosted()
                 if (preset != null) ui.nav.back() else { party = null; ui.nav.select(Tab.Feed) }
@@ -133,6 +140,13 @@ fun NewPostScreen(ui: Ui, preset: PartyRef? = null, onPosted: () -> Unit) {
         }
     }
 
+    if (picking) {
+        PeoplePicker(ui, "Tag people", "Done", initial = tagged, onBack = { picking = false }) {
+            tagged = it
+            picking = false
+        }
+        return
+    }
     val sharing = progress != null
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -198,6 +212,12 @@ fun NewPostScreen(ui: Ui, preset: PartyRef? = null, onPosted: () -> Unit) {
                         items(parties, key = { it.id }) { p -> ChoiceChip(p.title, party?.id == p.id, { party = p }) }
                     }
                 }
+                InfoRow(
+                    Icons.Filled.Person,
+                    "Tag people",
+                    detail = tagged.takeIf { it.isNotEmpty() }?.let { taggedText(it.map { p -> p.name }) },
+                    onClick = { if (!sharing) picking = true },
+                )
                 PartyField(place, { place = it.take(120) }, "Place name (optional)",
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words))
                 InfoRow(

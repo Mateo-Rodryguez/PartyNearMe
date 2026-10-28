@@ -31,6 +31,9 @@ const configSchema = z.object({
     }),
   // Supabase project URL, e.g. https://abcdefgh.supabase.co
   SUPABASE_URL: z.url({ protocol: /^https?$/ }).transform((url) => url.replace(/\/+$/, "")),
+  // Supabase's publishable key (public, the same one the app ships with). The password
+  // reset page needs it to talk to Supabase Auth.
+  SUPABASE_PUBLISHABLE_KEY: z.string().trim().min(1).optional(),
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(120),
   // Cloudflare R2 photo storage. Uploads are disabled until all four are set.
   R2_ACCOUNT_ID: z.string().regex(/^[0-9a-f]{32}$/).optional(),

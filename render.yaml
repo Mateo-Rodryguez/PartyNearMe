@@ -21,6 +21,9 @@ services:
         value: production
       - key: SUPABASE_URL
         value: https://vvkckzrhzgdrazhjitse.supabase.co
+      # Public, the same key the app ships with; the password reset page uses it.
+      - key: SUPABASE_PUBLISHABLE_KEY
+        value: sb_publishable_lU8CqYjRgUy5kr9Y8QbBNQ_NiPtoCil
       - key: R2_ACCOUNT_ID
         value: 630c8ac9872f11e09ffed9fe3cb05b0c
       - key: R2_BUCKET

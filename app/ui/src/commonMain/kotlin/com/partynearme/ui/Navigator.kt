@@ -35,6 +35,10 @@ sealed interface Route {
     data object Saved : Route
     /** People you blocked, from settings. */
     data object Blocked : Route
+    /** Picking people to invite to a party; each gets the invite in a chat. */
+    data class Invite(val eventId: String, val eventTitle: String) : Route
+    /** A private party's requests and guests, for its host. */
+    data class Guests(val eventId: String, val eventTitle: String) : Route
 }
 
 /** A back stack per tab, like Instagram: switching tabs keeps where you were. */
