@@ -17,4 +17,8 @@ data class AppConfig(
 
     /** The web page the password reset email leads to. */
     val resetPasswordPage: String get() = "$apiBaseUrl/reset-password"
+
+    /** Share links: public pages with a preview and an "Open in PartyNearMe" button. */
+    fun partyLink(id: String): String = "$apiBaseUrl/e/$id"
+    fun postLink(id: String): String = "$apiBaseUrl/p/$id"
 }

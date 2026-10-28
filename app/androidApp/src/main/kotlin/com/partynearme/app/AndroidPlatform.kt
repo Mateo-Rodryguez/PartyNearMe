@@ -2,8 +2,10 @@ package com.partynearme.app
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -148,6 +150,13 @@ class AndroidPlatform(private val context: Context) : Platform {
             AuthRedirect.abandoned()
         }
         return result.await()
+    }
+
+    override fun share(text: String, url: String) {
+        val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, "$text $url")
+        val chooser = Intent.createChooser(send, null)
+        if (context !is Activity) chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        context.startActivity(chooser)
     }
 
     override val pushPlatform = "android"

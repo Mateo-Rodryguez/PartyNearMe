@@ -67,6 +67,7 @@ import com.partynearme.ui.Tab
 import com.partynearme.ui.Ui
 import com.partynearme.ui.Wordmark
 import com.partynearme.ui.attempt
+import com.partynearme.ui.sharePost
 import com.partynearme.ui.userMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
@@ -108,6 +109,8 @@ class FeedState(private val ui: Ui, private val scope: CoroutineScope) {
     fun editCaption(post: Post, caption: String) = editPostCaption(ui, scope, paged, post, caption)
 
     fun untag(post: Post) = untagMe(ui, scope, paged, post)
+
+    fun share(post: Post) = sharePost(ui, scope, post)
 
     fun notInterested(post: Post) {
         paged.remove { it.id == post.id }
@@ -249,6 +252,7 @@ fun FeedScreen(ui: Ui, state: FeedState, nearby: NearbyState) {
                             onPerson = { ui.nav.open(Route.User(it)) },
                             onEditTags = { tagging = post },
                             onUntagMe = { state.untag(post) },
+                            onShare = { state.share(post) },
                         )
                     }
                     if (paged.error != null) {

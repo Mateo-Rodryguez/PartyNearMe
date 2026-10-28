@@ -16,6 +16,7 @@ import com.partynearme.core.model.Post
 import com.partynearme.ui.Route
 import com.partynearme.ui.Ui
 import com.partynearme.ui.attempt
+import com.partynearme.ui.sharePost
 import com.partynearme.ui.userMessage
 import kotlinx.coroutines.launch
 
@@ -72,6 +73,7 @@ fun PostScreen(ui: Ui, id: String) {
                 me = ui.myId,
                 onPerson = { ui.nav.open(Route.User(it)) },
                 onEditTags = { tagging = true },
+                onShare = { sharePost(ui, scope, current) },
                 onUntagMe = {
                     post = current.copy(tags = current.tags.filter { it.id != ui.myId })
                     scope.launch {

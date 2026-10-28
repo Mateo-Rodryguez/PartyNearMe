@@ -46,7 +46,12 @@ export async function buildApp({ config, db, verifyToken, storage, reportError }
 
   app.get("/health", async () => ({ status: "ok" }));
   await app.register(legalRoutes, { contactEmail: config.CONTACT_EMAIL });
-  await app.register(webRoutes, { supabaseUrl: config.SUPABASE_URL, publishableKey: config.SUPABASE_PUBLISHABLE_KEY });
+  await app.register(webRoutes, {
+    db,
+    supabaseUrl: config.SUPABASE_URL,
+    publishableKey: config.SUPABASE_PUBLISHABLE_KEY,
+    mediaBaseUrl: config.MEDIA_BASE_URL,
+  });
 
   // Everything below requires a signed-in user. The user id comes only from
   // the verified token, never from the request body or query.

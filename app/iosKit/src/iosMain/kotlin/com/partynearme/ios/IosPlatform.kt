@@ -38,6 +38,7 @@ import platform.PhotosUI.PHPickerFilter
 import platform.PhotosUI.PHPickerResult
 import platform.PhotosUI.PHPickerViewController
 import platform.PhotosUI.PHPickerViewControllerDelegateProtocol
+import platform.UIKit.UIActivityViewController
 import platform.UIKit.UIApplication
 import platform.UIKit.UIGraphicsImageRenderer
 import platform.UIKit.UIGraphicsImageRendererFormat
@@ -136,6 +137,12 @@ class IosPlatform : Platform {
                 if (cont.isActive) cont.resume(null)
             }
         }
+    }
+
+    override fun share(text: String, url: String) {
+        val items = listOfNotNull<Any>(text, NSURL.URLWithString(url))
+        val sheet = UIActivityViewController(activityItems = items, applicationActivities = null)
+        topViewController()?.presentViewController(sheet, animated = true, completion = null)
     }
 
     override val pushPlatform = "ios"

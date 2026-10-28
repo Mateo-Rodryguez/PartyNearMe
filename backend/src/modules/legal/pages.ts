@@ -4,7 +4,7 @@
  * have them checked before launch. The contact address comes from CONTACT_EMAIL.
  */
 
-export const LAST_UPDATED = "17 October 2026";
+export const LAST_UPDATED = "28 October 2026";
 export const MINIMUM_AGE = 18;
 
 export const page = (title: string, body: string, head = "") => `<!doctype html>
@@ -53,6 +53,9 @@ Questions: ${contact}.</p>
   <li><strong>Profile:</strong> username, display name, bio and the interests you pick. Your profile is visible to other users.</li>
   <li><strong>Photos and captions</strong> you post. Photos are shrunk on your phone and re-encoded, which removes their
     location and camera metadata. Posts are public to other users.</li>
+  <li><strong>Shared links:</strong> when someone shares a party or post, the link opens a public web page showing its
+    title, time and venue (for a party) or the first photo, caption and author's name (for a post), so link previews
+    work. Hidden posts and removed parties show nothing.</li>
   <li><strong>Location:</strong> only when you use it, to show parties near you or to place a party or post on the map.
     We store the location of the parties and posts you publish, not a history of where you go.</li>
   <li><strong>Events and RSVPs</strong> you create or answer, which other users can see.</li>

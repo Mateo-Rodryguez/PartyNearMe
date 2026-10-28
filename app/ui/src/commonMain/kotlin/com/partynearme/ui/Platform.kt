@@ -37,6 +37,9 @@ interface Platform {
      */
     suspend fun openSignIn(url: String, callbackScheme: String): String?
 
+    /** Opens the phone's share sheet with [text] and a link. */
+    fun share(text: String, url: String) {}
+
     /** The platform name the server expects with a push token: "android" or "ios". */
     val pushPlatform: String
 }

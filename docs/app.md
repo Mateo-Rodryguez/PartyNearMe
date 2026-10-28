@@ -191,6 +191,17 @@ moderation, never twice for the same post; the push follows the **Comments and
 tags** setting. Nobody can tag across a block, and tags of people you blocked don't
 show.
 
+## Sharing
+
+The share button on a party's cover, and the paper plane under a post, open the
+phone's share sheet with a link like `https://partynearme-api.onrender.com/e/<id>`.
+That page (served by the API, no sign-in) gives WhatsApp, iMessage and the rest a
+preview with the title, time, venue and cover, or the photo and caption, plus an
+**Open in PartyNearMe** button that opens the app on a `partynearme://` link.
+Drafts, removed parties and hidden posts show "isn't available". Shares are logged
+as a ranking signal. Opening the https link straight in the app (Android App Links,
+iOS Universal Links) needs our own domain first.
+
 ## Inviting friends
 
 **Invite friends** on a published party opens a list of the people you follow (or

@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -62,6 +63,7 @@ import com.partynearme.ui.clockTime
 import com.partynearme.ui.dayLabel
 import com.partynearme.ui.distance
 import com.partynearme.ui.eventTime
+import com.partynearme.ui.shareParty
 import com.partynearme.ui.userMessage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -138,6 +140,10 @@ fun EventScreen(ui: Ui, id: String) {
                         }
                     }
                     Spacer(Modifier.width(8.dp))
+                    if (e.status == "published") {
+                        RoundIconButton(Icons.Filled.Share, "Share party", onPhoto = true) { shareParty(ui, scope, e) }
+                        Spacer(Modifier.width(8.dp))
+                    }
                     Box {
                         RoundIconButton(Icons.Filled.MoreVert, "More", onPhoto = true) { menu = true }
                         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {

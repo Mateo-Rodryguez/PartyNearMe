@@ -21,6 +21,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
@@ -86,6 +87,7 @@ fun PostCard(
     /** For your own post: opens the picker for who is tagged. */
     onEditTags: (() -> Unit)? = null,
     onUntagMe: (() -> Unit)? = null,
+    onShare: (() -> Unit)? = null,
 ) {
     var menu by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(false) }
@@ -163,6 +165,12 @@ fun PostCard(
             if (onComments != null) {
                 IconButton(onClick = onComments, enabled = visible) {
                     Icon(PartyIcons.ChatBubbleOutline, "Comments", modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.onSurface)
+                }
+            }
+            if (onShare != null) {
+                IconButton(onClick = onShare, enabled = visible) {
+                    Icon(Icons.AutoMirrored.Filled.Send, "Share", modifier = Modifier.size(24.dp),
                         tint = MaterialTheme.colorScheme.onSurface)
                 }
             }

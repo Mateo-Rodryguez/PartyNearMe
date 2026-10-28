@@ -28,6 +28,9 @@ class InteractionLog(
     }
 
     suspend fun open(postId: String) = add(Interaction(kind = "open", postId = postId))
+    /** Someone shared a post or party: a strong signal for ranking. */
+    suspend fun share(postId: String? = null, eventId: String? = null) =
+        add(Interaction(kind = "share", postId = postId, eventId = eventId))
     suspend fun notInterested(postId: String) = add(Interaction(kind = "not_interested", postId = postId), flushNow = true)
 
     suspend fun add(event: Interaction, flushNow: Boolean = false) {

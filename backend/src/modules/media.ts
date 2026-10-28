@@ -8,7 +8,7 @@ export type PictureSize = "150" | "640" | "1080";
  * column holding its sizes (e.g. "a.avatar_variants"). Null when there is no
  * picture yet or media serving isn't configured.
  */
-export const pictureUrl = (tx: Tx, base: string | undefined, column: string, size: PictureSize) =>
+export const pictureUrl = (tx: Tx | Db, base: string | undefined, column: string, size: PictureSize) =>
   base ? tx`(${base}::text || '/' || (${tx(column)} ->> ${size}::text))` : tx`null::text`;
 
 /**
