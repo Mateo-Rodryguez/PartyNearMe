@@ -57,6 +57,14 @@ Android and Apple's sign-in sheet on iPhone, then comes back to the app on a
 `partynearme://auth-callback` link. The same `partynearme://` scheme opens shared
 parties and posts (`partynearme://party/<id>`, `partynearme://post/<id>`).
 
+## First run
+
+A new account picks a username first (also after Google sign-in), then two
+skippable steps: **What are you into?** (interest chips, saved to the profile,
+which the feed and party filters use) and **Find parties near you**, which explains
+how location is used before the phone's own permission prompt. Notifications are
+asked for when the main app opens, as before.
+
 ## Feed loading
 
 The app saves the feed's first page (up to 20 posts) on the phone and shows it at

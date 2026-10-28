@@ -88,6 +88,7 @@ import com.partynearme.ui.screens.NearbyState
 import com.partynearme.ui.screens.NewEventScreen
 import com.partynearme.ui.screens.NewPostScreen
 import com.partynearme.ui.screens.NotificationsScreen
+import com.partynearme.ui.screens.OnboardingScreen
 import com.partynearme.ui.screens.PeopleScreen
 import com.partynearme.ui.screens.PartyRef
 import com.partynearme.ui.screens.PostScreen
@@ -158,6 +159,8 @@ private fun SignedIn(app: PartyNearMe, platform: Platform, nav: Navigator, userI
     var me by remember { mutableStateOf<OwnProfile?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var attemptNo by remember { mutableIntStateOf(0) }
+    // New accounts go through interests and location once, right after the username.
+    var onboarding by remember { mutableStateOf(false) }
     LaunchedEffect(attemptNo) {
         error = null
         attempt { app.api.me() }.onSuccess { me = it }.onFailure { error = it.userMessage }
@@ -171,7 +174,8 @@ private fun SignedIn(app: PartyNearMe, platform: Platform, nav: Navigator, userI
             Wordmark()
             CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
         }
-        profile.username == null -> ProfileSetupScreen(app, profile) { me = it }
+        profile.username == null -> ProfileSetupScreen(app, profile) { me = it; onboarding = true }
+        onboarding -> OnboardingScreen(app, platform) { onboarding = false }
         else -> Main(app, platform, nav, userId)
     }
 }
