@@ -99,6 +99,7 @@ import com.partynearme.ui.screens.SearchScreen
 import com.partynearme.ui.screens.SettingsScreen
 import com.partynearme.ui.screens.SignInScreen
 import com.partynearme.ui.screens.UserScreen
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
