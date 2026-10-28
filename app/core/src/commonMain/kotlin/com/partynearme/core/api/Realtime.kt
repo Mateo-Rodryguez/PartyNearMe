@@ -144,6 +144,7 @@ internal object Phoenix {
             senderId = row["sender_id"]?.str() ?: return null,
             body = row["body"]?.str() ?: return null,
             createdAt = row["created_at"]?.str()?.let(::isoUtc) ?: return null,
+            eventId = row["event_id"]?.str(),
         )
     }
 

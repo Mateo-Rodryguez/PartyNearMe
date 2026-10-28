@@ -18,6 +18,8 @@ const message = z.object({
   conversation_id: z.guid(),
   sender_id: z.guid(),
   body: z.string(),
+  /** Set for party invites: the app shows the party as a card. */
+  event_id: z.guid().nullable(),
   created_at: z.date(),
 });
 
@@ -31,6 +33,9 @@ const conversation = z.object({
 type Conversation = z.infer<typeof conversation>;
 
 const conversationParams = z.object({ id: z.guid() });
+
+/** People one party invite can go to at once. */
+const MAX_INVITES = 20;
 
 const encodeCursor = (c: { last_message_at: Date; id: string }) =>
   Buffer.from(`${c.last_message_at.toISOString()}|${c.id}`).toString("base64url");
@@ -51,7 +56,7 @@ const conversationSelect = (tx: Tx, me: string, base: string | undefined) => tx`
    where om.conversation_id = c.id and om.user_id <> ${me}
    limit 1) as other,
   (select json_build_object('id', m.id::text, 'conversation_id', m.conversation_id, 'sender_id', m.sender_id,
-                            'body', m.body, 'created_at', m.created_at)
+                            'body', m.body, 'event_id', m.event_id, 'created_at', m.created_at)
    from public.messages m where m.conversation_id = c.id order by m.id desc limit 1) as last_message,
   (select count(*)::int from public.messages m
    where m.conversation_id = c.id and m.sender_id <> ${me}
@@ -160,7 +165,7 @@ export const chatRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string | 
     return asUser(db, me, async (tx) => {
       await loadConversation(tx, me, request.params.id);
       const rows = await tx<z.infer<typeof message>[]>`
-        select id::text, conversation_id, sender_id, body, created_at
+        select id::text, conversation_id, sender_id, body, event_id, created_at
         from public.messages
         where conversation_id = ${request.params.id}
           ${before ? tx`and id < ${before}::bigint` : tx``}
@@ -186,12 +191,52 @@ export const chatRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string | 
       const [row] = await tx<z.infer<typeof message>[]>`
         insert into public.messages (conversation_id, sender_id, body)
         values (${request.params.id}, ${me}, ${request.body.body})
-        returning id::text, conversation_id, sender_id, body, created_at
+        returning id::text, conversation_id, sender_id, body, event_id, created_at
       `;
       if (!row) throw new Error("insert returned no row");
       return row;
     });
     return reply.status(201).send(sent);
+  });
+
+  /**
+   * Invites people to a party: each gets a chat message that points at it, which
+   * the app shows as a card. People who can't be messaged (blocks, "only people I
+   * follow") are skipped rather than failing the rest.
+   */
+  app.post("/events/:id/invites", {
+    schema: {
+      params: z.object({ id: z.guid() }),
+      body: z.object({
+        user_ids: z.array(z.guid()).min(1).max(MAX_INVITES).refine((ids) => new Set(ids).size === ids.length, "Duplicate person"),
+      }).strict(),
+      response: { 200: z.object({ sent: z.number().int(), skipped: z.number().int() }) },
+    },
+  }, async (request) => {
+    const me = request.userId;
+    const [party] = await asUser(db, me, (tx) => tx<{ title: string }[]>`
+      select title from public.events where id = ${request.params.id} and status = 'published'
+    `);
+    if (!party) throw new HttpError(404, "Event not found");
+    await checkLimit(db, me, "message");
+    let sent = 0;
+    for (const userId of request.body.user_ids) {
+      if (userId === me) continue;
+      try {
+        await asUser(db, me, async (tx) => {
+          const [row] = await tx<{ id: string }[]>`select public.start_direct_conversation(${userId}) as id`;
+          await tx`
+            insert into public.messages (conversation_id, sender_id, body, event_id)
+            values (${row?.id ?? null}, ${me}, ${`You're invited to ${party.title}`}, ${request.params.id})
+          `;
+        });
+        sent++;
+      } catch (err) {
+        // Not allowed or no such person: skip them. Anything else is a real failure.
+        if (!["42501", "PN403", "P0002", "22023"].includes((err as { code?: string }).code ?? "")) throw err;
+      }
+    }
+    return { sent, skipped: request.body.user_ids.length - sent };
   });
 
   /** Marks everything up to now as read. */

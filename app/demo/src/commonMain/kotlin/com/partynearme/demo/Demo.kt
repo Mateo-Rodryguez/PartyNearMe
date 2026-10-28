@@ -61,6 +61,7 @@ object Demo {
             "saved" -> { nav.select(Tab.Me); nav.open(Route.Saved) }
             "comments" -> nav.open(Route.Comments("p1"))
             "edit-party" -> { nav.select(Tab.Nearby); nav.open(Route.EditEvent("e1")) }
+            "invite" -> { nav.select(Tab.Nearby); nav.open(Route.Invite("e1", "Rooftop Sunset Party")) }
         }
         return DemoSetup(core, DemoPlatform, nav)
     }
@@ -165,8 +166,9 @@ private object FakeApi {
         event("e3", "Student Mixer", "Union Hall", 3.days, 18, 30, "interested", 4100, cover = null),
     )
 
-    private fun message(id: Int, from: String, body: String, age: Duration) =
-        """{"id":"$id","conversation_id":"c1","sender_id":"$from","body":"$body","created_at":"${ago(age)}"}"""
+    private fun message(id: Int, from: String, body: String, age: Duration, event: String? = null) =
+        """{"id":"$id","conversation_id":"c1","sender_id":"$from","body":"$body","created_at":"${ago(age)}",
+           "event_id":${event?.let { "\"$it\"" }}}"""
 
     private val messages get() = listOf(
         message(105, SAM, "See you there!", 2.minutes),
@@ -174,6 +176,7 @@ private object FakeApi {
         message(103, SAM, "Doors at 9, let's meet at 8:45", 7.minutes),
         message(102, ME, "Yes! What time?", 12.minutes),
         message(101, SAM, "Are you coming to the rooftop party tonight?", 20.minutes),
+        message(100, SAM, "You're invited to Rooftop Sunset Party", 21.minutes, event = "e1"),
     ).joinToString(",")
 
     private val conversations get() =
@@ -244,6 +247,7 @@ private object FakeApi {
             "followers":1890,"following":312,"is_following":true}"""
         path == "/events/nearby" -> HttpStatusCode.OK to """{"events":[${events.joinToString(",")}],"next_cursor":null}"""
         path.matches(Regex("/events/[^/]+/posts")) -> HttpStatusCode.OK to """{"posts":[$feedPosts],"next_cursor":null}"""
+        path.endsWith("/invites") -> HttpStatusCode.OK to """{"sent":2,"skipped":0}"""
         path.startsWith("/events/") -> HttpStatusCode.OK to events.first()
         path == "/notifications" -> HttpStatusCode.OK to """{"notifications":[$notifications],"unread_count":3}"""
         path == "/notifications/unread" -> HttpStatusCode.OK to """{"unread_count":3}"""

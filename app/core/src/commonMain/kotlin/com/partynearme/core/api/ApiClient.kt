@@ -14,6 +14,7 @@ import com.partynearme.core.model.EventPage
 import com.partynearme.core.model.EventUpdate
 import com.partynearme.core.model.Interaction
 import com.partynearme.core.model.Interest
+import com.partynearme.core.model.InviteResult
 import com.partynearme.core.model.ListedPerson
 import com.partynearme.core.model.Message
 import com.partynearme.core.model.MessagePage
@@ -235,6 +236,9 @@ class ApiClient(
     suspend fun send(conversationId: String, body: String): Message =
         call(HttpMethod.Post, "/conversations/${conversationId.path()}/messages") { json(SendBody(body)) }
 
+    /** Sends a party invite to each person as a chat message; returns how many went. */
+    suspend fun invite(eventId: String, userIds: List<String>): InviteResult =
+        call(HttpMethod.Post, "/events/${eventId.path()}/invites") { json(InviteBody(userIds)) }
     suspend fun markRead(conversationId: String) =
         callUnit(HttpMethod.Post, "/conversations/${conversationId.path()}/read")
 
@@ -308,6 +312,7 @@ class ApiClient(
     @Serializable private data class StartConversation(@SerialName("user_id") val userId: String)
     @Serializable private data class UnreadCount(@SerialName("unread_count") val unreadCount: Int)
     @Serializable private data class SendBody(val body: String)
+    @Serializable private data class InviteBody(@SerialName("user_ids") val userIds: List<String>)
     @Serializable private data class DeviceBody(val platform: String)
     @Serializable private data class ModerationBody(
         @SerialName("target_type") val targetType: String,

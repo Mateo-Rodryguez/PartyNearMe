@@ -210,7 +210,12 @@ fun ChatScreen(ui: Ui, conversationId: String, title: String, onLeave: () -> Uni
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     items(messages, key = { it.id }) { m ->
-                        Bubble(m, mine = m.senderId == ui.myId, onReport = { reporting = m.id })
+                        Bubble(
+                            m,
+                            mine = m.senderId == ui.myId,
+                            onReport = { reporting = m.id },
+                            onOpenParty = { ui.nav.open(Route.Event(it)) },
+                        )
                     }
                 }
             }
@@ -259,10 +264,13 @@ fun ChatScreen(ui: Ui, conversationId: String, title: String, onLeave: () -> Uni
     reporting?.let { id -> ReportDialog(ui, ReportTarget.Message, id) { reporting = null } }
 }
 
-/** A message; holding down on someone else's offers to report it. */
+/**
+ * A message; holding down on someone else's offers to report it. A party invite
+ * reads like a card and opens the party when tapped.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun Bubble(message: Message, mine: Boolean, onReport: () -> Unit) {
+private fun Bubble(message: Message, mine: Boolean, onReport: () -> Unit, onOpenParty: (String) -> Unit) {
     var menu by remember { mutableStateOf(false) }
     // Rounded bubbles with one tighter corner pointing at the sender, as in iMessage and Instagram.
     val shape = if (mine) {
@@ -270,18 +278,31 @@ private fun Bubble(message: Message, mine: Boolean, onReport: () -> Unit) {
     } else {
         RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 6.dp, bottomEnd = 20.dp)
     }
+    val ink = if (mine) Color.White else MaterialTheme.colorScheme.onSurface
+    val party = message.eventId
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
         Box {
-            Text(
-                message.body,
-                color = if (mine) Color.White else MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.bodyLarge,
-                modifier = Modifier.widthIn(max = 290.dp)
+            Column(
+                Modifier.widthIn(max = 290.dp)
                     .clip(shape)
-                    .combinedClickable(enabled = !mine, onClick = {}, onLongClick = { menu = true })
+                    .combinedClickable(
+                        enabled = !mine || party != null,
+                        onClick = { party?.let(onOpenParty) },
+                        onLongClick = if (mine) null else ({ menu = true }),
+                    )
                     .background(if (mine) Brand.gradient else SolidBrush(MaterialTheme.colorScheme.surfaceContainerHigh))
                     .padding(horizontal = 14.dp, vertical = 10.dp),
-            )
+            ) {
+                if (party != null) {
+                    Text("PARTY INVITE", color = ink.copy(alpha = 0.75f), style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold)
+                }
+                Text(message.body, color = ink, style = MaterialTheme.typography.bodyLarge)
+                if (party != null) {
+                    Text("Tap to see the party", color = ink.copy(alpha = 0.75f), style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 4.dp))
+                }
+            }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
                 DropdownMenuItem(text = { Text("Report message") }, onClick = { menu = false; onReport() })
             }

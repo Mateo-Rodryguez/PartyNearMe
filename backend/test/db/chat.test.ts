@@ -162,3 +162,26 @@ describe("devices", () => {
     expect(await devices()).toHaveLength(0);
   });
 });
+
+describe("party invites", () => {
+  it("sends each person a message pointing at the party, skipping who can't be messaged", async () => {
+    const [host, sam, alex, private_] = (await Promise.all([1, 2, 3, 4].map(() => ctx.createUser()))) as [string, string, string, string];
+    const ev = (await ctx.as(host, {
+      method: "POST",
+      url: "/events",
+      payload: { title: "Rooftop", starts_at: new Date(Date.now() + 86400_000).toISOString(), lat: 51.5, lng: -0.12, publish: true },
+    })).json() as { id: string };
+    await ctx.as(alex, { method: "PUT", url: `/users/${host}/block` });
+    await ctx.as(private_, { method: "PATCH", url: "/me/settings", payload: { messages_from: "following" } });
+
+    const res = await ctx.as(host, { method: "POST", url: `/events/${ev.id}/invites`, payload: { user_ids: [sam, alex, private_] } });
+    expect(res.statusCode, res.body).toBe(200);
+    expect(res.json()).toEqual({ sent: 1, skipped: 2 });
+
+    const inbox = (await ctx.as(sam, { method: "GET", url: "/conversations" })).json();
+    expect(inbox.conversations[0].last_message).toMatchObject({ body: "You're invited to Rooftop", event_id: ev.id, sender_id: host });
+
+    const missing = await ctx.as(host, { method: "POST", url: `/events/${crypto.randomUUID()}/invites`, payload: { user_ids: [sam] } });
+    expect(missing.statusCode).toBe(404);
+  });
+});

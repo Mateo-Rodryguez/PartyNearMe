@@ -19,6 +19,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.MoreVert
@@ -203,6 +204,14 @@ fun EventScreen(ui: Ui, id: String) {
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 FriendsGoing(e, Modifier.padding(vertical = 4.dp))
+                if (e.status == "published") {
+                    SecondaryButton(
+                        "Invite friends",
+                        { ui.nav.open(Route.Invite(e.id, e.title)) },
+                        Modifier.padding(vertical = 4.dp),
+                        icon = Icons.AutoMirrored.Filled.Send,
+                    )
+                }
                 if (e.status == "cancelled") {
                     Text("This party was cancelled.", color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(vertical = 8.dp))

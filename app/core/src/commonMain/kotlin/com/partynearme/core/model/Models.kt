@@ -258,7 +258,13 @@ data class Message(
     @SerialName("sender_id") val senderId: String,
     val body: String,
     @SerialName("created_at") val createdAt: String,
+    /** Set on a party invite: the party the message is about. */
+    @SerialName("event_id") val eventId: String? = null,
 )
+
+/** How a batch of party invites went: people who can't be messaged are skipped. */
+@Serializable
+data class InviteResult(val sent: Int, val skipped: Int)
 
 @Serializable
 data class Conversation(

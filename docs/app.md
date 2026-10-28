@@ -26,7 +26,7 @@ Most screens use sample data built into debug builds, so no server or account is
 needed: `adb shell am start -n com.partynearme.app/.MainActivity --es demo feed`
 opens the feed. The other screens are `sign_in`, `nearby`, `event`, `new_event`,
 `map_picker`, `post`, `inbox`, `chat`, `profile`, `user`, `moderation`, `settings`, `relationship`,
-`search`, `followers`, `saved`, `comments` and `edit-party`. Release builds ignore this.
+`search`, `followers`, `saved`, `comments`, `edit-party` and `invite`. Release builds ignore this.
 
 ## iPhone
 
@@ -180,6 +180,14 @@ in the party form; it's optional, and parties without one only show unfiltered.
 
 Party cards and pages show who you follow that's going, with up to three faces:
 "Sam and 2 others you follow are going". People you blocked are left out.
+
+## Inviting friends
+
+**Invite friends** on a published party opens a list of the people you follow (or
+search for anyone), and sends each one you pick a message in your chat with them:
+"You're invited to <party>", drawn as a card that opens the party. Up to 20 people at
+a time; people who don't accept messages from you, or blocked either way, are
+skipped and counted. The server endpoint is `POST /events/:id/invites`.
 
 ## Relationship hearts
 
