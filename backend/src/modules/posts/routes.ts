@@ -10,6 +10,20 @@ const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 
 const postParams = z.object({ id: z.guid() });
 
+/** People one post can tag, as on Instagram. */
+const MAX_TAGS = 20;
+
+/**
+ * Tags people on a post, leaving out yourself, missing accounts and anyone
+ * blocked either way (can_tag), so one bad id doesn't fail the post.
+ */
+const addTags = (tx: Tx, me: string, postId: string, userIds: string[]) => tx`
+  insert into public.post_tags (post_id, user_id)
+  select ${postId}, u.id from public.profiles u
+  where u.id = any (${userIds}::uuid[]) and u.id <> ${me} and public.can_tag(${postId}, u.id)
+  on conflict do nothing
+`;
+
 /** A copy without one key, for columns used only to build a cursor. */
 const omit = <T extends object, K extends keyof T & string>(o: T, key: K) =>
   Object.fromEntries(Object.entries(o).filter(([k]) => k !== key)) as Omit<T, K>;
@@ -87,6 +101,7 @@ export const postsRoutes: FastifyPluginAsyncZod<{
         lat: z.number().min(-90).max(90).optional(),
         lng: z.number().min(-180).max(180).optional(),
         place_name: z.string().max(120).optional(),
+        tag_ids: z.array(z.guid()).max(MAX_TAGS).optional(),
       }).strict(),
       response: { 201: post },
     },
@@ -101,7 +116,9 @@ export const postsRoutes: FastifyPluginAsyncZod<{
           ${b.lat ?? null}, ${b.lng ?? null}, ${b.place_name ?? null}
         ) as id
       `;
-      return loadPost(tx, me, row?.id as string);
+      const id = row?.id as string;
+      if (b.tag_ids?.length) await addTags(tx, me, id, b.tag_ids);
+      return loadPost(tx, me, id);
     });
     return reply.status(201).send(created);
   });
@@ -127,6 +144,33 @@ export const postsRoutes: FastifyPluginAsyncZod<{
       if (updated.length === 0) throw new HttpError(404, "Post not found");
       return loadPost(tx, me, request.params.id);
     });
+  });
+
+  /** Sets who is tagged on your post: people left out are untagged. */
+  app.put("/posts/:id/tags", {
+    schema: {
+      params: postParams,
+      body: z.object({ user_ids: z.array(z.guid()).max(MAX_TAGS) }).strict(),
+      response: { 200: post },
+    },
+  }, (request) => {
+    const me = request.userId;
+    const id = request.params.id;
+    const ids = request.body.user_ids;
+    return asUser(db, me, async (tx) => {
+      const [own] = await tx`select 1 from public.posts where id = ${id} and author_id = ${me}`;
+      if (!own) throw new HttpError(404, "Post not found");
+      await tx`delete from public.post_tags where post_id = ${id} and user_id <> all (${ids}::uuid[])`;
+      await addTags(tx, me, id, ids);
+      return loadPost(tx, me, id);
+    });
+  });
+
+  /** Takes yourself off someone's post. */
+  app.delete("/posts/:id/tags/me", { schema: { params: postParams, response: noContent } }, async (request, reply) => {
+    const me = request.userId;
+    await asUser(db, me, (tx) => tx`delete from public.post_tags where post_id = ${request.params.id} and user_id = ${me}`);
+    return reply.status(204).send(null);
   });
 
   app.delete("/posts/:id", { schema: { params: postParams, response: noContent } }, async (request, reply) => {

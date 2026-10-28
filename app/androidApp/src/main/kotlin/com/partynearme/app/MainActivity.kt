@@ -78,6 +78,10 @@ class MainActivity : ComponentActivity() {
                 nav.select(Tab.Feed)
                 nav.open(Route.Comments(it))
             }
+            "tag" -> intent.getStringExtra("post_id")?.let {
+                nav.select(Tab.Feed)
+                nav.open(Route.Post(it))
+            }
             "rsvp", "event_reminder", "event_cancelled" -> intent.getStringExtra("event_id")?.let {
                 nav.select(Tab.Nearby)
                 nav.open(Route.Event(it))

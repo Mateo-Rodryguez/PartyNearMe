@@ -84,6 +84,8 @@ async function handle(deps: WorkerDeps, row: OutboxRow): Promise<void> {
       return processComment(deps, String(row.payload.comment_id));
     case "post.caption_changed":
       return recheckCaption(deps, String(row.payload.post_id));
+    case "post.tagged":
+      return notifyTags(deps, String(row.payload.post_id));
     default:
       // Unknown topics are left for a future worker version rather than failing.
       deps.log.info({ id: row.id, topic: row.topic }, "no handler for topic");
@@ -95,7 +97,8 @@ async function handle(deps: WorkerDeps, row: OutboxRow): Promise<void> {
  * caption with the moderator, then publishes or hides the post. Safe to run
  * again after a partial failure: outputs are written to fixed keys.
  */
-async function processPost({ db, store, moderator }: WorkerDeps, postId: string): Promise<void> {
+async function processPost(deps: WorkerDeps, postId: string): Promise<void> {
+  const { db, store, moderator } = deps;
   const [post] = await db<{ id: string; caption: string | null; status: string }[]>`
     select id, caption, status from public.posts where id = ${postId}
   `;
@@ -153,6 +156,8 @@ async function processPost({ db, store, moderator }: WorkerDeps, postId: string)
 
   // Originals may carry GPS and camera metadata; only the cleaned sizes are kept.
   for (const p of processed) await store.delete(p.original);
+  // People tagged while the post was being checked hear about it now.
+  if (!flagged) await notifyTags(deps, postId);
 }
 
 interface PicturePayload {
@@ -379,6 +384,33 @@ async function processComment(deps: WorkerDeps, commentId: string): Promise<void
     title: `${nameOf(c)} commented`,
     body: preview(c.body),
     data: { type: "comment", post_id: c.post_id },
+  });
+}
+
+/**
+ * Tells people they were tagged, once the post is visible. Each tag is pushed
+ * at most once (notified_at), whichever of processPost and the post.tagged
+ * event gets there first.
+ */
+async function notifyTags(deps: WorkerDeps, postId: string): Promise<void> {
+  const [post] = await deps.db<{ author_id: string; display_name: string | null; username: string | null }[]>`
+    select p.author_id, a.display_name, a.username
+    from public.posts p join public.profiles a on a.id = p.author_id
+    where p.id = ${postId} and p.status = 'visible'
+  `;
+  if (!post) return;
+  const tagged = await deps.db<{ user_id: string }[]>`
+    update public.post_tags t set notified_at = now()
+    where t.post_id = ${postId} and t.notified_at is null
+      and not exists (select 1 from public.blocks b
+                      where (b.blocker_id = t.user_id and b.blocked_id = ${post.author_id})
+                         or (b.blocker_id = ${post.author_id} and b.blocked_id = t.user_id))
+    returning t.user_id
+  `;
+  await pushTo(deps, tagged.map((t) => t.user_id), "push_comments", {
+    title: `${nameOf(post)} tagged you`,
+    body: "in a photo",
+    data: { type: "tag", post_id: postId },
   });
 }
 

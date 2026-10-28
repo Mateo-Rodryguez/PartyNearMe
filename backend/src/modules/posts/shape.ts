@@ -32,6 +32,12 @@ export const post = z.object({
   liked_by_me: z.boolean(),
   saved_by_me: z.boolean(),
   media: z.array(media),
+  /** People tagged in the photos, in the order they were tagged. */
+  tags: z.array(z.object({
+    id: z.guid(),
+    username: z.string().nullable(),
+    display_name: z.string().nullable(),
+  })),
   created_at: z.date(),
 });
 export type Post = z.infer<typeof post>;
@@ -54,7 +60,14 @@ export const postSelect = (tx: Tx, me: string, base: string | undefined) => tx`
       'position', m.position, 'storage_key', m.storage_key, 'variants', m.variants,
       'width', m.width, 'height', m.height, 'blurhash', m.blurhash) order by m.position)
     from public.post_media m where m.post_id = p.id
-  ), '[]'::json) as media
+  ), '[]'::json) as media,
+  coalesce((
+    select json_agg(json_build_object('id', t.user_id, 'username', u.username, 'display_name', u.display_name)
+                    order by t.created_at, u.username)
+    from public.post_tags t join public.profiles u on u.id = t.user_id
+    where t.post_id = p.id
+      and not exists (select 1 from public.blocks b where b.blocked_id = t.user_id)
+  ), '[]'::json) as tags
 `;
 
 /**

@@ -181,6 +181,16 @@ in the party form; it's optional, and parties without one only show unfiltered.
 Party cards and pages show who you follow that's going, with up to three faces:
 "Sam and 2 others you follow are going". People you blocked are left out.
 
+## Tagging people
+
+**Tag people** on the New post screen, or **Tag people / Edit tags** in your post's ⋮
+menu, picks up to 20 people (the ones you follow first, or anyone by search). Posts
+then read "with Sam and 2 others", which lists them. Anyone tagged can tap that and
+**Remove me**. Tagged people get a notification and a push once the photo has passed
+moderation, never twice for the same post; the push follows the **Comments and
+tags** setting. Nobody can tag across a block, and tags of people you blocked don't
+show.
+
 ## Inviting friends
 
 **Invite friends** on a published party opens a list of the people you follow (or

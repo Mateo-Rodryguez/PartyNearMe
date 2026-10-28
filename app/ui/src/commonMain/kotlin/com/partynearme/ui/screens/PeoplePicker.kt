@@ -42,7 +42,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.partynearme.core.model.ListedPerson
+import com.partynearme.core.model.Post
 import com.partynearme.ui.Brand
 import com.partynearme.ui.Ui
 import com.partynearme.ui.attempt
@@ -193,5 +196,30 @@ internal fun inviteResultText(sent: Int, skipped: Int): String {
         0 -> done
         1 -> "$done. 1 person can't get messages from you."
         else -> "$done. $skipped people can't get messages from you."
+    }
+}
+
+/** Changes who is tagged on your post, full screen over wherever the post is; [onSaved] gets the updated post. */
+@Composable
+fun TagPeopleDialog(ui: Ui, post: Post, onDismiss: () -> Unit, onSaved: (Post) -> Unit) {
+    val scope = rememberCoroutineScope()
+    var saving by remember { mutableStateOf(false) }
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        PeoplePicker(
+            ui,
+            title = "Tag people",
+            button = "Save",
+            initial = post.tags.map { ListedPerson(it.id, it.username, it.displayName) },
+            busy = saving,
+            onBack = onDismiss,
+        ) { people ->
+            saving = true
+            scope.launch {
+                attempt { ui.api.setTags(post.id, people.map { it.id }) }
+                    .onSuccess(onSaved)
+                    .onFailure { ui.toast(it.userMessage) }
+                saving = false
+            }
+        }
     }
 }

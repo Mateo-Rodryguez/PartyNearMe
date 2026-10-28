@@ -45,7 +45,7 @@ import com.partynearme.ui.timeAgo
 import com.partynearme.ui.userMessage
 import kotlinx.coroutines.launch
 
-private val known = setOf("like", "comment", "follow", "rsvp", "reminder")
+private val known = setOf("like", "comment", "tag", "follow", "rsvp", "reminder")
 
 /**
  * Likes, comments, follows, people going to your parties and reminders for the ones you're going to,
@@ -106,7 +106,7 @@ private fun NotificationRow(ui: Ui, n: Notification) {
     val eventId = n.eventId
     val open: () -> Unit = {
         when {
-            n.type == "like" && postId != null -> ui.nav.open(Route.Post(postId))
+            (n.type == "like" || n.type == "tag") && postId != null -> ui.nav.open(Route.Post(postId))
             n.type == "comment" && postId != null -> ui.nav.open(Route.Comments(postId))
             n.type == "follow" && actor != null -> ui.nav.open(Route.User(actor.id))
             eventId != null -> ui.nav.open(Route.Event(eventId))
@@ -121,6 +121,7 @@ private fun NotificationRow(ui: Ui, n: Notification) {
                 append(" commented: ")
                 append(n.commentText.orEmpty())
             }
+            "tag" -> { withStyle(bold) { append(actor?.name ?: "Someone") }; append(" tagged you in a photo.") }
             "follow" -> { withStyle(bold) { append(actor?.name ?: "Someone") }; append(" started following you.") }
             "rsvp" -> { withStyle(bold) { append(actor?.name ?: "Someone") }; append(" is going to "); withStyle(bold) { append(party) }; append(".") }
             else -> { withStyle(bold) { append(party) }; append(" is coming up soon. Get ready!") }
@@ -146,7 +147,7 @@ private fun NotificationRow(ui: Ui, n: Notification) {
         val thumbShape = RoundedCornerShape(10.dp)
         when {
             thumbnail != null -> AsyncImage(
-                thumbnail, "Your photo",
+                thumbnail, "The photo",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.size(48.dp).clip(thumbShape),
             )

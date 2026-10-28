@@ -148,8 +148,19 @@ data class Post(
     @SerialName("liked_by_me") val likedByMe: Boolean,
     @SerialName("saved_by_me") val savedByMe: Boolean = false,
     val media: List<Media> = emptyList(),
+    /** People tagged in the photos. */
+    val tags: List<TaggedPerson> = emptyList(),
     @SerialName("created_at") val createdAt: String,
 )
+
+@Serializable
+data class TaggedPerson(
+    val id: String,
+    val username: String? = null,
+    @SerialName("display_name") val displayName: String? = null,
+) {
+    val name: String get() = displayName ?: username?.let { "@$it" } ?: "Someone"
+}
 
 @Serializable
 data class PostPage(val posts: List<Post>, @SerialName("next_cursor") val nextCursor: String? = null)
@@ -249,6 +260,7 @@ data class NewPost(
     val lat: Double? = null,
     val lng: Double? = null,
     @SerialName("place_name") val placeName: String? = null,
+    @SerialName("tag_ids") val tagIds: List<String>? = null,
 )
 
 @Serializable
@@ -288,7 +300,7 @@ data class MessagePage(val messages: List<Message>, @SerialName("has_more") val 
 @Serializable
 data class Notification(
     val id: String,
-    /** "like", "comment", "follow", "rsvp" or "reminder"; unknown types are skipped by the app. */
+    /** "like", "comment", "tag", "follow", "rsvp" or "reminder"; unknown types are skipped by the app. */
     val type: String,
     val actor: Person? = null,
     /** What they wrote, for comments. */

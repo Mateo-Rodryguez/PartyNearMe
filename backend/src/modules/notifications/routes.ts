@@ -13,7 +13,7 @@ const person = z.object({
 const notification = z.object({
   /** Stable for the same activity, so the app can use it as a list key. */
   id: z.string(),
-  type: z.enum(["like", "comment", "follow", "rsvp", "reminder"]),
+  type: z.enum(["like", "comment", "tag", "follow", "rsvp", "reminder"]),
   /** Who did it; null for reminders, which come from the app itself. */
   actor: person.nullable(),
   post_id: z.guid().nullable(),
@@ -45,6 +45,10 @@ const activity = (tx: Tx, me: string) => tx`
   select 'comment', c.author_id, c.post_id, null, c.id, c.created_at
   from public.comments c join public.posts p on p.id = c.post_id
   where p.author_id = ${me} and c.author_id <> ${me} and c.status = 'visible'
+  union all
+  select 'tag', p.author_id, t.post_id, null, null, t.created_at
+  from public.post_tags t join public.posts p on p.id = t.post_id
+  where t.user_id = ${me} and p.author_id <> ${me} and p.status = 'visible'
   union all
   select 'follow', f.follower_id, null, null, null, f.created_at
   from public.follows f

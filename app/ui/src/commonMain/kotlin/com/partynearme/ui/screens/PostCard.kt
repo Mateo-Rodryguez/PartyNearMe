@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -79,9 +80,16 @@ fun PostCard(
     onComments: (() -> Unit)? = null,
     /** Called with the new caption; empty removes it. */
     onEditCaption: ((String) -> Unit)? = null,
+    /** The viewer, so someone tagged can take themselves off. */
+    me: String? = null,
+    onPerson: (String) -> Unit = {},
+    /** For your own post: opens the picker for who is tagged. */
+    onEditTags: (() -> Unit)? = null,
+    onUntagMe: (() -> Unit)? = null,
 ) {
     var menu by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf(false) }
+    var showTags by remember { mutableStateOf(false) }
     var bursts by remember { mutableIntStateOf(0) }
     val visible = post.status == "visible"
     Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
@@ -109,6 +117,10 @@ fun PostCard(
                         if (onEditCaption != null) {
                             DropdownMenuItem(text = { Text(if (post.caption.isNullOrBlank()) "Add caption" else "Edit caption") },
                                 onClick = { menu = false; editing = true })
+                        }
+                        if (onEditTags != null) {
+                            DropdownMenuItem(text = { Text(if (post.tags.isEmpty()) "Tag people" else "Edit tags") },
+                                onClick = { menu = false; onEditTags() })
                         }
                         DropdownMenuItem(text = { Text("Delete post") }, onClick = { menu = false; onDelete() })
                     } else {
@@ -174,6 +186,22 @@ fun PostCard(
                 }
             }
         }
+        if (post.tags.isNotEmpty()) {
+            Row(
+                Modifier.padding(horizontal = 12.dp).clip(CircleShape).clickable { showTags = true }
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Filled.Person, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "with ${taggedText(post.tags.map { it.name })}",
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(start = 6.dp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
         post.caption?.takeIf { it.isNotBlank() }?.let { caption ->
             Text(
                 buildAnnotatedString {
@@ -198,9 +226,58 @@ fun PostCard(
             )
         }
     }
+    if (showTags) {
+        TagsDialog(
+            post,
+            canRemoveMe = onUntagMe != null && post.tags.any { it.id == me },
+            onDismiss = { showTags = false },
+            onPerson = { showTags = false; onPerson(it) },
+            onRemoveMe = { showTags = false; onUntagMe?.invoke() },
+        )
+    }
     if (editing && onEditCaption != null) {
         EditCaptionDialog(post.caption.orEmpty(), onDismiss = { editing = false }) { editing = false; onEditCaption(it) }
     }
+}
+
+/** "Sam", "Sam and Alex", "Sam and 2 others". */
+fun taggedText(names: List<String>): String = when (names.size) {
+    0 -> ""
+    1 -> names[0]
+    2 -> "${names[0]} and ${names[1]}"
+    else -> "${names[0]} and ${names.size - 1} others"
+}
+
+/** Who is tagged, each opening their profile, and a way to take yourself off. */
+@Composable
+private fun TagsDialog(post: Post, canRemoveMe: Boolean, onDismiss: () -> Unit, onPerson: (String) -> Unit, onRemoveMe: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("In this photo") },
+        text = {
+            Column {
+                post.tags.forEach { person ->
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { onPerson(person.id) }
+                            .padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Avatar(null, person.name, 36.dp)
+                        Column(Modifier.padding(start = 12.dp)) {
+                            Text(person.name, style = MaterialTheme.typography.titleSmall)
+                            person.username?.let {
+                                Text("@$it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } },
+        dismissButton = {
+            if (canRemoveMe) TextButton(onClick = onRemoveMe) { Text("Remove me", color = MaterialTheme.colorScheme.error) }
+        },
+    )
 }
 
 @Composable

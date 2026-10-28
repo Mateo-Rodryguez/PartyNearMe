@@ -193,7 +193,7 @@ fun SettingsScreen(ui: Ui, relationshipPicker: Boolean = false) {
                     changeAccount { it.copy(pushMessages = on) }
                 }
                 Divider()
-                ToggleRow(PartyIcons.ChatBubbleOutline, "Comments", "When someone comments on your photos",
+                ToggleRow(PartyIcons.ChatBubbleOutline, "Comments and tags", "When someone comments on or tags you in a photo",
                     account?.pushComments) { on -> changeAccount { it.copy(pushComments = on) } }
                 Divider()
                 ToggleRow(Icons.Filled.Notifications, "Guests for your parties", "When someone says they're going",

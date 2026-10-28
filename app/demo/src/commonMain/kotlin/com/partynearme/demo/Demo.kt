@@ -122,16 +122,19 @@ private object FakeApi {
 
     private fun post(id: String, author: String, caption: String, likes: Int, liked: Boolean, age: Duration, media: String,
                      place: String? = null, status: String = "visible", party: Pair<String, String>? = null,
-                     saved: Boolean = false, comments: Int = 0) =
+                     saved: Boolean = false, comments: Int = 0, tags: String = "") =
         """{"id":"$id","author":$author,"event_id":${party?.let { "\"${it.first}\"" }},
            "event_title":${party?.let { "\"${it.second}\"" }},"caption":"$caption",
            "place_name":${place?.let { "\"$it\"" }},"lat":null,"lng":null,"status":"$status","like_count":$likes,
-           "comment_count":$comments,"liked_by_me":$liked,"saved_by_me":$saved,"media":[$media],"created_at":"${ago(age)}"}"""
+           "comment_count":$comments,"liked_by_me":$liked,"saved_by_me":$saved,"media":[$media],"tags":[$tags],
+           "created_at":"${ago(age)}"}"""
 
     private val feedPosts get() = listOf(
         post("p1", sam, "Best night of the summer", 128, true, 42.minutes,
             listOf(photo("party1", 1080, 1350), photo("party4", 1080, 1350), photo("party5", 1080, 1350)).joinToString(","),
-            "Fabric, London", party = "e1" to "Rooftop Sunset Party", saved = true, comments = 3),
+            "Fabric, London", party = "e1" to "Rooftop Sunset Party", saved = true, comments = 3,
+            tags = """{"id":"$ME","username":"mateo","display_name":"Mateo"},
+                {"id":"$ALEX","username":"alex","display_name":"Alex Chen"}"""),
         post("p2", alex, "Warming up for Saturday", 37, false, 5.hours, photo("party2", 1080, 1080)),
         post("p3", sam, "Sunset session on the roof", 412, false, 2.days, photo("party3", 1350, 1080), "Shoreditch"),
     ).joinToString(",")
@@ -209,6 +212,7 @@ private object FakeApi {
 
     private val notifications get() = listOf(
         notification("like", sam, 4.minutes, true, post = "p4", thumb = "mine1"),
+        notification("tag", sam, 8.minutes, true, post = "p1", thumb = "party1"),
         notification("comment", alex, 12.minutes, true, post = "p4", thumb = "mine1", text = "Saving this for Saturday"),
         notification("rsvp", alex, 25.minutes, true, event = "e1", title = "Rooftop Sunset Party", cover = "rooftop"),
         notification("reminder", null, 2.hours, true, event = "e1", title = "Rooftop Sunset Party", cover = "rooftop"),
@@ -247,6 +251,7 @@ private object FakeApi {
             "followers":1890,"following":312,"is_following":true}"""
         path == "/events/nearby" -> HttpStatusCode.OK to """{"events":[${events.joinToString(",")}],"next_cursor":null}"""
         path.matches(Regex("/events/[^/]+/posts")) -> HttpStatusCode.OK to """{"posts":[$feedPosts],"next_cursor":null}"""
+        path.endsWith("/tags/me") -> HttpStatusCode.NoContent to ""
         path.endsWith("/invites") -> HttpStatusCode.OK to """{"sent":2,"skipped":0}"""
         path.startsWith("/events/") -> HttpStatusCode.OK to events.first()
         path == "/notifications" -> HttpStatusCode.OK to """{"notifications":[$notifications],"unread_count":3}"""

@@ -100,6 +100,11 @@ class ApiClient(
     /** An empty [caption] removes it. The server checks the new words, so a post can be hidden afterwards. */
     suspend fun updateCaption(id: String, caption: String): Post =
         call(HttpMethod.Patch, "/posts/${id.path()}") { json(CaptionBody(caption)) }
+    /** Sets everyone tagged on your post; people left out are untagged. */
+    suspend fun setTags(id: String, userIds: List<String>): Post =
+        call(HttpMethod.Put, "/posts/${id.path()}/tags") { json(TagBody(userIds)) }
+    /** Takes you off someone else's post. */
+    suspend fun untagMe(id: String) = callUnit(HttpMethod.Delete, "/posts/${id.path()}/tags/me")
     suspend fun like(id: String) = callUnit(HttpMethod.Put, "/posts/${id.path()}/like")
     suspend fun unlike(id: String) = callUnit(HttpMethod.Delete, "/posts/${id.path()}/like")
     suspend fun savePost(id: String, saved: Boolean) =
@@ -312,6 +317,7 @@ class ApiClient(
     @Serializable private data class StartConversation(@SerialName("user_id") val userId: String)
     @Serializable private data class UnreadCount(@SerialName("unread_count") val unreadCount: Int)
     @Serializable private data class SendBody(val body: String)
+    @Serializable private data class TagBody(@SerialName("user_ids") val userIds: List<String>)
     @Serializable private data class InviteBody(@SerialName("user_ids") val userIds: List<String>)
     @Serializable private data class DeviceBody(val platform: String)
     @Serializable private data class ModerationBody(
