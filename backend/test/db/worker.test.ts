@@ -205,7 +205,7 @@ describe("push notifications", () => {
     ]);
   });
 
-  it("reminds people going to an event shortly before it starts, once", async () => {
+  it("reminds people going to or interested in an event shortly before it starts, once", async () => {
     const organiser = await ctx.createUser();
     const guest = await ctx.createUser();
     const maybe = await ctx.createUser();
@@ -228,8 +228,9 @@ describe("push notifications", () => {
     await drain();
     await drain();
     const reminders = push.sent.filter((s) => s.message.data.type === "event_reminder");
-    expect(reminders.map((s) => [s.token, s.message.title])).toEqual([["guest-phone-1", "In 1h"]]);
+    expect(reminders.map((s) => [s.token, s.message.title])).toEqual([["guest-phone-1", "In 1h"], ["maybe-phone-1", "In 1h"]]);
     expect(reminders[0]?.message.body).toMatch(/^Starts in (59|60) min$/);
+    expect(reminders[1]?.message.body).toMatch(/^Still thinking about it\? Starts in (59|60) min$/);
   });
 
   it("skips alerts but finishes the work when Firebase isn't set up", async () => {

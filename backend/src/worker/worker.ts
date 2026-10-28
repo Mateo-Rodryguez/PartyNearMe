@@ -313,15 +313,23 @@ async function notifyReminder(deps: WorkerDeps, eventId: string): Promise<void> 
     select title, venue_name, starts_at from public.events where id = ${eventId} and status = 'published'
   `;
   if (!event) return;
-  const going = await deps.db<{ user_id: string }[]>`
-    select user_id from public.rsvps where event_id = ${eventId} and status = 'going'
+  const guests = await deps.db<{ user_id: string; status: string }[]>`
+    select user_id, status from public.rsvps where event_id = ${eventId} and status in ('going', 'interested')
   `;
   const minutes = Math.max(0, Math.round((event.starts_at.getTime() - Date.now()) / 60_000));
   const when = minutes <= 90 ? `in ${minutes} min` : `in about ${Math.round(minutes / 60)} h`;
-  await pushTo(deps, going.map((g) => g.user_id), "push_reminders", {
+  const starts = event.venue_name ? `Starts ${when} at ${event.venue_name}` : `Starts ${when}`;
+  const data = { type: "event_reminder", event_id: eventId };
+  await pushTo(deps, guests.filter((g) => g.status === "going").map((g) => g.user_id), "push_reminders", {
     title: event.title,
-    body: event.venue_name ? `Starts ${when} at ${event.venue_name}` : `Starts ${when}`,
-    data: { type: "event_reminder", event_id: eventId },
+    body: starts,
+    data,
+  });
+  // People who were only "interested" get a nudge to make up their mind.
+  await pushTo(deps, guests.filter((g) => g.status === "interested").map((g) => g.user_id), "push_reminders", {
+    title: event.title,
+    body: `Still thinking about it? ${starts}`,
+    data,
   });
 }
 
