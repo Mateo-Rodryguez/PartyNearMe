@@ -13,6 +13,7 @@ import com.partynearme.ui.App
 import com.partynearme.ui.isAppNight
 import com.partynearme.ui.Route
 import com.partynearme.ui.Tab
+import com.partynearme.ui.openLink
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -26,7 +27,10 @@ class MainActivity : ComponentActivity() {
         val core = demo?.core ?: app.core
         val platform = demo?.platform ?: AndroidPlatform(this)
         val nav = demo?.navigator ?: app.navigator
-        if (demo == null && savedInstanceState == null) openFromNotification(intent)
+        if (demo == null && savedInstanceState == null) {
+            openFromNotification(intent)
+            openLink(intent)
+        }
         setContent {
             // A theme picked in settings can differ from the phone's, so the bar icons follow the app's.
             val dark = isAppNight(core)
@@ -46,6 +50,20 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         openFromNotification(intent)
+        openLink(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Back from the sign-in browser without its address (onNewIntent comes first): the user closed it.
+        if (AuthRedirect.isWaiting) window.decorView.postDelayed({ AuthRedirect.abandoned() }, 1_500)
+    }
+
+    /** partynearme:// links: Google sign-in coming back, or a shared party or post to open. */
+    private fun openLink(intent: Intent) {
+        val url = intent.dataString ?: return
+        if (url.startsWith("partynearme://auth-callback")) AuthRedirect.arrived(url) else app.navigator.openLink(url)
+        intent.data = null
     }
 
     /** A tapped notification carries what it was about; open that screen. */

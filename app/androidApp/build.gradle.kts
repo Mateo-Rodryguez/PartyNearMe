@@ -62,6 +62,7 @@ android {
 dependencies {
     implementation(project(":ui"))
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.browser)
     implementation(libs.ktor.client.okhttp)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.messaging)

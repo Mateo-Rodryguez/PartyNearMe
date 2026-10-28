@@ -145,7 +145,7 @@ private fun AppContent(app: PartyNearMe, platform: Platform, navigator: Navigato
         val userId = session?.userId
         if (userId == null) {
             LaunchedEffect(Unit) { navigator.reset() }
-            SignInScreen(app)
+            SignInScreen(app, platform)
         } else {
             key(userId) { SignedIn(app, platform, navigator, userId) }
         }

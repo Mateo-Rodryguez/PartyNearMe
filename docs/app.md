@@ -48,6 +48,15 @@ GitHub Actions builds the app on every change (`.github/workflows/app.yml`).
 Locally, with the Android SDK installed, run `./gradlew :androidApp:assembleDebug` in `app/`.
 Without the Android SDK, `./gradlew -Ppnm.noAndroid :core:jvmTest` still runs the shared tests.
 
+## Signing in
+
+Email and password, plus **Forgot password?**, which emails a link to a page where
+people choose a new password, and **Continue with Google** once Google is switched
+on in Supabase (see docs/deploy.md). Google sign-in opens in a Custom Tab on
+Android and Apple's sign-in sheet on iPhone, then comes back to the app on a
+`partynearme://auth-callback` link. The same `partynearme://` scheme opens shared
+parties and posts (`partynearme://party/<id>`, `partynearme://post/<id>`).
+
 ## Feed loading
 
 The app saves the feed's first page (up to 20 posts) on the phone and shows it at

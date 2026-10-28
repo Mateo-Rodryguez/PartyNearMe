@@ -26,6 +26,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- partynearme:// links: Google sign-in coming back, and shared parties and posts. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="partynearme" />
+            </intent-filter>
         </activity>
 
         <!-- Lets the camera app write the photo it takes into this app's cache. -->

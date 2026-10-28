@@ -22,6 +22,8 @@ struct PartyNearMeApp: App {
     var body: some Scene {
         WindowGroup {
             SharedScreens().ignoresSafeArea()
+                // partynearme:// links from shared party and post pages.
+                .onOpenURL { url in MainViewControllerKt.openLink(url: url.absoluteString) }
         }
     }
 }

@@ -29,6 +29,19 @@ class SessionManager(
             AuthClient.SignUpResult.CheckEmail -> false
         }
 
+    /**
+     * Signs in with Google (or another provider) in the browser. [openBrowser] shows
+     * the page and returns the address it came back to, or null if the user closed it.
+     * Returns false when they gave up.
+     */
+    suspend fun signInWith(provider: String, redirectTo: String, openBrowser: suspend (String) -> String?): Boolean {
+        val pkce = Pkce()
+        val back = openBrowser(auth.authorizeUrl(provider, redirectTo, pkce)) ?: return false
+        val code = AuthClient.parseCallback(back).getOrThrow()
+        set(auth.exchangeCode(code, pkce))
+        return true
+    }
+
     suspend fun signOut() {
         val current = _session.value ?: return
         set(null)

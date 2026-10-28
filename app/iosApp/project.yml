@@ -31,6 +31,10 @@ targets:
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         # Compose draws at the screen's full refresh rate on ProMotion iPhones.
         CADisableMinimumFrameDurationOnPhone: true
+        # partynearme:// links open the app: shared parties and posts.
+        CFBundleURLTypes:
+          - CFBundleURLName: com.partynearme.app
+            CFBundleURLSchemes: [partynearme]
         NSCameraUsageDescription: PartyNearMe uses the camera so you can take photos to post.
         NSLocationWhenInUseUsageDescription: PartyNearMe uses your location to show parties near you and to place the parties you create.
     settings:

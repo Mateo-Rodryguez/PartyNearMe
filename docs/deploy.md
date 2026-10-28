@@ -46,6 +46,25 @@ https://partynearme-api.onrender.com/privacy); the store listings link there.
 Set `CONTACT_EMAIL` in Render to the address people should write to; until then
 the pages point to the store listing instead. Moderation is in docs/moderation.md.
 
+## Password resets and Google sign-in
+
+Both are set up in the Supabase dashboard, under Authentication:
+
+1. **URL Configuration > Redirect URLs:** add
+   `https://partynearme-api.onrender.com/reset-password` (where the reset email
+   leads) and `partynearme://auth-callback` (where Google sign-in returns to the app).
+2. **Password resets** then work: "Forgot password?" on the sign-in screen emails a
+   link to a page on our server (`/reset-password`), which sets the new password with
+   Supabase directly. It needs `SUPABASE_PUBLISHABLE_KEY`, which `render.yaml` sets.
+3. **Google:** in Google Cloud console (free), create an OAuth client of type *Web
+   application* with the authorised redirect URI
+   `https://vvkckzrhzgdrazhjitse.supabase.co/auth/v1/callback`. Paste its client ID
+   and secret under **Sign In / Providers > Google** in Supabase and turn it on. The
+   app shows "Continue with Google" as soon as the provider is on; no app update is
+   needed. The app uses PKCE, so the code that comes back is useless to anyone else.
+4. **Apple** works the same way once the Apple developer account exists, and Apple
+   requires it next to Google before the App Store review.
+
 ## Error reports (Sentry)
 
 Unexpected server errors (anything that returns a 500) and worker failures go to

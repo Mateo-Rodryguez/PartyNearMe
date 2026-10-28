@@ -79,6 +79,8 @@ private object DemoPlatform : Platform {
     @Composable
     override fun rememberPushTokenProvider(): suspend () -> String? = { null }
 
+    override suspend fun openSignIn(url: String, callbackScheme: String): String? = null
+
     override val pushPlatform = "android"
 }
 

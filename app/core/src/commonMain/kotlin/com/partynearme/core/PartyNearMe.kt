@@ -52,6 +52,16 @@ class PartyNearMe(
         pushToken = token
     }
 
+    /** Emails a link to choose a new password; the link opens a page on our server. */
+    suspend fun sendPasswordReset(email: String) = auth.recover(email, config.resetPasswordPage)
+
+    /**
+     * Signs in with [provider] ("google") in the browser; see [SessionManager.signInWith].
+     * Returns false when the user closed the page.
+     */
+    suspend fun signInWith(provider: String, openBrowser: suspend (String) -> String?): Boolean =
+        sessions.signInWith(provider, config.authCallback, openBrowser)
+
     /** Signs out, first stopping this phone getting the user's notifications. */
     suspend fun signOut() {
         pushToken?.let { token ->

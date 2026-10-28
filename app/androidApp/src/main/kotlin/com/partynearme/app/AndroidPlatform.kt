@@ -19,6 +19,7 @@ import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -136,6 +137,17 @@ class AndroidPlatform(private val context: Context) : Platform {
                 }
             }
         }
+    }
+
+    /** Opens the page in a Custom Tab; MainActivity passes the partynearme:// address back through [AuthRedirect]. */
+    override suspend fun openSignIn(url: String, callbackScheme: String): String? {
+        val result = AuthRedirect.start()
+        try {
+            CustomTabsIntent.Builder().build().launchUrl(context, Uri.parse(url))
+        } catch (_: ActivityNotFoundException) {
+            AuthRedirect.abandoned()
+        }
+        return result.await()
     }
 
     override val pushPlatform = "android"

@@ -14,6 +14,7 @@ settings = "1.3.0"
 maplibre-compose = "0.20.0"
 maplibre-native = "0.202610.0"
 activity-compose = "1.11.0"
+browser = "1.8.0"
 firebase-bom = "35.0.0"
 sentry-android = "8.61.0"
 android-compileSdk = "37"
@@ -56,3 +57,5 @@ firebase-messaging = { module = "com.google.firebase:firebase-messaging" }
 sentry-android = { module = "io.sentry:sentry-android-core", version.ref = "sentry-android" }
 kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutines" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity-compose" }
+# Custom Tabs: the in-app browser for signing in with Google.
+androidx-browser = { module = "androidx.browser:browser", version.ref = "browser" }

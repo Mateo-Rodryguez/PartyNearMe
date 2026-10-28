@@ -10,6 +10,7 @@ import com.partynearme.core.prefs.ThemeMode
 import com.partynearme.demo.Demo
 import com.partynearme.ui.App
 import com.partynearme.ui.Navigator
+import com.partynearme.ui.openLink
 import com.russhwolf.settings.NSUserDefaultsSettings
 import io.ktor.client.engine.darwin.Darwin
 import kotlinx.coroutines.MainScope
@@ -42,6 +43,7 @@ fun MainViewController(): UIViewController {
     }
     val platform = demo?.platform ?: IosPlatform()
     val nav = demo?.navigator ?: Navigator()
+    navigator = nav
 
     // Send what the user looked at before the app goes to the background.
     val scope = MainScope()
@@ -61,6 +63,14 @@ fun MainViewController(): UIViewController {
         }
     }
     return controller
+}
+
+private var navigator: Navigator? = null
+
+/** Called by the Swift app when a partynearme:// link opens it: a shared party or post. */
+@Suppress("unused")
+fun openLink(url: String) {
+    navigator?.openLink(url)
 }
 
 /**

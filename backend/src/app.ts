@@ -16,6 +16,7 @@ import { moderationRoutes } from "./modules/moderation/routes.js";
 import { notificationsRoutes } from "./modules/notifications/routes.js";
 import { postsRoutes } from "./modules/posts/routes.js";
 import { usersRoutes } from "./modules/users/routes.js";
+import { webRoutes } from "./modules/web/routes.js";
 
 export interface AppDeps {
   config: Config;
@@ -45,6 +46,7 @@ export async function buildApp({ config, db, verifyToken, storage, reportError }
 
   app.get("/health", async () => ({ status: "ok" }));
   await app.register(legalRoutes, { contactEmail: config.CONTACT_EMAIL });
+  await app.register(webRoutes, { supabaseUrl: config.SUPABASE_URL, publishableKey: config.SUPABASE_PUBLISHABLE_KEY });
 
   // Everything below requires a signed-in user. The user id comes only from
   // the verified token, never from the request body or query.
