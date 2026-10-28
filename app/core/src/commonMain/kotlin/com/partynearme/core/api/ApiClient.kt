@@ -119,9 +119,19 @@ class ApiClient(
 
     // Events
 
-    suspend fun nearbyEvents(lat: Double, lng: Double, radiusKm: Double = 10.0, cursor: String? = null): EventPage =
+    /** [from] and [to] are ISO-8601 times (default: now to two weeks ahead); [interestId] picks one kind of party. */
+    suspend fun nearbyEvents(
+        lat: Double,
+        lng: Double,
+        radiusKm: Double = 10.0,
+        cursor: String? = null,
+        from: String? = null,
+        to: String? = null,
+        interestId: Int? = null,
+    ): EventPage =
         call(HttpMethod.Get, "/events/nearby") {
             parameter("lat", lat); parameter("lng", lng); parameter("radius_km", radiusKm); parameter("cursor", cursor)
+            parameter("from", from); parameter("to", to); parameter("interest_id", interestId)
         }
 
     suspend fun myEvents(organising: Boolean): List<Event> =
@@ -135,6 +145,12 @@ class ApiClient(
     /** Organiser only. Cancelling tells guests with a push. */
     suspend fun updateEvent(id: String, update: EventUpdate): Event =
         call(HttpMethod.Patch, "/events/${id.path()}") { json(update) }
+    /** Takes the party's kind off. Sent on its own so the null reaches the server. */
+    suspend fun clearEventKind(id: String): Event =
+        call(HttpMethod.Patch, "/events/${id.path()}") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"interest_id":null}""")
+        }
     suspend fun deleteEvent(id: String) = callUnit(HttpMethod.Delete, "/events/${id.path()}")
     suspend fun saveEvent(id: String, saved: Boolean) =
         callUnit(if (saved) HttpMethod.Put else HttpMethod.Delete, "/events/${id.path()}/save")

@@ -29,6 +29,8 @@ const event = z.object({
   lat: z.number(),
   lng: z.number(),
   cover_url: z.string().nullable(),
+  /** The kind of party, one of GET /interests; null when the host didn't pick one. */
+  interest_id: z.number().int().nullable(),
   status: z.enum(["draft", "published", "cancelled", "removed"]),
   going_count: z.number().int(),
   interested_count: z.number().int(),
@@ -49,6 +51,7 @@ const eventFields = {
   starts_at: timestamp,
   ends_at: timestamp.nullable(),
   venue_name: z.string().trim().max(120).nullable(),
+  interest_id: z.number().int().min(1).max(32767).nullable(),
   lat,
   lng,
 };
@@ -66,6 +69,7 @@ const createEvent = z
     description: eventFields.description.optional(),
     ends_at: eventFields.ends_at.optional(),
     venue_name: eventFields.venue_name.optional(),
+    interest_id: eventFields.interest_id.optional(),
     publish: z.boolean().default(false),
   })
   .strict()
@@ -89,6 +93,8 @@ const nearbyQuery = z.object({
   radius_km: z.coerce.number().positive().max(100).default(10),
   from: timestamp.optional(),
   to: timestamp.optional(),
+  /** Only parties of this kind. */
+  interest_id: z.coerce.number().int().min(1).max(32767).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
   cursor: z.string().max(200).optional(),
 });
@@ -112,7 +118,7 @@ const point = (tx: Tx, latitude: number, longitude: number) =>
 
 /** Columns every event response needs; RLS decides which events are visible. */
 const eventSelect = (tx: Tx, me: string, base: string | undefined) => tx`
-  e.id, e.title, e.description, e.starts_at, e.ends_at, e.venue_name, e.status, e.created_at,
+  e.id, e.title, e.description, e.starts_at, e.ends_at, e.venue_name, e.interest_id, e.status, e.created_at,
   ${pictureUrl(tx, base, "e.cover_variants", "1080")} as cover_url,
   extensions.st_y(e.location::extensions.geometry) as lat,
   extensions.st_x(e.location::extensions.geometry) as lng,
@@ -170,9 +176,9 @@ export const eventsRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string 
     const b = request.body;
     const created = await asUser(db, me, async (tx) => {
       const [row] = await tx`
-        insert into public.events (organiser_id, title, description, starts_at, ends_at, venue_name, location, status)
+        insert into public.events (organiser_id, title, description, starts_at, ends_at, venue_name, interest_id, location, status)
         values (${me}, ${b.title}, ${b.description ?? null}, ${b.starts_at}, ${b.ends_at ?? null},
-                ${b.venue_name ?? null}, ${point(tx, b.lat, b.lng)}, ${b.publish ? "published" : "draft"})
+                ${b.venue_name ?? null}, ${b.interest_id ?? null}, ${point(tx, b.lat, b.lng)}, ${b.publish ? "published" : "draft"})
         returning id
       `;
       if (!row) throw new Error("insert returned no row");
@@ -205,6 +211,7 @@ export const eventsRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string 
           -- Still going on, or starting within the window.
           and coalesce(e.ends_at, e.starts_at + interval '6 hours') >= ${from}::timestamptz
           and e.starts_at < ${to}::timestamptz
+          ${q.interest_id ? tx`and e.interest_id = ${q.interest_id}` : tx``}
           and not exists (select 1 from public.blocks b where b.blocker_id = ${me} and b.blocked_id = e.organiser_id)
           ${after ? tx`and (e.starts_at, e.id) > (${after.startsAt}::timestamptz, ${after.id}::uuid)` : tx``}
         order by e.starts_at, e.id

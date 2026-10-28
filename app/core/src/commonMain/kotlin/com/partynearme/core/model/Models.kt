@@ -166,6 +166,8 @@ data class Event(
     val lat: Double,
     val lng: Double,
     @SerialName("cover_url") val coverUrl: String? = null,
+    /** The kind of party, one of the interests; null when the host didn't pick one. */
+    @SerialName("interest_id") val interestId: Int? = null,
     val status: String,
     @SerialName("going_count") val goingCount: Int,
     @SerialName("interested_count") val interestedCount: Int,
@@ -191,6 +193,7 @@ data class NewEvent(
     @SerialName("starts_at") val startsAt: String,
     @SerialName("ends_at") val endsAt: String? = null,
     @SerialName("venue_name") val venueName: String? = null,
+    @SerialName("interest_id") val interestId: Int? = null,
     val lat: Double,
     val lng: Double,
     val publish: Boolean = true,
@@ -207,6 +210,7 @@ data class EventUpdate(
     @SerialName("starts_at") val startsAt: String? = null,
     @SerialName("ends_at") val endsAt: String? = null,
     @SerialName("venue_name") val venueName: String? = null,
+    @SerialName("interest_id") val interestId: Int? = null,
     val lat: Double? = null,
     val lng: Double? = null,
     /** "published" or "cancelled". */

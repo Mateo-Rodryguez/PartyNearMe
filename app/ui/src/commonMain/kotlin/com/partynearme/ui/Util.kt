@@ -10,7 +10,14 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.datetime.DateTimeUnit
+import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.LocalTime
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.isoDayNumber
+import kotlinx.datetime.minus
+import kotlinx.datetime.plus
+import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -141,6 +148,24 @@ fun dayLabel(iso: String, now: Instant = Clock.System.now()): String {
         1 -> "Tomorrow"
         else -> "${day.dayOfWeek.name.take(3).lowercase().replaceFirstChar { it.uppercase() }} ${day.day} ${monthName(day.month.ordinal)}"
     }
+}
+
+/** From now until 6 the next morning: what people mean by "tonight". */
+fun tonightWindow(now: Instant = Clock.System.now(), tz: TimeZone = zone): Pair<Instant, Instant> {
+    val local = now.toLocalDateTime(tz)
+    val endDay = if (local.hour < 6) local.date else local.date.plus(1, DateTimeUnit.DAY)
+    return now to LocalDateTime(endDay, LocalTime(6, 0)).toInstant(tz)
+}
+
+/** Friday 17:00 to Monday 6:00 of this weekend, or the next one; from now if it has started. */
+fun weekendWindow(now: Instant = Clock.System.now(), tz: TimeZone = zone): Pair<Instant, Instant> {
+    val local = now.toLocalDateTime(tz)
+    val sinceFriday = (local.date.dayOfWeek.isoDayNumber - 5 + 7) % 7
+    val stillOn = sinceFriday <= 2 || (sinceFriday == 3 && local.hour < 6)
+    val friday = if (stillOn) local.date.minus(sinceFriday, DateTimeUnit.DAY) else local.date.plus(7 - sinceFriday, DateTimeUnit.DAY)
+    val start = LocalDateTime(friday, LocalTime(17, 0)).toInstant(tz)
+    val end = LocalDateTime(friday.plus(3, DateTimeUnit.DAY), LocalTime(6, 0)).toInstant(tz)
+    return maxOf(start, now) to end
 }
 
 /** "21:00" in the phone's time zone. */

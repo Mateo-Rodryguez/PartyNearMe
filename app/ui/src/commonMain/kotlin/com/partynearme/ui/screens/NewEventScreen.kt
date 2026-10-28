@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -57,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.partynearme.core.model.Event
 import com.partynearme.core.model.EventUpdate
+import com.partynearme.core.model.Interest
 import com.partynearme.core.model.LatLng
 import com.partynearme.core.model.NewEvent
 import com.partynearme.ui.Brand
@@ -129,6 +132,9 @@ fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, editing: Event? = null, o
     var mapStart by remember { mutableStateOf<LatLng?>(null) }
     LaunchedEffect(Unit) { mapStart = ui.location.current() }
     var error by remember { mutableStateOf<String?>(null) }
+    var kind by remember { mutableStateOf(editing?.interestId) }
+    var kinds by remember { mutableStateOf(emptyList<Interest>()) }
+    LaunchedEffect(Unit) { attempt { ui.api.interests() }.onSuccess { kinds = it } }
     var cover by remember { mutableStateOf<PickedPhoto?>(null) }
     val pickCover = ui.platform.rememberPhotoPicker(1) { picked -> picked.firstOrNull()?.let { cover = it } }
 
@@ -187,11 +193,13 @@ fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, editing: Event? = null, o
                         startsAt = start.toString(),
                         endsAt = (start + hours.hours).toString(),
                         venueName = venue.trim(),
+                        interestId = kind,
                         lat = here.lat,
                         lng = here.lng,
                     ),
                 )
             }.onSuccess {
+                if (kind == null && e.interestId != null) attempt { ui.api.clearEventKind(e.id) }
                 cover?.let { photo ->
                     attempt { ui.api.setCover(e.id, ui.api.uploadPhoto(photo.contentType, photo.bytes)) }
                         .onFailure { ui.toast("Saved, but the cover didn't upload. Try again from the party's menu.") }
@@ -220,6 +228,7 @@ fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, editing: Event? = null, o
                             startsAt = start.toString(),
                             endsAt = (start + hours.hours).toString(),
                             venueName = venue.trim().ifEmpty { null },
+                            interestId = kind,
                             lat = here.lat,
                             lng = here.lng,
                             publish = true,
@@ -273,6 +282,13 @@ fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, editing: Event? = null, o
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Next))
                 PartyField(venue, { venue = it.take(120) }, "Venue (optional)",
                     keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = ImeAction.Done))
+
+                if (kinds.isNotEmpty()) {
+                    FormLabel("What kind of party?")
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(kinds, key = { it.id }) { k -> ChoiceChip(k.name, kind == k.id, { kind = if (kind == k.id) null else k.id }) }
+                    }
+                }
 
                 FormLabel("When")
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {

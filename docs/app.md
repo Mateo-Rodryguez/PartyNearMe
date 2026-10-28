@@ -169,6 +169,13 @@ Your party's ⋮ menu has **Edit party**, which opens the party form filled in, 
 RSVP'd gets a push), **Put the party back on**, and **Delete party**, which removes
 it and its RSVPs for good. Photos posted at a deleted party stay on profiles.
 
+## Finding parties
+
+Nearby has a row of filters at the top: **Any time**, **Tonight** (now until 6 the
+next morning) and **This weekend** (Friday 17:00 to Monday 6:00), then the kinds
+of party (the same list as interests: music, sports, food...). Hosts pick the kind
+in the party form; it's optional, and parties without one only show unfiltered.
+
 ## Friends going
 
 Party cards and pages show who you follow that's going, with up to three faces:

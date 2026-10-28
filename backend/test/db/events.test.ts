@@ -245,3 +245,27 @@ describe("friends going", () => {
     expect(hosts.friends_going).toEqual([]);
   });
 });
+
+describe("party types and time filters", () => {
+  it("filters nearby parties by kind and by time window", async () => {
+    const host = await ctx.createUser();
+    const me = await ctx.createUser();
+    const music = await createEvent(host, { title: "Disco", interest_id: 1, starts_at: inHours(2) });
+    const food = await createEvent(host, { title: "Supper club", interest_id: 4, starts_at: inHours(50) });
+    await createEvent(host, { title: "Anything", starts_at: inHours(3) });
+    expect(music.interest_id).toBe(1);
+
+    const near = `lat=${LONDON.lat}&lng=${LONDON.lng}`;
+    const titles = async (query: string) =>
+      ((await ctx.as(me, { method: "GET", url: `/events/nearby?${near}&${query}` })).json().events as { title: string }[])
+        .map((e) => e.title);
+    expect(await titles("interest_id=1")).toEqual(["Disco"]);
+    expect(await titles(`to=${encodeURIComponent(inHours(24))}`)).toEqual(["Disco", "Anything"]);
+    expect(await titles(`from=${encodeURIComponent(inHours(40))}`)).toEqual(["Supper club"]);
+
+    const edited = await ctx.as(host, { method: "PATCH", url: `/events/${food.id}`, payload: { interest_id: null } });
+    expect(edited.json().interest_id).toBeNull();
+    const bad = await ctx.as(host, { method: "PATCH", url: `/events/${food.id}`, payload: { interest_id: 999 } });
+    expect(bad.statusCode).toBe(400);
+  });
+});
