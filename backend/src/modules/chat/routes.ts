@@ -164,7 +164,8 @@ export const chatRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string | 
         from public.messages
         where conversation_id = ${request.params.id}
           ${before ? tx`and id < ${before}::bigint` : tx``}
-        order by id desc
+        -- The table's id, not the text copy in the select list, which would sort "10" before "9".
+        order by messages.id desc
         limit ${limit + 1}
       `;
       return { messages: rows.slice(0, limit), has_more: rows.length > limit };
