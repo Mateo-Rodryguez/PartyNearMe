@@ -185,3 +185,61 @@ describe("party invites", () => {
     expect(missing.statusCode).toBe(404);
   });
 });
+
+describe("party chats", () => {
+  const createParty = async (host: string) =>
+    ((await ctx.as(host, {
+      method: "POST",
+      url: "/events",
+      payload: { title: "Rooftop", starts_at: new Date(Date.now() + 86400_000).toISOString(), lat: 51.5, lng: -0.12, publish: true },
+    })).json() as { id: string }).id;
+  const rsvp = (me: string, id: string, status: string | null) =>
+    ctx.as(me, { method: "PUT", url: `/events/${id}/rsvp`, payload: { status } });
+  const chatOf = async (me: string, id: string) =>
+    ((await ctx.as(me, { method: "GET", url: `/events/${id}` })).json() as { chat_id: string | null }).chat_id;
+
+  it("puts the host and everyone going in one chat, and takes people out when they stop going", async () => {
+    const [host, sam, alex] = (await Promise.all([1, 2, 3].map(() => ctx.createUser()))) as [string, string, string];
+    const party = await createParty(host);
+    expect(await chatOf(host, party)).toBeNull();
+
+    expect((await rsvp(sam, party, "going")).statusCode).toBe(200);
+    await rsvp(alex, party, "interested");
+    const chat = await chatOf(sam, party);
+    expect(chat).not.toBeNull();
+    expect(await chatOf(host, party)).toBe(chat);
+    expect(await chatOf(alex, party)).toBeNull();
+
+    expect((await send(host, chat ?? "", "Doors at 9")).statusCode).toBe(201);
+    const convo = (await ctx.as(sam, { method: "GET", url: `/conversations/${chat}` })).json();
+    expect(convo).toMatchObject({ other: null, party: { id: party, title: "Rooftop" }, unread_count: 1 });
+    expect(convo.members.map((m: { id: string }) => m.id).sort()).toEqual([host, sam].sort());
+
+    await rsvp(sam, party, "interested");
+    expect(await chatOf(sam, party)).toBeNull();
+    expect((await ctx.as(sam, { method: "GET", url: `/conversations/${chat}/messages` })).statusCode).toBe(404);
+    // The host stays even after changing their own RSVP.
+    await rsvp(host, party, "going");
+    await rsvp(host, party, null);
+    expect(await chatOf(host, party)).toBe(chat);
+  });
+
+  it("lets a blocked person keep talking, but hides them from whoever blocked them", async () => {
+    const [host, sam, alex] = (await Promise.all([1, 2, 3].map(() => ctx.createUser()))) as [string, string, string];
+    const party = await createParty(host);
+    await rsvp(sam, party, "going");
+    await rsvp(alex, party, "going");
+    const chat = (await chatOf(sam, party)) ?? "";
+    await ctx.as(sam, { method: "PUT", url: `/users/${alex}/block` });
+
+    expect((await send(alex, chat, "hey all")).statusCode).toBe(201);
+    expect((await send(host, chat, "welcome")).statusCode).toBe(201);
+    const bodies = async (me: string) =>
+      ((await ctx.as(me, { method: "GET", url: `/conversations/${chat}/messages` })).json() as { messages: { body: string }[] })
+        .messages.map((m) => m.body);
+    expect(await bodies(sam)).toEqual(["welcome"]);
+    expect(await bodies(host)).toEqual(["welcome", "hey all"]);
+    const convo = (await ctx.as(sam, { method: "GET", url: `/conversations/${chat}` })).json();
+    expect(convo).toMatchObject({ hidden_sender_ids: [alex], unread_count: 1 });
+  });
+});

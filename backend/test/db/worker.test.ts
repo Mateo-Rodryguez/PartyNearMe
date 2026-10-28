@@ -160,6 +160,28 @@ describe("push notifications", () => {
     expect(push.sent[0]?.message.body).toHaveLength(100);
   });
 
+  it("pushes party chat messages under the party's name, except to people who blocked the sender", async () => {
+    const [host, sam, alex] = (await Promise.all([1, 2, 3].map(() => ctx.createUser()))) as [string, string, string];
+    await ctx.db`update public.profiles set display_name = 'Alex' where id = ${alex}`;
+    const party = (await ctx.as(host, {
+      method: "POST",
+      url: "/events",
+      payload: { title: "Rooftop", starts_at: new Date(Date.now() + 86400_000).toISOString(), lat: 51.5, lng: -0.12, publish: true },
+    })).json() as { id: string };
+    for (const guest of [sam, alex]) {
+      await ctx.as(guest, { method: "PUT", url: `/events/${party.id}/rsvp`, payload: { status: "going" } });
+    }
+    await register(host, "host-phone-1");
+    await register(sam, "sam-phone-1");
+    await ctx.as(sam, { method: "PUT", url: `/users/${alex}/block` });
+    await drain();
+    push.sent.length = 0;
+    const chat = ((await ctx.as(alex, { method: "GET", url: `/events/${party.id}` })).json() as { chat_id: string }).chat_id;
+    await ctx.as(alex, { method: "POST", url: `/conversations/${chat}/messages`, payload: { body: "on my way" } });
+    await drain();
+    expect(push.sent.map((s) => [s.token, s.message.title, s.message.body])).toEqual([["host-phone-1", "Rooftop", "Alex: on my way"]]);
+  });
+
   it("skips the kinds of push the user turned off in settings", async () => {
     const alice = await ctx.createUser();
     const bob = await ctx.createUser();

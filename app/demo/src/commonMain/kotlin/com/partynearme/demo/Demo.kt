@@ -50,6 +50,7 @@ object Demo {
             "post" -> nav.select(Tab.Post)
             "inbox" -> nav.select(Tab.Chat)
             "chat" -> { nav.select(Tab.Chat); nav.open(Route.Chat("c1", "@sam")) }
+            "party-chat" -> { nav.select(Tab.Chat); nav.open(Route.Chat("c3", "Rooftop Sunset Party")) }
             "profile" -> nav.select(Tab.Me)
             "user" -> nav.open(Route.User(SAM))
             "notifications" -> nav.open(Route.Notifications)
@@ -159,7 +160,8 @@ private object FakeApi {
            "starts_at":"${ahead(starts)}","ends_at":"${ahead(starts + 5.hours)}","venue_name":"$venue",
            "lat":51.51,"lng":-0.13,"cover_url":${cover?.let { "\"https://picsum.photos/seed/$it/1280/800\"" }},"status":"published","going_count":$going,
            "interested_count":$interested,"my_rsvp":${mine?.let { "\"$it\"" }},"saved_by_me":$saved,"created_at":"${ago(2.days)}",
-           "friends_going":[${friends.joinToString(",")}],"friends_going_count":$friendCount,"distance_m":$distance}"""
+           "friends_going":[${friends.joinToString(",")}],"friends_going_count":$friendCount,"distance_m":$distance,
+           "chat_id":${if (mine == "going") "\"c3\"" else "null"}}"""
 
     private val events get() = listOf(
         event("e1", "Rooftop Sunset Party", "Skyline Bar", 6.hours, 42, 17, "going", 650, cover = "rooftop",
@@ -182,8 +184,14 @@ private object FakeApi {
         message(100, SAM, "You're invited to Rooftop Sunset Party", 21.minutes, event = "e1"),
     ).joinToString(",")
 
+    private val partyChat get() =
+        """{"id":"c3","other":null,"party":{"id":"e1","title":"Rooftop Sunset Party",
+            "cover_url":"https://picsum.photos/seed/rooftop/150/150"},"members":[$sam,$alex,$mateo],"hidden_sender_ids":[],
+            "last_message":{"id":"120","conversation_id":"c3","sender_id":"$ALEX","body":"Who's bringing speakers?",
+            "created_at":"${ago(1.minutes)}"},"unread_count":2,"last_message_at":"${ago(1.minutes)}"}"""
+
     private val conversations get() =
-        """{"conversations":[
+        """{"conversations":[$partyChat,
            {"id":"c1","other":$sam,"last_message":${message(105, SAM, "See you there!", 2.minutes)},
             "unread_count":1,"last_message_at":"${ago(2.minutes)}"},
            {"id":"c2","other":$alex,"last_message":{"id":"90","conversation_id":"c2","sender_id":"$ME",
@@ -259,6 +267,12 @@ private object FakeApi {
         path == "/notifications/seen" -> HttpStatusCode.NoContent to ""
         path == "/conversations/unread" -> HttpStatusCode.OK to """{"unread_count":1}"""
         path == "/conversations" && method == HttpMethod.Get -> HttpStatusCode.OK to conversations
+        path == "/conversations/c3" -> HttpStatusCode.OK to partyChat
+        path == "/conversations/c3/messages" -> HttpStatusCode.OK to """{"messages":[
+           {"id":"120","conversation_id":"c3","sender_id":"$ALEX","body":"Who's bringing speakers?","created_at":"${ago(1.minutes)}"},
+           {"id":"119","conversation_id":"c3","sender_id":"$SAM","body":"Doors at 9, see you all there","created_at":"${ago(3.minutes)}"},
+           {"id":"118","conversation_id":"c3","sender_id":"$ME","body":"Can't wait","created_at":"${ago(5.minutes)}"}],
+           "has_more":false}"""
         path.endsWith("/messages") -> HttpStatusCode.OK to """{"messages":[$messages],"has_more":false}"""
         path.endsWith("/read") -> HttpStatusCode.NoContent to ""
         path == "/me/avatar" || path.endsWith("/cover") -> HttpStatusCode.Accepted to ""

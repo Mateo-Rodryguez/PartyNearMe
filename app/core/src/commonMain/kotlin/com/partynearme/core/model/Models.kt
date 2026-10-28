@@ -187,6 +187,8 @@ data class Event(
     /** Up to three people the user follows who are going. */
     @SerialName("friends_going") val friendsGoing: List<Person> = emptyList(),
     @SerialName("friends_going_count") val friendsGoingCount: Int = 0,
+    /** The party's group chat, when you're in it (the host and people going). */
+    @SerialName("chat_id") val chatId: String? = null,
     @SerialName("created_at") val createdAt: String,
     @SerialName("distance_m") val distanceM: Int? = null,
 )
@@ -281,11 +283,21 @@ data class InviteResult(val sent: Int, val skipped: Int)
 @Serializable
 data class Conversation(
     val id: String,
+    /** The other person in a one-to-one chat; null in a party's group chat. */
     val other: Person? = null,
+    /** Set for a party's group chat. */
+    val party: ChatParty? = null,
+    /** Everyone in a party chat, for names on messages; empty in one-to-one chats. */
+    val members: List<Person> = emptyList(),
+    /** People you blocked in this party chat: their messages stay hidden. */
+    @SerialName("hidden_sender_ids") val hiddenSenderIds: List<String> = emptyList(),
     @SerialName("last_message") val lastMessage: Message? = null,
     @SerialName("unread_count") val unreadCount: Int,
     @SerialName("last_message_at") val lastMessageAt: String? = null,
 )
+
+@Serializable
+data class ChatParty(val id: String, val title: String, @SerialName("cover_url") val coverUrl: String? = null)
 
 @Serializable
 data class ConversationPage(

@@ -279,19 +279,24 @@ async function pushTo(
 }
 
 async function notifyMessage(deps: WorkerDeps, messageId: string): Promise<void> {
-  const [m] = await deps.db<{ conversation_id: string; sender_id: string; body: string; display_name: string | null; username: string | null }[]>`
-    select m.conversation_id, m.sender_id, m.body, p.display_name, p.username
-    from public.messages m join public.profiles p on p.id = m.sender_id
+  const [m] = await deps.db<{ conversation_id: string; sender_id: string; body: string; display_name: string | null; username: string | null; party: string | null }[]>`
+    select m.conversation_id, m.sender_id, m.body, p.display_name, p.username, e.title as party
+    from public.messages m
+    join public.profiles p on p.id = m.sender_id
+    join public.conversations c on c.id = m.conversation_id
+    left join public.events e on e.id = c.event_id
     where m.id = ${messageId}
   `;
   if (!m) return;
+  // In party chats, people who blocked the sender don't hear from them.
   const recipients = await deps.db<{ user_id: string }[]>`
-    select user_id from public.conversation_members
-    where conversation_id = ${m.conversation_id} and user_id <> ${m.sender_id}
+    select cm.user_id from public.conversation_members cm
+    where cm.conversation_id = ${m.conversation_id} and cm.user_id <> ${m.sender_id}
+      and not exists (select 1 from public.blocks b where b.blocker_id = cm.user_id and b.blocked_id = ${m.sender_id})
   `;
   await pushTo(deps, recipients.map((r) => r.user_id), "push_messages", {
-    title: nameOf(m),
-    body: preview(m.body),
+    title: m.party ?? nameOf(m),
+    body: preview(m.party ? `${nameOf(m)}: ${m.body}` : m.body),
     data: { type: "message", conversation_id: m.conversation_id },
   });
 }

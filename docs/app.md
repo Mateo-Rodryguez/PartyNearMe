@@ -26,7 +26,7 @@ Most screens use sample data built into debug builds, so no server or account is
 needed: `adb shell am start -n com.partynearme.app/.MainActivity --es demo feed`
 opens the feed. The other screens are `sign_in`, `nearby`, `event`, `new_event`,
 `map_picker`, `post`, `inbox`, `chat`, `profile`, `user`, `moderation`, `settings`, `relationship`,
-`search`, `followers`, `saved`, `comments`, `edit-party` and `invite`. Release builds ignore this.
+`search`, `followers`, `saved`, `comments`, `edit-party`, `invite` and `party-chat`. Release builds ignore this.
 
 ## iPhone
 
@@ -209,6 +209,16 @@ preview with the title, time, venue and cover, or the photo and caption, plus an
 Drafts, removed parties and hidden posts show "isn't available". Shares are logged
 as a ranking signal. Opening the https link straight in the app (Android App Links,
 iOS Universal Links) needs our own domain first.
+
+## Party chats
+
+Every party gets a group chat once someone says they're going: the host and
+everyone going are in it, and people leave it when they stop going (the host always
+stays). It opens from **Party chat** on the party's page and sits in Messages with the
+party's cover and title; messages show the sender's name. Blocks work differently
+from one-to-one chats, where they stop messages: in a party chat the person you
+blocked can still talk, but you don't see or get pushed their messages. Pushes read
+"Rooftop / Alex: on my way".
 
 ## Inviting friends
 

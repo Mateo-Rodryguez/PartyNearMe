@@ -25,7 +25,14 @@ const message = z.object({
 
 const conversation = z.object({
   id: z.guid(),
+  /** The other person in a one-to-one chat; null in a party's group chat. */
   other: person.nullable(),
+  /** Set for a party's group chat. */
+  party: z.object({ id: z.guid(), title: z.string(), cover_url: z.string().nullable() }).nullable(),
+  /** Everyone in a party chat (empty for one-to-one chats), for names on messages. */
+  members: z.array(person),
+  /** People you blocked who are in this party chat; the app hides their live messages too. */
+  hidden_sender_ids: z.array(z.guid()),
   last_message: message.nullable(),
   unread_count: z.number().int(),
   last_message_at: z.date().nullable(),
@@ -47,19 +54,49 @@ const decodeCursor = (cursor: string) => {
   return { at, id };
 };
 
+/** Most people a party chat lists as members. */
+const MAX_MEMBERS = 500;
+
+/**
+ * Whether message m is shown: in party chats, messages from people the user
+ * blocked are left out (blocks are only readable by the person who made them,
+ * so this is the user's own list). One-to-one chats stop new messages instead.
+ */
+const shown = (tx: Tx, c: string, m: string) => tx`
+  (${tx(c)}.event_id is null or not exists (select 1 from public.blocks b where b.blocked_id = ${tx(m)}.sender_id))
+`;
+
+const personJson = (tx: Tx, base: string | undefined) => tx`
+  json_build_object('id', p.id, 'username', p.username, 'display_name', p.display_name,
+                    'avatar_url', ${pictureUrl(tx, base, "p.avatar_variants", "150")})
+`;
+
 /** Inbox rows; RLS limits them to conversations the user is in. */
 const conversationSelect = (tx: Tx, me: string, base: string | undefined) => tx`
   c.id, c.last_message_at,
-  (select json_build_object('id', p.id, 'username', p.username, 'display_name', p.display_name,
-                            'avatar_url', ${pictureUrl(tx, base, "p.avatar_variants", "150")})
-   from public.conversation_members om join public.profiles p on p.id = om.user_id
-   where om.conversation_id = c.id and om.user_id <> ${me}
-   limit 1) as other,
+  case when c.event_id is null then
+    (select ${personJson(tx, base)}
+     from public.conversation_members om join public.profiles p on p.id = om.user_id
+     where om.conversation_id = c.id and om.user_id <> ${me}
+     limit 1)
+  end as other,
+  (select json_build_object('id', e.id, 'title', e.title, 'cover_url', ${pictureUrl(tx, base, "e.cover_variants", "150")})
+   from public.events e where e.id = c.event_id) as party,
+  case when c.event_id is null then '[]'::json else coalesce((
+    select json_agg(${personJson(tx, base)} order by p.username)
+    from (select user_id from public.conversation_members where conversation_id = c.id limit ${MAX_MEMBERS}) om
+    join public.profiles p on p.id = om.user_id
+  ), '[]'::json) end as members,
+  case when c.event_id is null then '[]'::json else coalesce((
+    select json_agg(b.blocked_id)
+    from public.blocks b join public.conversation_members om on om.user_id = b.blocked_id and om.conversation_id = c.id
+  ), '[]'::json) end as hidden_sender_ids,
   (select json_build_object('id', m.id::text, 'conversation_id', m.conversation_id, 'sender_id', m.sender_id,
                             'body', m.body, 'event_id', m.event_id, 'created_at', m.created_at)
-   from public.messages m where m.conversation_id = c.id order by m.id desc limit 1) as last_message,
+   from public.messages m where m.conversation_id = c.id and ${shown(tx, "c", "m")}
+   order by m.id desc limit 1) as last_message,
   (select count(*)::int from public.messages m
-   where m.conversation_id = c.id and m.sender_id <> ${me}
+   where m.conversation_id = c.id and m.sender_id <> ${me} and ${shown(tx, "c", "m")}
      and m.created_at > coalesce(me.last_read_at, '-infinity')) as unread_count
 `;
 
@@ -138,8 +175,9 @@ export const chatRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string | 
     const [row] = await asUser(db, me, (tx) => tx<{ n: number }[]>`
       select count(*)::int as n
       from public.conversation_members me
+      join public.conversations c on c.id = me.conversation_id
       join public.messages m on m.conversation_id = me.conversation_id
-      where me.user_id = ${me} and m.sender_id <> ${me}
+      where me.user_id = ${me} and m.sender_id <> ${me} and ${shown(tx, "c", "m")}
         and m.created_at > coalesce(me.last_read_at, '-infinity')
     `);
     return { unread_count: row?.n ?? 0 };
@@ -165,12 +203,12 @@ export const chatRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string | 
     return asUser(db, me, async (tx) => {
       await loadConversation(tx, me, request.params.id);
       const rows = await tx<z.infer<typeof message>[]>`
-        select id::text, conversation_id, sender_id, body, event_id, created_at
-        from public.messages
-        where conversation_id = ${request.params.id}
-          ${before ? tx`and id < ${before}::bigint` : tx``}
+        select m.id::text, m.conversation_id, m.sender_id, m.body, m.event_id, m.created_at
+        from public.messages m join public.conversations c on c.id = m.conversation_id
+        where m.conversation_id = ${request.params.id} and ${shown(tx, "c", "m")}
+          ${before ? tx`and m.id < ${before}::bigint` : tx``}
         -- The table's id, not the text copy in the select list, which would sort "10" before "9".
-        order by messages.id desc
+        order by m.id desc
         limit ${limit + 1}
       `;
       return { messages: rows.slice(0, limit), has_more: rows.length > limit };

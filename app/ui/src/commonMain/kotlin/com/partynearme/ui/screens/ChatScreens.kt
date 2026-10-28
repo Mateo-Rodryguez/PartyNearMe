@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -96,20 +97,25 @@ fun InboxScreen(ui: Ui, state: InboxState) {
                 )
                 else -> LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 4.dp)) {
                     items(paged.items, key = { it.id }) { c ->
-                        val name = c.other?.name ?: "Deleted account"
+                        val party = c.party
+                        val name = party?.title ?: c.other?.name ?: "Deleted account"
                         val unread = c.unreadCount > 0
                         Row(
                             Modifier.fillMaxWidth().clickable { ui.nav.open(Route.Chat(c.id, name)) }
                                 .padding(horizontal = 20.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Avatar(c.other?.avatarUrl, name, 56.dp, ring = unread)
+                            if (party != null) {
+                                Cover(party.coverUrl, party.id, Modifier.size(56.dp).clip(CircleShape))
+                            } else {
+                                Avatar(c.other?.avatarUrl, name, 56.dp, ring = unread)
+                            }
                             Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
                                 Text(name, style = MaterialTheme.typography.titleSmall,
                                     fontWeight = if (unread) FontWeight.Bold else FontWeight.SemiBold)
                                 c.lastMessage?.let {
                                     Text(
-                                        (if (it.senderId == ui.myId) "You: " else "") + it.body +
+                                        senderPrefix(c, it.senderId, ui.myId) + it.body +
                                             (c.lastMessageAt?.let { at -> " · ${timeAgo(at)}" } ?: ""),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
@@ -130,6 +136,13 @@ fun InboxScreen(ui: Ui, state: InboxState) {
     }
 }
 
+/** "You: ", or the sender's first name in a party chat, before the inbox's last message. */
+private fun senderPrefix(c: Conversation, senderId: String, me: String): String = when {
+    senderId == me -> "You: "
+    c.party != null -> (c.members.firstOrNull { it.id == senderId }?.name ?: "Someone") + ": "
+    else -> ""
+}
+
 /** A conversation. New messages arrive live; a slow check also catches anything missed while offline. */
 @Composable
 fun ChatScreen(ui: Ui, conversationId: String, title: String, onLeave: () -> Unit) {
@@ -141,11 +154,15 @@ fun ChatScreen(ui: Ui, conversationId: String, title: String, onLeave: () -> Uni
     var draft by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
     var reporting by remember { mutableStateOf<String?>(null) }
+    // Party chats: who's in it (for names) and who you blocked (whose messages stay hidden).
+    var conversation by remember { mutableStateOf<Conversation?>(null) }
     val list = rememberLazyListState()
+    LaunchedEffect(conversationId) { attempt { ui.api.conversation(conversationId) }.onSuccess { conversation = it } }
 
     fun merge(fresh: List<Message>) {
         val known = messages.map { it.id }.toSet()
-        val added = fresh.filter { it.id !in known }
+        val hidden = conversation?.hiddenSenderIds.orEmpty()
+        val added = fresh.filter { it.id !in known && it.senderId !in hidden }
         if (added.isNotEmpty()) {
             messages.addAll(0, added)
             messages.sortByDescending { it.id.toLongOrNull() ?: 0L }
@@ -209,7 +226,16 @@ fun ChatScreen(ui: Ui, conversationId: String, title: String, onLeave: () -> Uni
                     contentPadding = PaddingValues(vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    items(messages, key = { it.id }) { m ->
+                    itemsIndexed(messages, key = { _, m -> m.id }) { i, m ->
+                        // In a party chat, the sender's name tops each run of their messages.
+                        val group = conversation?.party != null
+                        val older = messages.getOrNull(i + 1)
+                        if (group && m.senderId != ui.myId && older?.senderId != m.senderId) {
+                            val sender = conversation?.members?.firstOrNull { it.id == m.senderId }
+                            Text(sender?.name ?: "Someone", style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 2.dp))
+                        }
                         Bubble(
                             m,
                             mine = m.senderId == ui.myId,

@@ -47,7 +47,7 @@ shot 00-real-app
 # Sample data (debug builds only), one screen at a time, in the light theme.
 xcrun simctl ui booted appearance light
 n=1
-for screen in sign_in feed notifications nearby event new_event map_picker post inbox chat profile user settings relationship search followers saved comments edit-party invite; do
+for screen in sign_in feed notifications nearby event new_event map_picker post inbox chat profile user settings relationship search followers saved comments edit-party invite party-chat; do
   shot "$(printf '%02d' "$n")-$screen" -demo "$screen"
   n=$((n + 1))
 done

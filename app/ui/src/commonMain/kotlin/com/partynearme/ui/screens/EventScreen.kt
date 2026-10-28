@@ -210,13 +210,15 @@ fun EventScreen(ui: Ui, id: String) {
                     Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 FriendsGoing(e, Modifier.padding(vertical = 4.dp))
-                if (e.status == "published") {
-                    SecondaryButton(
-                        "Invite friends",
-                        { ui.nav.open(Route.Invite(e.id, e.title)) },
-                        Modifier.padding(vertical = 4.dp),
-                        icon = Icons.AutoMirrored.Filled.Send,
-                    )
+                Row(Modifier.padding(vertical = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (e.status == "published") {
+                        SecondaryButton("Invite friends", { ui.nav.open(Route.Invite(e.id, e.title)) },
+                            icon = Icons.AutoMirrored.Filled.Send)
+                    }
+                    // The host and everyone going share a group chat.
+                    e.chatId?.let { chat ->
+                        SecondaryButton("Party chat", { ui.nav.open(Route.Chat(chat, e.title)) }, icon = PartyIcons.ChatBubbleOutline)
+                    }
                 }
                 if (e.status == "cancelled") {
                     Text("This party was cancelled.", color = MaterialTheme.colorScheme.error,

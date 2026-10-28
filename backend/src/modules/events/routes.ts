@@ -39,6 +39,8 @@ const event = z.object({
   /** Up to three people the viewer follows who are going, most recent first. */
   friends_going: z.array(person),
   friends_going_count: z.number().int(),
+  /** The party's group chat, when the viewer is in it (the host and people going). */
+  chat_id: z.guid().nullable(),
   created_at: z.date(),
 });
 type Event = z.infer<typeof event>;
@@ -133,7 +135,9 @@ const eventSelect = (tx: Tx, me: string, base: string | undefined) => tx`
                             order by f.going_since desc), '[]'::json)
    from (select fp.*, r.created_at as going_since from ${friendsGoing(tx, me)} order by r.created_at desc limit 3) f
   ) as friends_going,
-  (select count(*)::int from ${friendsGoing(tx, me)}) as friends_going_count
+  (select count(*)::int from ${friendsGoing(tx, me)}) as friends_going_count,
+  (select c.id from public.conversations c join public.conversation_members cm on cm.conversation_id = c.id
+   where c.event_id = e.id and cm.user_id = ${me}) as chat_id
 `;
 
 /**
