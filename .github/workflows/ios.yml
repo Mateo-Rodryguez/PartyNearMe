@@ -1,0 +1,78 @@
+name: iOS
+
+# The native iPhone app (ios/): Swift and SwiftUI, built and tested on a cloud Mac
+# (free for public repositories) and screenshotted on an iPhone simulator.
+on:
+  push:
+    branches: [PartyApp]
+    paths: ["ios/**", ".github/workflows/ios.yml"]
+  pull_request:
+    paths: ["ios/**", ".github/workflows/ios.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  iphone:
+    runs-on: macos-26
+    permissions:
+      contents: write # publishes the screenshots to the ios-native-screenshots branch
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate the Xcode project
+        run: |
+          xcodebuild -version
+          brew list xcodegen > /dev/null 2>&1 || brew install xcodegen
+          xcodegen generate
+      - name: Pick an iPhone simulator
+        run: |
+          udid=$(xcrun simctl list devices available -j \
+            | jq -r '[.devices | to_entries[] | select(.key | test("iOS")) | .value[] | select(.name | startswith("iPhone"))] | last | .udid')
+          xcrun simctl list devices available | grep "$udid"
+          echo "SIMULATOR=$udid" >> "$GITHUB_ENV"
+      - name: Unit tests
+        run: |
+          set -o pipefail
+          mkdir -p build
+          xcodebuild -project PartyNearMe.xcodeproj -scheme PartyNearMe -configuration Debug \
+            -destination "id=$SIMULATOR" -derivedDataPath build CODE_SIGNING_ALLOWED=NO test \
+            | tee build/test.log | grep -E "error:|warning: .*PartyNearMe/|Test Case .* (passed|failed)|\*\* TEST" || true
+          grep -q "\*\* TEST SUCCEEDED \*\*" build/test.log
+      - name: Show build errors
+        if: failure()
+        run: grep -E "error:" -A3 build/test.log | head -200 || true
+      - name: Open every screen on the simulator
+        run: |
+          xcrun simctl boot "$SIMULATOR" || true
+          xcrun simctl bootstatus "$SIMULATOR" -b > /dev/null
+          bash scripts/simulator-screenshots.sh build/Build/Products/Debug-iphonesimulator/PartyNearMe.app ../screenshots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: partynearme-native-ios-screenshots
+          path: screenshots
+          retention-days: 14
+      - name: Publish screenshots to the ios-native-screenshots branch
+        if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE: ${{ github.head_ref || github.ref_name }}
+        run: |
+          [ -d screenshots ] || exit 0
+          cd screenshots
+          {
+            echo "# Native iPhone screenshots"
+            echo
+            echo "From \`$SOURCE\` at ${GITHUB_SHA::7}, taken on an iPhone simulator."
+            for f in *.png; do echo; echo "## ${f%.png}"; echo; echo "<img src=\"$f\" width=\"320\">"; done
+          } > README.md
+          git init -q -b ios-native-screenshots
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Native iPhone screenshots for ${GITHUB_SHA::7}"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" ios-native-screenshots
