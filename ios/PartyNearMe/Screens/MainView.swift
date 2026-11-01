@@ -6,8 +6,11 @@ import UIKit
 struct MainView: View {
     enum Tab: Hashable { case home, nearby, post, messages, profile }
 
+    @Environment(AppModel.self) private var app
     let me: OwnProfile
     @State private var tab: Tab
+    /// Home's posts, kept while other tabs are open so the feed keeps its place.
+    @State private var feed: FeedModel?
 
     init(me: OwnProfile, tab: Tab = .home) {
         self.me = me
@@ -17,7 +20,7 @@ struct MainView: View {
     var body: some View {
         TabView(selection: $tab) {
             NavigationStack {
-                ComingSoon(title: "Home", systemImage: "house", text: "The feed of photos from parties near you.")
+                if let feed { FeedView(paged: feed.paged).routeDestinations() }
             }
             .tabItem { Label("Home", systemImage: tab == .home ? "house.fill" : "house") }
             .tag(Tab.home)
@@ -29,7 +32,10 @@ struct MainView: View {
             .tag(Tab.nearby)
 
             NavigationStack {
-                ComingSoon(title: "New post", systemImage: "camera", text: "Share photos from a party.")
+                NewPostView {
+                    tab = .home
+                    Task { await feed?.paged.refresh() }
+                }
             }
             .tabItem {
                 Image(uiImage: PostTabIcon.image)
@@ -44,11 +50,44 @@ struct MainView: View {
             .tabItem { Label("Messages", systemImage: tab == .messages ? "bubble.left.and.bubble.right.fill" : "bubble.left.and.bubble.right") }
             .tag(Tab.messages)
 
-            NavigationStack { MeView(me: me) }
+            NavigationStack { ProfileView(userId: me.id).routeDestinations() }
                 .tabItem { Label("Profile", systemImage: tab == .profile ? "person.crop.circle.fill" : "person.crop.circle") }
                 .tag(Tab.profile)
         }
         .sensoryFeedback(.selection, trigger: tab)
+        .overlay(alignment: .bottom) { ToastView() }
+        .onAppear { if feed == nil { feed = FeedModel(app: app) } }
+        // Send what the user looked at before the app goes to the background.
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+            app.interactions.flush()
+        }
+    }
+}
+
+/// The short note at the bottom of the screen, above the tab bar.
+private struct ToastView: View {
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        ZStack {
+            if let toast = app.toast {
+                Text(toast.text)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Color.appBackground)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 12)
+                    .background(Capsule().fill(Color.appText))
+                    .shadow(color: .black.opacity(0.2), radius: 12, y: 4)
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 64)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .id(toast.id)
+                    .accessibilityAddTraits(.updatesFrequently)
+            }
+        }
+        .animation(.snappy, value: app.toast)
+        .allowsHitTesting(false)
     }
 }
 
@@ -67,46 +106,6 @@ private struct ComingSoon: View {
         .background(AppBackground())
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
-    }
-}
-
-/// For now: who you're signed in as, and signing out. The full profile comes next.
-private struct MeView: View {
-    @Environment(AppModel.self) private var app
-    let me: OwnProfile
-
-    var body: some View {
-        List {
-            Section {
-                HStack(spacing: 14) {
-                    Circle()
-                        .fill(Brand.gradient)
-                        .frame(width: 56, height: 56)
-                        .overlay {
-                            Text(String(me.name.trimmingCharacters(in: CharacterSet(charactersIn: "@")).prefix(1)).uppercased())
-                                .font(.title2.weight(.bold))
-                                .foregroundStyle(.white)
-                        }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(me.displayName ?? me.username ?? "You").font(.headline)
-                        if let username = me.username {
-                            Text("@\(username)").font(.subheadline).foregroundStyle(Color.appSecondaryText)
-                        }
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-            Section {
-                Link(destination: AppConfig.termsURL) { Label("Terms", systemImage: "doc.text") }
-                Link(destination: AppConfig.privacyURL) { Label("Privacy policy", systemImage: "hand.raised") }
-            }
-            Section {
-                Button("Sign out", role: .destructive) { Task { await app.signOut() } }
-            }
-        }
-        .scrollContentBackground(.hidden)
-        .background(AppBackground())
-        .navigationTitle("Profile")
     }
 }
 

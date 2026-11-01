@@ -39,8 +39,8 @@ listed in `PartyNearMe/Demo/Demo.swift`.
 
 ## Rebuild plan
 
-1. Foundation: theme, components, sign-in, onboarding, username, tab bar, CI (this)
-2. Feed, posts, photo upload, comments, profiles, follow
+1. Foundation: theme, components, sign-in, onboarding, username, tab bar, CI (done)
+2. Feed, posts, photo upload, comments, profiles, follow (this)
 3. Parties: Apple Maps nearby, party page, RSVP, create and edit, guest lists
 4. Chats, notifications, search, saved, settings, safety, share links
 5. Remove the Compose iPhone app once everything matches

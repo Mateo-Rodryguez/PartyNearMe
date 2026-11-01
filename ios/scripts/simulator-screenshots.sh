@@ -31,7 +31,11 @@ shot() {
     failed=1
     return
   fi
-  sleep 4
+  # Photos load from the internet on the screens with them.
+  case "$name" in
+    *feed*|*post*|*me*|*user*|*app*|*followers*) sleep 9 ;;
+    *) sleep 4 ;;
+  esac
   xcrun simctl io booted screenshot "$out/$name.png" > /dev/null
   if ! running; then
     echo "::error::The app was not running after opening $name"
@@ -39,7 +43,7 @@ shot() {
   fi
 }
 
-screens=(sign_in sign_up forgot profile_setup onboarding location app profile)
+screens=(sign_in sign_up forgot profile_setup onboarding location app feed post comments new_post me user followers)
 
 # The real app, signed out: checks it starts against the real configuration.
 xcrun simctl ui booted appearance light

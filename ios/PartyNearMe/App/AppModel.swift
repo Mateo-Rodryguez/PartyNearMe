@@ -17,6 +17,32 @@ final class AppModel {
     /// This phone's push token once it is registered, so signing out can remove it.
     @ObservationIgnored var pushToken: String?
 
+    /// What the user saw and did in the feed, sent in batches for ranking.
+    @ObservationIgnored private(set) lazy var interactions = InteractionLog { [api] events in
+        try await api.logInteractions(events)
+    }
+
+    /// A short note at the bottom of the screen, such as "Post deleted".
+    private(set) var toast: Toast?
+
+    struct Toast: Equatable {
+        let id = UUID()
+        let text: String
+    }
+
+    /// The signed-in user's id; empty when signed out.
+    var myId: String { sessions.session?.userId ?? "" }
+
+    /// Shows a short note for a few seconds.
+    func show(_ text: String) {
+        let toast = Toast(text: text)
+        self.toast = toast
+        Task {
+            try? await Task.sleep(for: .seconds(3))
+            if self.toast == toast { self.toast = nil }
+        }
+    }
+
     init(sessions: SessionManager, api: any PartyAPI, location: any LocationProvider,
          auth: AuthClient = AuthClient(), demoScreen: String? = nil) {
         self.sessions = sessions
@@ -50,6 +76,7 @@ final class AppModel {
             try? await api.unregisterDevice(token: token)
         }
         pushToken = nil
+        interactions.flush()
         await sessions.signOut()
     }
 }
