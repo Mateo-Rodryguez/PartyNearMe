@@ -21,7 +21,7 @@ struct PostCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
-            ZStack(alignment: .bottomLeading) {
+            ZStack(alignment: .topLeading) {
                 PhotoPager(media: post.media, pending: !post.isVisible, bursts: bursts) {
                     guard post.isVisible else { return }
                     bursts += 1

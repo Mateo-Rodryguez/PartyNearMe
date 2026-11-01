@@ -36,6 +36,12 @@ struct FeedView: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 0) {
+                HStack {
+                    Wordmark(size: 26)
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+                .frame(height: 52)
                 ForEach($paged.items) { $post in
                     PostCard(post: $post, onDeleted: { paged.remove { $0.id == post.id } }, onNotInterested: {
                         withAnimation { paged.remove { $0.id == post.id } }
@@ -55,15 +61,12 @@ struct FeedView: View {
                     ProgressView().padding(24)
                 }
             }
-            .padding(.top, 4)
         }
         .overlay { emptyState }
         .refreshable { await paged.refresh() }
         .background(AppBackground())
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) { Wordmark(size: 26) }
-        }
-        .navigationBarTitleDisplayMode(.inline)
+        // Home draws its own header, the wordmark, as on Android; pushed screens keep the bar.
+        .toolbar(.hidden, for: .navigationBar)
         .task { if !paged.loadedOnce && !paged.loading { await paged.refresh() } }
     }
 

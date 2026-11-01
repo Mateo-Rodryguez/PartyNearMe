@@ -45,38 +45,32 @@ struct CommentsView: View {
         }
     }
 
+    /// A plain stack, not a List: a List would turn each row's profile link into a whole-row link.
     private func list(_ paged: Paged<Comment>) -> some View {
-        List {
-            ForEach(paged.items) { comment in
-                CommentRow(comment: comment)
-                    .listRowBackground(Color.clear)
-                    .listRowSeparator(.hidden)
-                    .onAppear { paged.onAppear(comment) }
-                    .swipeActions(edge: .trailing) {
-                        if comment.canDelete == true {
-                            Button("Delete", systemImage: "trash", role: .destructive) { deleting = comment }
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 4) {
+                ForEach(paged.items) { comment in
+                    CommentRow(comment: comment)
+                        .contentShape(Rectangle())
+                        .onAppear { paged.onAppear(comment) }
+                        .contextMenu {
+                            if comment.canDelete == true {
+                                Button("Delete comment", systemImage: "trash", role: .destructive) { deleting = comment }
+                            }
+                            if comment.author.id != app.myId {
+                                Button("Report comment", systemImage: "exclamationmark.bubble") { reporting = (.comment, comment.id) }
+                            }
                         }
-                        if comment.author.id != app.myId {
-                            Button("Report", systemImage: "exclamationmark.bubble") { reporting = (.comment, comment.id) }
-                                .tint(.orange)
-                        }
-                    }
-                    .contextMenu {
-                        if comment.canDelete == true {
-                            Button("Delete comment", systemImage: "trash", role: .destructive) { deleting = comment }
-                        }
-                        if comment.author.id != app.myId {
-                            Button("Report comment", systemImage: "exclamationmark.bubble") { reporting = (.comment, comment.id) }
-                        }
-                    }
+                }
+                if let error = paged.error, !paged.items.isEmpty {
+                    ListMessage(text: error) { Task { await paged.retry() } }
+                }
             }
-            if let error = paged.error, !paged.items.isEmpty {
-                ListMessage(text: error) { Task { await paged.retry() } }.listRowBackground(Color.clear)
-            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.interactively)
+        .refreshable { await paged.refresh() }
         .overlay {
             if paged.items.isEmpty {
                 if !paged.loadedOnce {

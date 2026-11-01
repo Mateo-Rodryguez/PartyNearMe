@@ -32,6 +32,9 @@ struct PeopleListView: View {
                     }
                 }
                 .refreshable { await paged.refresh() }
+            } else {
+                // Something must be on screen for the loading task below to start.
+                Color.clear
             }
         }
         .background(AppBackground())
