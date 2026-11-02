@@ -10,6 +10,36 @@ protocol PartyAPI: AnyObject {
     func setInterests(_ ids: [Int]) async throws -> OwnProfile
     func registerDevice(token: String, platform: String) async throws
     func unregisterDevice(token: String) async throws
+
+    // Feed and posts
+    /// A nil page means the ranked list behind `cursor` expired; start again from the top.
+    func feed(lat: Double?, lng: Double?, cursor: String?) async throws -> PostPage?
+    func logInteractions(_ events: [Interaction]) async throws
+    func post(_ id: String) async throws -> Post
+    func deletePost(_ id: String) async throws
+    /// An empty caption removes it. The server checks the new words, so a post can be hidden afterwards.
+    func updateCaption(_ id: String, caption: String) async throws -> Post
+    func setLiked(_ id: String, liked: Bool) async throws
+    func setSaved(_ id: String, saved: Bool) async throws
+    func untagMe(_ postId: String) async throws
+    func userPosts(_ userId: String, cursor: String?) async throws -> PostPage
+    /// Uploads one JPEG straight to storage and returns its upload id.
+    func uploadPhoto(_ jpeg: Data) async throws -> String
+    func createPost(_ post: NewPost) async throws -> Post
+
+    // Comments
+    func comments(_ postId: String, cursor: String?) async throws -> CommentPage
+    func addComment(_ postId: String, body: String) async throws -> Comment
+    func deleteComment(_ id: String) async throws
+
+    // People
+    func user(_ id: String) async throws -> PublicProfile
+    func setFollowing(_ id: String, following: Bool) async throws
+    func followers(_ id: String, cursor: String?) async throws -> PeoplePage
+    func following(_ id: String, cursor: String?) async throws -> PeoplePage
+    func setAvatar(uploadId: String) async throws
+    func setBlocked(_ id: String, blocked: Bool) async throws
+    func report(_ target: ReportTarget, id: String, reason: String) async throws
 }
 
 /// The PartyNearMe API. Every call is signed in; a 401 triggers one token refresh and a retry.
@@ -43,6 +73,106 @@ final class APIClient: PartyAPI {
 
     func unregisterDevice(token: String) async throws {
         try await callUnit("DELETE", "/devices/\(token.pathEscaped)")
+    }
+
+    // MARK: Feed and posts
+
+    func feed(lat: Double?, lng: Double?, cursor: String?) async throws -> PostPage? {
+        do {
+            let page: PostPage = try await call("GET", "/feed", query: [
+                .init(name: "lat", value: lat.map { String($0) }),
+                .init(name: "lng", value: lng.map { String($0) }),
+                .init(name: "cursor", value: cursor),
+                .init(name: "limit", value: "20"),
+            ])
+            return page
+        } catch let error as APIError where error.status == 410 {
+            return nil
+        }
+    }
+
+    func logInteractions(_ events: [Interaction]) async throws {
+        for start in stride(from: 0, to: events.count, by: 50) {
+            let batch = Array(events[start..<min(start + 50, events.count)])
+            try await callUnit("POST", "/interactions", body: InteractionBatch(events: batch))
+        }
+    }
+
+    func post(_ id: String) async throws -> Post { try await call("GET", "/posts/\(id.pathEscaped)") }
+
+    func deletePost(_ id: String) async throws { try await callUnit("DELETE", "/posts/\(id.pathEscaped)") }
+
+    func updateCaption(_ id: String, caption: String) async throws -> Post {
+        try await call("PATCH", "/posts/\(id.pathEscaped)", body: CaptionBody(caption: caption))
+    }
+
+    func setLiked(_ id: String, liked: Bool) async throws {
+        try await callUnit(liked ? "PUT" : "DELETE", "/posts/\(id.pathEscaped)/like")
+    }
+
+    func setSaved(_ id: String, saved: Bool) async throws {
+        try await callUnit(saved ? "PUT" : "DELETE", "/posts/\(id.pathEscaped)/save")
+    }
+
+    func untagMe(_ postId: String) async throws { try await callUnit("DELETE", "/posts/\(postId.pathEscaped)/tags/me") }
+
+    func userPosts(_ userId: String, cursor: String?) async throws -> PostPage {
+        try await call("GET", "/users/\(userId.pathEscaped)/posts", query: [.init(name: "cursor", value: cursor)])
+    }
+
+    func uploadPhoto(_ jpeg: Data) async throws -> String {
+        let ticket: UploadTicket = try await call("POST", "/uploads",
+                                                  body: UploadRequest(contentType: "image/jpeg", sizeBytes: jpeg.count))
+        guard let url = URL(string: ticket.uploadUrl) else { throw APIError(status: 0, message: "The photo didn't upload. Try again.") }
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        for (name, value) in ticket.headers { request.setValue(value, forHTTPHeaderField: name) }
+        let (_, response) = try await HTTP.session.upload(for: request, from: jpeg)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        guard (200..<300).contains(status) else { throw APIError(status: status, message: "The photo didn't upload. Try again.") }
+        return ticket.uploadId
+    }
+
+    func createPost(_ post: NewPost) async throws -> Post { try await call("POST", "/posts", body: post) }
+
+    // MARK: Comments
+
+    func comments(_ postId: String, cursor: String?) async throws -> CommentPage {
+        try await call("GET", "/posts/\(postId.pathEscaped)/comments", query: [.init(name: "cursor", value: cursor)])
+    }
+
+    func addComment(_ postId: String, body: String) async throws -> Comment {
+        try await call("POST", "/posts/\(postId.pathEscaped)/comments", body: SendBody(body: body))
+    }
+
+    func deleteComment(_ id: String) async throws { try await callUnit("DELETE", "/comments/\(id.pathEscaped)") }
+
+    // MARK: People
+
+    func user(_ id: String) async throws -> PublicProfile { try await call("GET", "/users/\(id.pathEscaped)") }
+
+    func setFollowing(_ id: String, following: Bool) async throws {
+        try await callUnit(following ? "PUT" : "DELETE", "/users/\(id.pathEscaped)/follow")
+    }
+
+    func followers(_ id: String, cursor: String?) async throws -> PeoplePage {
+        try await call("GET", "/users/\(id.pathEscaped)/followers", query: [.init(name: "cursor", value: cursor)])
+    }
+
+    func following(_ id: String, cursor: String?) async throws -> PeoplePage {
+        try await call("GET", "/users/\(id.pathEscaped)/following", query: [.init(name: "cursor", value: cursor)])
+    }
+
+    func setAvatar(uploadId: String) async throws {
+        try await callUnit("PUT", "/me/avatar", body: UploadIdBody(uploadId: uploadId))
+    }
+
+    func setBlocked(_ id: String, blocked: Bool) async throws {
+        try await callUnit(blocked ? "PUT" : "DELETE", "/users/\(id.pathEscaped)/block")
+    }
+
+    func report(_ target: ReportTarget, id: String, reason: String) async throws {
+        try await callUnit("POST", "/reports", body: ReportBody(targetType: target.rawValue, targetId: id, reason: reason))
     }
 
     // MARK: Plumbing
@@ -96,4 +226,10 @@ final class APIClient: PartyAPI {
 
     private struct InterestIds: Encodable { let interestIds: [Int] }
     private struct DeviceBody: Encodable { let platform: String }
+    private struct InteractionBatch: Encodable { let events: [Interaction] }
+    private struct CaptionBody: Encodable { let caption: String }
+    private struct SendBody: Encodable { let body: String }
+    private struct UploadRequest: Encodable { let contentType: String; let sizeBytes: Int }
+    private struct UploadIdBody: Encodable { let uploadId: String }
+    private struct ReportBody: Encodable { let targetType: String; let targetId: String; let reason: String }
 }
