@@ -6,6 +6,10 @@ enum Route: Hashable {
     case comments(postId: String)
     case user(String)
     case people(userId: String, followers: Bool, title: String)
+    case event(String)
+    case guests(eventId: String, title: String)
+    /// A new post at a party, from its page.
+    case newPost(eventId: String, title: String)
 }
 
 extension View {
@@ -17,6 +21,9 @@ extension View {
             case .comments(let postId): CommentsView(postId: postId)
             case .user(let id): ProfileView(userId: id)
             case let .people(userId, followers, title): PeopleListView(userId: userId, followers: followers, title: title)
+            case .event(let id): EventView(id: id)
+            case let .guests(eventId, title): GuestListView(eventId: eventId, title: title)
+            case let .newPost(eventId, title): NewPostView(party: PartyRef(id: eventId, title: title))
             }
         }
     }

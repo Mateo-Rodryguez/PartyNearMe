@@ -243,7 +243,7 @@ struct ProfileView: View {
 }
 
 /// One square of a profile's photo grid.
-private struct GridTile: View {
+struct GridTile: View {
     let post: Post
 
     var body: some View {

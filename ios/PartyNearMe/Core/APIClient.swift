@@ -40,6 +40,32 @@ protocol PartyAPI: AnyObject {
     func setAvatar(uploadId: String) async throws
     func setBlocked(_ id: String, blocked: Bool) async throws
     func report(_ target: ReportTarget, id: String, reason: String) async throws
+
+    // Parties
+    /// `from` and `to` are ISO-8601 times (default: now to two weeks ahead); `interestId` picks one kind of party.
+    func nearbyEvents(lat: Double, lng: Double, radiusKm: Double, cursor: String?, from: String?, to: String?,
+                      interestId: Int?) async throws -> EventPage
+    /// Parties you host (`organising`) or said you're going to.
+    func myEvents(organising: Bool) async throws -> [Event]
+    func event(_ id: String) async throws -> Event
+    /// Photos posted at a party, newest first.
+    func eventPosts(_ id: String, cursor: String?) async throws -> PostPage
+    func createEvent(_ event: NewEvent) async throws -> Event
+    /// Host only. Cancelling tells guests with a push.
+    func updateEvent(_ id: String, _ update: EventUpdate) async throws -> Event
+    /// Takes the party's kind off. Sent on its own so the null reaches the server.
+    func clearEventKind(_ id: String) async throws -> Event
+    func deleteEvent(_ id: String) async throws
+    func setEventSaved(_ id: String, saved: Bool) async throws
+    /// "going" or "interested"; nil takes the RSVP back. Returns the party with new counts.
+    func rsvp(_ eventId: String, status: String?) async throws -> Event
+    /// The cover shows once the server has checked the photo.
+    func setCover(_ eventId: String, uploadId: String) async throws
+    func removeCover(_ eventId: String) async throws
+    func guests(_ eventId: String) async throws -> GuestList
+    func approveGuest(_ eventId: String, userId: String) async throws
+    /// Declines a request, or takes someone off the guest list.
+    func removeGuest(_ eventId: String, userId: String) async throws
 }
 
 /// The PartyNearMe API. Every call is signed in; a 401 triggers one token refresh and a retry.
@@ -175,6 +201,71 @@ final class APIClient: PartyAPI {
         try await callUnit("POST", "/reports", body: ReportBody(targetType: target.rawValue, targetId: id, reason: reason))
     }
 
+    // MARK: Parties
+
+    func nearbyEvents(lat: Double, lng: Double, radiusKm: Double, cursor: String?, from: String?, to: String?,
+                      interestId: Int?) async throws -> EventPage {
+        try await call("GET", "/events/nearby", query: [
+            .init(name: "lat", value: String(lat)),
+            .init(name: "lng", value: String(lng)),
+            .init(name: "radius_km", value: String(radiusKm)),
+            .init(name: "cursor", value: cursor),
+            .init(name: "from", value: from),
+            .init(name: "to", value: to),
+            .init(name: "interest_id", value: interestId.map { String($0) }),
+        ])
+    }
+
+    func myEvents(organising: Bool) async throws -> [Event] {
+        try await call("GET", "/me/events", query: [.init(name: "role", value: organising ? "organising" : "going")])
+    }
+
+    func event(_ id: String) async throws -> Event { try await call("GET", "/events/\(id.pathEscaped)") }
+
+    func eventPosts(_ id: String, cursor: String?) async throws -> PostPage {
+        try await call("GET", "/events/\(id.pathEscaped)/posts", query: [.init(name: "cursor", value: cursor)])
+    }
+
+    func createEvent(_ event: NewEvent) async throws -> Event { try await call("POST", "/events", body: event) }
+
+    func updateEvent(_ id: String, _ update: EventUpdate) async throws -> Event {
+        try await call("PATCH", "/events/\(id.pathEscaped)", body: update)
+    }
+
+    func clearEventKind(_ id: String) async throws -> Event {
+        try await call("PATCH", "/events/\(id.pathEscaped)", body: ClearKind())
+    }
+
+    func deleteEvent(_ id: String) async throws { try await callUnit("DELETE", "/events/\(id.pathEscaped)") }
+
+    func setEventSaved(_ id: String, saved: Bool) async throws {
+        try await callUnit(saved ? "PUT" : "DELETE", "/events/\(id.pathEscaped)/save")
+    }
+
+    func rsvp(_ eventId: String, status: String?) async throws -> Event {
+        guard let status else {
+            try await callUnit("DELETE", "/events/\(eventId.pathEscaped)/rsvp")
+            return try await event(eventId)
+        }
+        return try await call("PUT", "/events/\(eventId.pathEscaped)/rsvp", body: RsvpBody(status: status))
+    }
+
+    func setCover(_ eventId: String, uploadId: String) async throws {
+        try await callUnit("PUT", "/events/\(eventId.pathEscaped)/cover", body: UploadIdBody(uploadId: uploadId))
+    }
+
+    func removeCover(_ eventId: String) async throws { try await callUnit("DELETE", "/events/\(eventId.pathEscaped)/cover") }
+
+    func guests(_ eventId: String) async throws -> GuestList { try await call("GET", "/events/\(eventId.pathEscaped)/guests") }
+
+    func approveGuest(_ eventId: String, userId: String) async throws {
+        try await callUnit("POST", "/events/\(eventId.pathEscaped)/guests/\(userId.pathEscaped)/approve")
+    }
+
+    func removeGuest(_ eventId: String, userId: String) async throws {
+        try await callUnit("DELETE", "/events/\(eventId.pathEscaped)/guests/\(userId.pathEscaped)")
+    }
+
     // MARK: Plumbing
 
     private func call<T: Decodable>(_ method: String, _ path: String, query: [URLQueryItem] = []) async throws -> T {
@@ -231,5 +322,14 @@ final class APIClient: PartyAPI {
     private struct SendBody: Encodable { let body: String }
     private struct UploadRequest: Encodable { let contentType: String; let sizeBytes: Int }
     private struct UploadIdBody: Encodable { let uploadId: String }
+    private struct RsvpBody: Encodable { let status: String }
+    /// Encodes as {"interest_id":null}: the one place a null has to reach the server.
+    private struct ClearKind: Encodable {
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encodeNil(forKey: .interestId)
+        }
+        private enum CodingKeys: String, CodingKey { case interestId = "interest_id" }
+    }
     private struct ReportBody: Encodable { let targetType: String; let targetId: String; let reason: String }
 }

@@ -11,7 +11,8 @@ enum Demo {
 
     /// Every screen the demo can show, in the order CI screenshots them.
     static let screens = ["sign_in", "sign_up", "forgot", "profile_setup", "onboarding", "location", "app",
-                          "feed", "post", "comments", "new_post", "me", "user", "followers"]
+                          "feed", "post", "comments", "new_post", "me", "user", "followers",
+                          "nearby", "nearby_map", "event", "my_event", "new_event", "edit_event", "pick_spot", "guests"]
 
     static func model(for screen: String) -> AppModel {
         let signedOut = ["sign_in", "sign_up", "forgot"].contains(screen)
@@ -37,8 +38,64 @@ enum Demo {
         case "comments": NavigationStack { CommentsView(postId: "p1").routeDestinations() }
         case "user": NavigationStack { ProfileView(userId: sam.id).routeDestinations() }
         case "followers": NavigationStack { PeopleListView(userId: me.id, followers: true, title: "@maya.nights").routeDestinations() }
+        case "nearby": MainView(me: me, tab: .nearby)
+        case "nearby_map": DemoNearby(map: true)
+        case "event": NavigationStack { EventView(id: "e1").routeDestinations() }
+        case "my_event": NavigationStack { EventView(id: "e2").routeDestinations() }
+        case "new_event": NavigationStack { EventFormView(editing: nil) { _ in } }
+        case "edit_event": NavigationStack { EventFormView(editing: events[1]) { _ in } }
+        case "pick_spot": NavigationStack { MapPinPicker(start: here, chosen: .constant(nil)) }
+        case "guests": NavigationStack { GuestListView(eventId: "e2", title: events[1].title).routeDestinations() }
         default: SignInView()
         }
+    }
+
+    static let here = CLLocationCoordinate2D(latitude: 51.5136, longitude: -0.1340)
+
+    /// A time the given number of hours from now, or today at the given hour.
+    static func at(hours: Double) -> String {
+        ISO8601DateFormatter().string(from: Date().addingTimeInterval(hours * 3600))
+    }
+
+    static func at(day: Int, hour: Int) -> String {
+        let calendar = Calendar.current
+        let date = calendar.date(byAdding: .day, value: day, to: calendar.date(bySettingHour: hour, minute: 0, second: 0, of: Date())!)!
+        return ISO8601DateFormatter().string(from: date)
+    }
+
+    static var events: [Event] {
+        [
+            Event(id: "e1", organiser: sam, title: "Rooftop Sunset Party",
+                  description: "House and disco on the roof until late. Dress for the cold after midnight, bring good vibes.",
+                  startsAt: at(day: 0, hour: 22), endsAt: at(day: 1, hour: 3), venueName: "Netil360, Hackney",
+                  lat: 51.5175, lng: -0.1290, coverUrl: "https://picsum.photos/seed/rooftop/1080/1350", interestId: 1,
+                  goingCount: 128, interestedCount: 40, myRsvp: "going", ticketUrl: "https://example.com/tickets",
+                  friendsGoing: [alex, Person(id: "p-samira", username: "samira.k", displayName: "Samira Khan",
+                                              avatarUrl: "https://picsum.photos/seed/samira/200/200")],
+                  friendsGoingCount: 4, createdAt: ago(3 * 86400), distanceM: 640),
+            Event(id: "e2", organiser: maya, title: "Maya's Birthday", description: "Drinks, then dancing. Plus ones welcome.",
+                  startsAt: at(day: 0, hour: 21), endsAt: at(day: 1, hour: 1), venueName: "The Vaults, Waterloo",
+                  lat: 51.5010, lng: -0.1160, coverUrl: "https://picsum.photos/seed/birthday/1080/1350", goingCount: 18,
+                  interestedCount: 3, isPrivate: true, requestedCount: 2, createdAt: ago(86400), distanceM: 2300),
+            Event(id: "e3", organiser: alex, title: "Techno in the Tunnels", startsAt: at(day: 1, hour: 23), endsAt: at(day: 2, hour: 6),
+                  venueName: "Printworks", lat: 51.4970, lng: -0.0440, coverUrl: "https://picsum.photos/seed/tunnels/1080/1350",
+                  interestId: 1, goingCount: 512, interestedCount: 230, myRsvp: "interested", createdAt: ago(5 * 86400), distanceM: 6400),
+            Event(id: "e4", organiser: sam, title: "Secret Garden Session", startsAt: at(day: 1, hour: 20), endsAt: at(day: 2, hour: 0),
+                  venueName: "Primrose Hill", lat: 51.5390, lng: -0.1600, goingCount: 9, createdAt: ago(2 * 86400), distanceM: 3100),
+            Event(id: "e5", organiser: alex, title: "Salsa Social", description: "Beginners' class at 8, social dancing after.",
+                  startsAt: at(day: 4, hour: 20), endsAt: at(day: 5, hour: 0), venueName: "Bar Salsa, Soho",
+                  lat: 51.5130, lng: -0.1310, coverUrl: "https://picsum.photos/seed/salsa/1080/1350", interestId: 1, goingCount: 46,
+                  friendsGoing: [sam], friendsGoingCount: 1, createdAt: ago(7 * 86400), distanceM: 300),
+        ]
+    }
+
+    static var guests: GuestList {
+        GuestList(
+            requested: [Person(id: "p-sasha", username: "sasha_dj", displayName: "Sasha Novak", avatarUrl: "https://picsum.photos/seed/sasha/200/200"),
+                        Person(id: "p-salsa", username: "salsa.nights", displayName: "Salsa Nights London", avatarUrl: nil)],
+            going: [sam, alex, Person(id: "p-samira", username: "samira.k", displayName: "Samira Khan",
+                                      avatarUrl: "https://picsum.photos/seed/samira/200/200")]
+        )
     }
 
     static let me = OwnProfile(
@@ -198,11 +255,102 @@ final class DemoAPI: PartyAPI {
     func setAvatar(uploadId: String) async throws {}
     func setBlocked(_ id: String, blocked: Bool) async throws {}
     func report(_ target: ReportTarget, id: String, reason: String) async throws {}
+
+    private var events = Demo.events
+
+    func nearbyEvents(lat: Double, lng: Double, radiusKm: Double, cursor: String?, from: String?, to: String?,
+                      interestId: Int?) async throws -> EventPage {
+        guard cursor == nil else { return EventPage(events: [], nextCursor: nil) }
+        let lower = from.flatMap(Formatting.date), upper = to.flatMap(Formatting.date)
+        let shown = events.filter { event in
+            let start = Formatting.date(event.startsAt) ?? Date()
+            return !event.isPrivate && (interestId == nil || event.interestId == interestId)
+                && (lower.map { start >= $0.addingTimeInterval(-6 * 3600) } ?? true) && (upper.map { start < $0 } ?? true)
+        }
+        return EventPage(events: shown.sorted { $0.startsAt < $1.startsAt }, nextCursor: nil)
+    }
+    func myEvents(organising: Bool) async throws -> [Event] {
+        events.filter { organising ? $0.organiser.id == Demo.me.id : $0.myRsvp == "going" }
+    }
+    func event(_ id: String) async throws -> Event {
+        guard let event = events.first(where: { $0.id == id }) else { throw APIError(status: 404, message: "Party not found") }
+        return event
+    }
+    func eventPosts(_ id: String, cursor: String?) async throws -> PostPage {
+        PostPage(posts: cursor == nil && id == "e1" ? Demo.feed + Array(Demo.myPosts.prefix(3)) : [], nextCursor: nil)
+    }
+    func createEvent(_ event: NewEvent) async throws -> Event {
+        let made = Event(id: UUID().uuidString, organiser: Demo.maya, title: event.title, description: event.description,
+                         startsAt: event.startsAt, endsAt: event.endsAt, venueName: event.venueName, lat: event.lat, lng: event.lng,
+                         interestId: event.interestId, isPrivate: event.isPrivate, ticketUrl: event.ticketUrl, createdAt: Demo.ago(0))
+        events.append(made)
+        return made
+    }
+    func updateEvent(_ id: String, _ update: EventUpdate) async throws -> Event {
+        var event = try await self.event(id)
+        if let title = update.title { event.title = title }
+        if let status = update.status { event.status = status }
+        if let venue = update.venueName { event.venueName = venue.isEmpty ? nil : venue }
+        if let isPrivate = update.isPrivate { event.isPrivate = isPrivate }
+        replace(event)
+        return event
+    }
+    func clearEventKind(_ id: String) async throws -> Event {
+        var event = try await self.event(id)
+        event.interestId = nil
+        replace(event)
+        return event
+    }
+    func deleteEvent(_ id: String) async throws { events.removeAll { $0.id == id } }
+    func setEventSaved(_ id: String, saved: Bool) async throws {}
+    func rsvp(_ eventId: String, status: String?) async throws -> Event {
+        var event = try await self.event(eventId)
+        let wasGoing = event.myRsvp == "going"
+        event.myRsvp = status == "going" && event.isPrivate ? "requested" : status
+        event.goingCount += (event.myRsvp == "going" ? 1 : 0) - (wasGoing ? 1 : 0)
+        replace(event)
+        return event
+    }
+    func setCover(_ eventId: String, uploadId: String) async throws {}
+    func removeCover(_ eventId: String) async throws {}
+    func guests(_ eventId: String) async throws -> GuestList { Demo.guests }
+    func approveGuest(_ eventId: String, userId: String) async throws {}
+    func removeGuest(_ eventId: String, userId: String) async throws {}
+
+    private func replace(_ event: Event) {
+        if let index = events.firstIndex(where: { $0.id == event.id }) { events[index] = event }
+    }
+}
+
+/// The Nearby tab on its own, on the map or the list.
+private struct DemoNearby: View {
+    @Environment(AppModel.self) private var app
+    let map: Bool
+    @State private var model: NearbyModel?
+
+    init(map: Bool) {
+        self.map = map
+    }
+
+    var body: some View {
+        NavigationStack {
+            if let model {
+                NearbyView(model: model).routeDestinations()
+            } else {
+                Color.clear
+            }
+        }
+        .onAppear {
+            let nearby = NearbyModel(app: app)
+            nearby.showMap = map
+            model = nearby
+        }
+    }
 }
 
 /// Central London, without asking for permission.
 @MainActor
 final class DemoLocation: LocationProvider {
-    func current() async -> CLLocationCoordinate2D? { CLLocationCoordinate2D(latitude: 51.5136, longitude: -0.1340) }
+    func current() async -> CLLocationCoordinate2D? { Demo.here }
 }
 #endif

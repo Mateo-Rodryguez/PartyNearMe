@@ -11,6 +11,9 @@ struct MainView: View {
     @State private var tab: Tab
     /// Home's posts, kept while other tabs are open so the feed keeps its place.
     @State private var feed: FeedModel?
+    /// Parties near the user, for the Nearby tab and Home's row of parties.
+    @State private var nearby: NearbyModel?
+    @State private var nearbyPath: [Route] = []
 
     init(me: OwnProfile, tab: Tab = .home) {
         self.me = me
@@ -20,13 +23,21 @@ struct MainView: View {
     var body: some View {
         TabView(selection: $tab) {
             NavigationStack {
-                if let feed { FeedView(paged: feed.paged).routeDestinations() }
+                if let feed {
+                    FeedView(paged: feed.paged, parties: nearby?.paged.items ?? []) {
+                        tab = .nearby
+                        nearby?.creating = true
+                    }
+                    .routeDestinations()
+                }
             }
             .tabItem { Label("Home", systemImage: tab == .home ? "house.fill" : "house") }
             .tag(Tab.home)
 
-            NavigationStack {
-                ComingSoon(title: "Nearby", systemImage: "map", text: "Parties on a map and in a list, by distance and time.")
+            NavigationStack(path: $nearbyPath) {
+                if let nearby {
+                    NearbyView(model: nearby) { nearbyPath.append(.event($0.id)) }.routeDestinations()
+                }
             }
             .tabItem { Label("Nearby", systemImage: tab == .nearby ? "mappin.circle.fill" : "mappin.circle") }
             .tag(Tab.nearby)
@@ -56,7 +67,14 @@ struct MainView: View {
         }
         .sensoryFeedback(.selection, trigger: tab)
         .overlay(alignment: .bottom) { ToastView() }
-        .onAppear { if feed == nil { feed = FeedModel(app: app) } }
+        .onAppear {
+            if feed == nil { feed = FeedModel(app: app) }
+            if nearby == nil {
+                let model = NearbyModel(app: app)
+                nearby = model
+                Task { await model.paged.refresh() }
+            }
+        }
         // Send what the user looked at before the app goes to the background.
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
             app.interactions.flush()
