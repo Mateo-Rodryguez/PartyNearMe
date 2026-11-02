@@ -188,9 +188,14 @@ fun SettingsScreen(ui: Ui, relationshipPicker: Boolean = false) {
                     onClick = { ui.nav.open(Route.Blocked) }, trailing = { Chevron() })
                 if (ui.app.config.posthogKey != null) {
                     Divider()
-                    // Kept on this phone, like the other display choices.
-                    ToggleRow(PartyIcons.Description, "Share usage stats", "Which features get used, never what you post or say",
-                        prefs.shareUsage) { on -> ui.prefs.update { it.copy(shareUsage = on) } }
+                    // Kept on this phone, like the other display choices. Counted just before it
+                    // turns off, so we know how many people do.
+                    ToggleRow(PartyIcons.Description, "Share usage stats", "Which screens and features get used, never what you post or say",
+                        prefs.shareUsage) { on ->
+                        if (!on) ui.track("usage_stats_turned_off")
+                        ui.prefs.update { it.copy(shareUsage = on) }
+                        if (on) ui.track("usage_stats_turned_on")
+                    }
                 }
             }
 
@@ -239,6 +244,11 @@ fun SettingsScreen(ui: Ui, relationshipPicker: Boolean = false) {
                     InfoRow(PartyIcons.Shield, "Reports to review", onClick = { ui.nav.open(Route.Moderation) },
                         trailing = { Chevron() })
                 }
+            }
+
+            Group("Help us improve") {
+                InfoRow(Icons.Filled.Favorite, "Send feedback", detail = "What you love, what's not working, or an idea",
+                    onClick = { ui.nav.open(Route.Feedback) }, trailing = { Chevron() })
             }
 
             Group("About") {

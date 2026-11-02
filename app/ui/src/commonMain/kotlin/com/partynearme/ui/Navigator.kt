@@ -39,6 +39,8 @@ sealed interface Route {
     data class Invite(val eventId: String, val eventTitle: String) : Route
     /** A private party's requests and guests, for its host. */
     data class Guests(val eventId: String, val eventTitle: String) : Route
+    /** Telling us what you love, what isn't working, or an idea, from settings. */
+    data object Feedback : Route
 }
 
 /** A back stack per tab, like Instagram: switching tabs keeps where you were. */

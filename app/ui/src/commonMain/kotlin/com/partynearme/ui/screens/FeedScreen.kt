@@ -221,6 +221,9 @@ fun FeedScreen(ui: Ui, state: FeedState, nearby: NearbyState) {
                     onAction = { ui.nav.select(Tab.Nearby) },
                 )
                 else -> LazyColumn(state = state.list, modifier = Modifier.fillMaxSize()) {
+                    if (ui.askRecommend) {
+                        item(key = "recommend") { RecommendCard(ui) { ui.askRecommend = false } }
+                    }
                     if (nearby.paged.items.isNotEmpty()) {
                         item(key = "parties") { PartyRail(ui, nearby.paged.items) }
                     }

@@ -77,6 +77,7 @@ import com.partynearme.ui.screens.EditEventScreen
 import com.partynearme.ui.screens.EmptyState
 import com.partynearme.ui.screens.EventScreen
 import com.partynearme.ui.screens.FeedScreen
+import com.partynearme.ui.screens.FeedbackScreen
 import com.partynearme.ui.screens.FeedState
 import com.partynearme.ui.screens.GuestListScreen
 import com.partynearme.ui.screens.InboxScreen
@@ -117,13 +118,16 @@ class Ui(
 
     /** Counts a feature being used (see Analytics); does nothing when usage stats are off. */
     fun track(event: String, vararg properties: Pair<String, Any?>) {
-        scope.launch { app.analytics.capture(event, properties.toMap()) }
+        app.analytics.track(event, properties.toMap())
     }
     /** Choices kept on this phone: theme, units, radius, like counts. */
     val prefs get() = app.preferences
 
     /** New notifications, for the bell on Home; cleared when they are opened. */
     var unreadNotifications by mutableIntStateOf(0)
+
+    /** Shows the "would you recommend us?" card on Home (see RecommendCard). */
+    var askRecommend by mutableStateOf(false)
 }
 
 /** The phone-only choices, for screens that draw differently because of them (units, like counts). */
@@ -154,7 +158,7 @@ private fun AppContent(app: PartyNearMe, platform: Platform, navigator: Navigato
         val session by app.sessions.session.collectAsState()
         val userId = session?.userId
         if (userId == null) {
-            LaunchedEffect(Unit) { navigator.reset() }
+            LaunchedEffect(Unit) { navigator.reset(); app.analytics.screen("sign_in") }
             SignInScreen(app, platform)
         } else {
             key(userId) { SignedIn(app, platform, navigator, userId) }
@@ -164,6 +168,8 @@ private fun AppContent(app: PartyNearMe, platform: Platform, navigator: Navigato
 
 @Composable
 private fun SignedIn(app: PartyNearMe, platform: Platform, nav: Navigator, userId: String) {
+    // Counted as this account from here, so profile setup and onboarding are in the funnel too.
+    remember(userId) { app.analytics.identify(userId) }
     var me by remember { mutableStateOf<OwnProfile?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var attemptNo by remember { mutableIntStateOf(0) }
@@ -183,7 +189,14 @@ private fun SignedIn(app: PartyNearMe, platform: Platform, nav: Navigator, userI
             Wordmark()
             CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
         }
-        profile.username == null -> ProfileSetupScreen(app, profile) { me = it; onboarding = true }
+        profile.username == null -> {
+            LaunchedEffect(Unit) { app.analytics.screen("profile_setup") }
+            ProfileSetupScreen(app, profile) {
+                me = it
+                onboarding = true
+                app.analytics.track("account_created")
+            }
+        }
         onboarding -> OnboardingScreen(app, platform) { onboarding = false; firstRun = true }
         else -> Main(app, platform, nav, userId, firstRun)
     }
@@ -197,13 +210,24 @@ private fun Main(app: PartyNearMe, platform: Platform, nav: Navigator, userId: S
     val pushToken = platform.rememberPushTokenProvider()
     // Ask for notifications once the account is set up, then tell the server where to send them.
     LaunchedEffect(userId) {
-        app.analytics.identify(userId)
         app.analytics.capture("app_opened", mapOf("first_run" to firstRun))
         pushToken()?.let { token -> attempt { app.registerForPush(token, platform.pushPlatform) } }
     }
     val ui = remember(location) {
         Ui(app, nav, userId, location, platform, scope) { text -> scope.launch { snackbar.showSnackbar(text) } }
     }
+    LaunchedEffect(userId) {
+        val day = today()
+        app.preferences.update { it.activeOn(day) }
+        if (app.preferences.current.recommendDue(day)) {
+            // Asked once: closing it, answering it or ignoring it all wait another 90 days.
+            app.preferences.update { it.copy(recommendAskedDay = day) }
+            ui.askRecommend = true
+        }
+    }
+    // Every screen change is counted, with how long the last one was open.
+    val screen = screenName(nav.top, nav.tab)
+    LaunchedEffect(nav.top, nav.tab) { app.analytics.screen(screen) }
     // Lists keep their place while you open something on top of them.
     val feed = remember { FeedState(ui, scope) }
     val nearby = remember { NearbyState(ui, scope) }
@@ -250,6 +274,7 @@ private fun Main(app: PartyNearMe, platform: Platform, nav: Navigator, userId: S
                 Route.Blocked -> BlockedScreen(ui)
                 is Route.Invite -> InviteScreen(ui, route.eventId, route.eventTitle)
                 is Route.Guests -> GuestListScreen(ui, route.eventId, route.eventTitle)
+                Route.Feedback -> FeedbackScreen(ui)
                 null -> when (nav.tab) {
                     Tab.Feed -> FeedScreen(ui, feed, nearby)
                     Tab.Nearby -> NearbyScreen(ui, nearby)

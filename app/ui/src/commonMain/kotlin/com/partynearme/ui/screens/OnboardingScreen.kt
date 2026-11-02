@@ -51,19 +51,27 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun OnboardingScreen(app: PartyNearMe, platform: Platform, onDone: () -> Unit) {
+    val scope = rememberCoroutineScope()
     var step by remember { mutableIntStateOf(0) }
+    var interests by remember { mutableIntStateOf(0) }
+    // Each step is its own screen in analytics, so the funnel shows where people give up.
+    LaunchedEffect(step) { app.analytics.screen(listOf("onboarding_interests", "onboarding_heard_from", "onboarding_location")[step]) }
     Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp)) {
         Dots(step, STEPS)
         Box(Modifier.weight(1f).padding(top = 24.dp)) {
             when (step) {
-                0 -> InterestsStep(app) { step = 1 }
-                else -> LocationStep(platform, onDone)
+                0 -> InterestsStep(app) { picked -> interests = picked; step = 1 }
+                1 -> HeardFromStep(app, scope) { step = 2 }
+                else -> LocationStep(platform) { allowed ->
+                    app.analytics.track("onboarding_completed", mapOf("interests" to interests, "location" to allowed))
+                    onDone()
+                }
             }
         }
     }
 }
 
-private const val STEPS = 2
+private const val STEPS = 3
 
 @Composable
 private fun Dots(step: Int, count: Int) {
@@ -78,7 +86,7 @@ private fun Dots(step: Int, count: Int) {
 }
 
 @Composable
-private fun InterestsStep(app: PartyNearMe, onNext: () -> Unit) {
+private fun InterestsStep(app: PartyNearMe, onNext: (picked: Int) -> Unit) {
     val scope = rememberCoroutineScope()
     var all by remember { mutableStateOf(emptyList<Interest>()) }
     var picked by remember { mutableStateOf(emptySet<Int>()) }
@@ -107,13 +115,13 @@ private fun InterestsStep(app: PartyNearMe, onNext: () -> Unit) {
             if (picked.isEmpty()) "Skip" else "Continue",
             {
                 if (picked.isEmpty()) {
-                    onNext()
+                    onNext(0)
                 } else {
                     busy = true
                     error = null
                     scope.launch {
                         attempt { app.api.setInterests(picked.sorted()) }
-                            .onSuccess { onNext() }
+                            .onSuccess { onNext(picked.size) }
                             .onFailure { error = it.userMessage }
                         busy = false
                     }
@@ -126,7 +134,7 @@ private fun InterestsStep(app: PartyNearMe, onNext: () -> Unit) {
 }
 
 @Composable
-private fun LocationStep(platform: Platform, onDone: () -> Unit) {
+private fun LocationStep(platform: Platform, onDone: (allowed: Boolean) -> Unit) {
     val scope = rememberCoroutineScope()
     val location = platform.rememberLocationProvider()
     var asking by remember { mutableStateOf(false) }
@@ -148,14 +156,14 @@ private fun LocationStep(platform: Platform, onDone: () -> Unit) {
             {
                 asking = true
                 scope.launch {
-                    location.current()
+                    val here = location.current()
                     asking = false
-                    onDone()
+                    onDone(here != null)
                 }
             },
             Modifier.fillMaxWidth(),
             busy = asking,
         )
-        TextButton(onClick = onDone, enabled = !asking, modifier = Modifier.padding(top = 4.dp)) { Text("Not now") }
+        TextButton(onClick = { onDone(false) }, enabled = !asking, modifier = Modifier.padding(top = 4.dp)) { Text("Not now") }
     }
 }
