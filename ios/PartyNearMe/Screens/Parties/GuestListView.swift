@@ -141,7 +141,9 @@ private struct GuestRow<Actions: View>: View {
             Spacer(minLength: 8)
             HStack(spacing: 8) { actions() }
                 .font(.footnote.weight(.semibold))
+                .lineLimit(1)
                 .controlSize(.small)
+                .fixedSize()
         }
         .listRowBackground(Color.appField)
         .padding(.vertical, 2)
