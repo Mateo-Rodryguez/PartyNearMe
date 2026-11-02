@@ -28,6 +28,7 @@ struct PartyNearMeApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .preferredColorScheme(AppPrefs.shared.theme.colorScheme)
                 .environment(app)
                 .tint(Color.appAccent)
         }

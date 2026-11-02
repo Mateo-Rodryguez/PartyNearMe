@@ -93,11 +93,11 @@ enum Formatting {
     /// A time as the server takes it.
     static func iso(_ date: Date) -> String { plain.string(from: date) }
 
-    /// Whether to show distances in miles: in the US and the UK, as their road signs do.
-    static var usesMiles: Bool { Locale.current.measurementSystem != .metric }
+    /// "650 m away", "2.3 km away", or in miles "0.4 mi away", as chosen in Settings.
+    @MainActor
+    static func distance(_ meters: Int?) -> String { distance(meters, miles: AppPrefs.shared.miles) }
 
-    /// "650 m away", "2.3 km away", or in miles "0.4 mi away".
-    static func distance(_ meters: Int?, miles: Bool = usesMiles) -> String {
+    static func distance(_ meters: Int?, miles: Bool) -> String {
         guard let meters else { return "" }
         if miles {
             return "\(trimmed(Double(max(1, Int(Double(meters) / 160.934 + 0.5))) / 10)) mi away"

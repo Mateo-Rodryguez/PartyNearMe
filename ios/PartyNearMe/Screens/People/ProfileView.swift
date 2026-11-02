@@ -16,7 +16,6 @@ struct ProfileView: View {
     @State private var editing = false
     @State private var avatarItem: PhotosPickerItem?
     @State private var confirmBlock = false
-    @State private var confirmSignOut = false
     @State private var reporting: (ReportTarget, String)?
 
     private var isMe: Bool { userId == app.myId }
@@ -59,31 +58,29 @@ struct ProfileView: View {
         } message: {
             Text("They won't be able to see your posts or message you, and you won't see theirs.")
         }
-        .confirmationDialog("Sign out?", isPresented: $confirmSignOut, titleVisibility: .visible) {
-            Button("Sign out", role: .destructive) { Task { await app.signOut() } }
-        }
         .reportDialog($reporting, app: app)
     }
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
-            Menu {
-                if isMe {
-                    Link(destination: AppConfig.termsURL) { Label("Terms", systemImage: "doc.text") }
-                    Link(destination: AppConfig.privacyURL) { Label("Privacy policy", systemImage: "hand.raised") }
-                    Button("Sign out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) { confirmSignOut = true }
-                } else {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            if isMe {
+                NavigationLink(value: Route.saved) { Image(systemName: "bookmark") }
+                    .accessibilityLabel("Saved")
+                NavigationLink(value: Route.settings) { Image(systemName: "gearshape") }
+                    .accessibilityLabel("Settings")
+            } else {
+                Menu {
                     Button("Report", systemImage: "exclamationmark.bubble") { reporting = (.user, userId) }
                     if profile?.isBlocked == true {
                         Button("Unblock", systemImage: "hand.raised.slash") { setBlocked(false) }
                     } else {
                         Button("Block", systemImage: "hand.raised", role: .destructive) { confirmBlock = true }
                     }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
-            } label: {
-                Image(systemName: isMe ? "gearshape" : "ellipsis.circle")
+                .accessibilityLabel("More")
             }
-            .accessibilityLabel(isMe ? "Settings" : "More")
         }
     }
 

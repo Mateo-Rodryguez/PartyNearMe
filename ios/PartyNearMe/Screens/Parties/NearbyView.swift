@@ -7,8 +7,10 @@ import SwiftUI
 @MainActor
 @Observable
 final class NearbyModel {
-    /// How far to look; a setting for it comes with Settings.
-    static let radiusKm = 25.0
+    /// How far to look, from Settings.
+    var radiusKm: Double { Double(AppPrefs.shared.radiusKm) }
+    /// The radius the list was loaded with, so changing it in Settings reloads the list.
+    @ObservationIgnored private var loadedRadius: Double?
 
     let paged: Paged<Event>
     private(set) var noLocation = false
@@ -33,6 +35,10 @@ final class NearbyModel {
         model = self
     }
 
+    func refreshIfRadiusChanged() {
+        if paged.loadedOnce, let loadedRadius, loadedRadius != radiusKm { Task { await paged.refresh() } }
+    }
+
     func filter(time: PartyTime? = nil, kind: Int?? = nil) {
         let newTime = time ?? self.time
         let newKind = kind ?? self.kind
@@ -44,13 +50,14 @@ final class NearbyModel {
 
     private func page(app: AppModel, cursor: String?) async throws -> ([Event], String?) {
         if kinds.isEmpty, let loaded = try? await app.api.interests() { kinds = loaded }
+        if cursor == nil { loadedRadius = radiusKm }
         let location = await app.location.current()
         here = location
         noLocation = location == nil
         guard let location else { return ([], nil) }
         let window = time.window()
         let page = try await app.api.nearbyEvents(
-            lat: location.latitude, lng: location.longitude, radiusKm: Self.radiusKm, cursor: cursor,
+            lat: location.latitude, lng: location.longitude, radiusKm: radiusKm, cursor: cursor,
             from: window.map { Formatting.iso($0.from) }, to: window.map { Formatting.iso($0.to) }, interestId: kind
         )
         return (page.events, page.nextCursor)
@@ -80,6 +87,7 @@ struct NearbyView: View {
         .background(AppBackground())
         .toolbar(.hidden, for: .navigationBar)
         .task { if !model.paged.loadedOnce && !model.paged.loading { await model.paged.refresh() } }
+        .onAppear { model.refreshIfRadiusChanged() }
         .sheet(isPresented: $model.creating) {
             NavigationStack {
                 EventFormView(editing: nil) { event in
