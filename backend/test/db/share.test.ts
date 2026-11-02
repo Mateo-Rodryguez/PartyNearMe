@@ -54,4 +54,18 @@ describe("share link pages", () => {
     await ctx.db`update public.posts set status = 'hidden' where id = ${id}`;
     expect((await get(`/p/${id}`)).statusCode).toBe(404);
   });
+
+  it("counts people opening a share link per day, but not preview bots", async () => {
+    const alice = await ctx.createUser();
+    const id = await party(alice);
+    const as = (ua: string) => ctx.app.inject({ method: "GET", url: `/e/${id}`, headers: { "user-agent": ua } });
+    await as("WhatsApp/2.23.20.0 A");
+    await as("Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) Mobile/15E148 Safari/604.1");
+    await as("Mozilla/5.0 (Linux; Android 14; Pixel 8) Chrome/130.0.0.0 Mobile Safari/537.36");
+    await ctx.app.inject({ method: "HEAD", url: `/e/${id}`, headers: { "user-agent": "Mozilla/5.0 Safari" } });
+    const rows = await ctx.db<{ kind: string; views: number }[]>`
+      select kind, views from public.share_link_views where target_id = ${id} and day = current_date
+    `;
+    expect(rows).toEqual([{ kind: "party", views: 2 }]);
+  });
 });

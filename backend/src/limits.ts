@@ -13,6 +13,7 @@ export const LIMITS = {
   message: { table: "messages", column: "sender_id", windows: [{ max: 20, interval: "1 minute" }, { max: 1000, interval: "1 day" }] },
   comment: { table: "comments", column: "author_id", windows: [{ max: 60, interval: "1 hour" }, { max: 500, interval: "1 day" }] },
   report: { table: "reports", column: "reporter_id", windows: [{ max: 30, interval: "1 day" }] },
+  feedback: { table: "feedback", column: "user_id", windows: [{ max: 20, interval: "1 day" }] },
 } as const;
 
 export type LimitedAction = keyof typeof LIMITS;
@@ -24,6 +25,7 @@ const MESSAGES: Record<LimitedAction, string> = {
   message: "You're sending messages too fast. Wait a moment and try again.",
   comment: "You're commenting a lot. Take a break and try again later.",
   report: "You've sent a lot of reports today. Try again tomorrow.",
+  feedback: "Thanks, we've got a lot from you today. Send more tomorrow.",
 };
 
 /** Throws 429 when the user has already used up a limit. Runs as the owner. */
