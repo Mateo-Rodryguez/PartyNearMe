@@ -54,6 +54,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.partynearme.core.FeedbackKind
 import com.partynearme.core.api.ReportTarget
 import com.partynearme.core.model.OwnProfile
 import com.partynearme.core.model.Post
@@ -139,19 +140,25 @@ fun rememberAvatarPicker(ui: Ui, onUpdated: (OwnProfile) -> Unit): () -> Unit {
 fun DeleteAccountDialog(ui: Ui, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
     var busy by remember { mutableStateOf(false) }
+    var reason by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
         title = { Text("Delete your account?") },
         text = {
-            Text(
-                "This permanently deletes your profile, posts, photos, parties, messages and follows. " +
-                    "It can't be undone."
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "This permanently deletes your profile, posts, photos, parties, messages and follows. " +
+                        "It can't be undone."
+                )
+                // The one moment someone tells us what we got wrong; kept without their account.
+                PartyField(reason, { reason = it.take(2000) }, "What made you leave? (optional)", singleLine = false, minLines = 2)
+            }
         },
         confirmButton = {
             TextButton(enabled = !busy, onClick = {
                 busy = true
                 scope.launch {
+                    if (reason.isNotBlank()) runCatching { ui.app.sendFeedback(FeedbackKind.Leaving, reason) }
                     // On success the session ends and the app returns to sign-in by itself.
                     attempt { ui.app.deleteAccount() }.onFailure { ui.toast(it.userMessage); busy = false }
                 }

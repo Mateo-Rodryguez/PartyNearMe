@@ -4,7 +4,7 @@
  * have them checked before launch. The contact address comes from CONTACT_EMAIL.
  */
 
-export const LAST_UPDATED = "28 October 2026";
+export const LAST_UPDATED = "2 November 2026";
 export const MINIMUM_AGE = 18;
 
 export const page = (title: string, body: string, head = "") => `<!doctype html>
@@ -64,9 +64,15 @@ Questions: ${contact}.</p>
   <li><strong>Activity in the app</strong>, such as which posts you viewed or liked, used only to order your feed.</li>
   <li><strong>A push notification token</strong> for your phone, if you allow notifications.</li>
   <li><strong>Reports</strong> you file about content or users, which only moderators see.</li>
-  <li><strong>Usage statistics:</strong> which features get used (for example "posted a photo with 3 pictures" or
-    "shared a party"), counted under your account ID only. They never include your posts, messages, location, name
-    or email. You can turn them off under Settings &gt; Share usage stats.</li>
+  <li><strong>Usage statistics:</strong> which screens and features get used, for how long, and where things go
+    wrong (for example "posted a photo with 3 pictures", "shared a party" or "no parties found nearby"), with your
+    phone type and app version, counted under your account ID only. They never include your posts, messages,
+    searches, location, name or email. You can turn them off under Settings &gt; Share usage stats.</li>
+  <li><strong>Feedback you choose to send:</strong> messages from Settings &gt; Send feedback, your answer to "would
+    you recommend PartyNearMe?", how you heard about us, and why you left if you tell us when deleting your
+    account. Only we read it. It is kept, no longer linked to you, after you delete your account.</li>
+  <li><strong>Share link visits:</strong> how many times a day a shared party or post link is opened, as a count
+    only; we don't record who opened it.</li>
 </ul>
 <p>We don't sell your data, show ads, or use advertising trackers.</p>
 
@@ -84,7 +90,7 @@ community safe.</p>
   <li>OpenAI (automatic moderation of photos and captions; not used to train their models through this API).</li>
   <li>Google Firebase Cloud Messaging (delivering notifications), and Google sign-in if you choose it.</li>
   <li>Sentry (crash and error reports, stored in the EU; these hold technical details and your account ID, not your posts or messages).</li>
-  <li>PostHog (usage statistics, stored in the EU).</li>
+  <li>PostHog (usage statistics, stored in the EU, with IP addresses discarded).</li>
 </ul>
 <p>They process data only on our behalf. Some may process it outside the EU under standard contractual clauses.</p>
 

@@ -33,3 +33,28 @@ describe("password reset page", () => {
     expect(resetPasswordPage(SUPABASE_URL, "</script><b>")).not.toContain("</script><b>");
   });
 });
+
+describe("isPreviewBot", () => {
+  it("leaves link-preview fetchers out of share link counts, but not people", async () => {
+    const { isPreviewBot } = await import("../../src/modules/web/share.js");
+    const bots = [
+      "WhatsApp/2.23.20.0 A",
+      "facebookexternalhit/1.1 Facebot Twitterbot/1.0", // iMessage
+      "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+      "TelegramBot (like TwitterBot)",
+      "Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)",
+      "Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)",
+      "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+      undefined,
+      "",
+    ];
+    const people = [
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1",
+      "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36",
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 350.0.0",
+      "Mozilla/5.0 (Linux; Android 10; CUBOT X30) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Mobile Safari/537.36",
+    ];
+    for (const ua of bots) expect(isPreviewBot(ua), ua).toBe(true);
+    for (const ua of people) expect(isPreviewBot(ua), ua).toBe(false);
+  });
+});

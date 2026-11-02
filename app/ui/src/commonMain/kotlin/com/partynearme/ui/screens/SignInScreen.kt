@@ -69,6 +69,7 @@ fun SignInScreen(app: PartyNearMe, platform: Platform) {
     fun submit() {
         busy = true
         error = null
+        val action = if (resetting) "reset_password" else if (creating) "sign_up" else "sign_in"
         scope.launch {
             attempt {
                 if (resetting) {
@@ -79,7 +80,13 @@ fun SignInScreen(app: PartyNearMe, platform: Platform) {
                 } else {
                     app.sessions.signIn(email.trim(), password)
                 }
-            }.onFailure { error = it.userMessage }
+            }.onSuccess {
+                app.analytics.track("auth_succeeded", mapOf("method" to "email", "action" to action, "check_email" to checkEmail))
+            }.onFailure {
+                error = it.userMessage
+                // The message is ours or Supabase's ("Invalid login credentials"), never what was typed.
+                app.analytics.track("auth_failed", mapOf("method" to "email", "action" to action, "reason" to it.userMessage.take(80)))
+            }
             busy = false
         }
     }
@@ -170,7 +177,13 @@ fun SignInScreen(app: PartyNearMe, platform: Platform) {
                         error = null
                         scope.launch {
                             attempt { app.signInWith("google") { url -> platform.openSignIn(url, app.config.appScheme) } }
-                                .onFailure { error = it.userMessage }
+                                .onSuccess { done ->
+                                    app.analytics.track(if (done) "auth_succeeded" else "auth_cancelled", mapOf("method" to "google"))
+                                }
+                                .onFailure {
+                                    error = it.userMessage
+                                    app.analytics.track("auth_failed", mapOf("method" to "google", "reason" to it.userMessage.take(80)))
+                                }
                             busy = false
                         }
                     },

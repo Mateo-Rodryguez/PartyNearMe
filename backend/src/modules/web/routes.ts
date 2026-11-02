@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { Db } from "../../db.js";
 import { pictureUrl } from "../media.js";
 import { resetPasswordCsp, resetPasswordPage } from "./resetPassword.js";
-import { notFoundPage, partyPage, postPage, shareCsp, type SharedParty, type SharedPost } from "./share.js";
+import { isPreviewBot, notFoundPage, partyPage, postPage, shareCsp, type SharedParty, type SharedPost } from "./share.js";
 
 const idParams = z.object({ id: z.guid() });
 
@@ -33,6 +33,22 @@ export const webRoutes: FastifyPluginAsync<{
   const selfUrl = (request: FastifyRequest) => `${request.protocol}://${request.host}${request.url.split("?")[0]}`;
   const parseId = (request: FastifyRequest) => idParams.safeParse(request.params).data?.id;
 
+  /**
+   * Counts a person (not a link-preview bot) opening a share link, per day: how
+   * far word of mouth travels. Never fails the page.
+   */
+  const countView = async (request: FastifyRequest, kind: "party" | "post", id: string) => {
+    if (request.method !== "GET" || isPreviewBot(request.headers["user-agent"])) return;
+    try {
+      await db`
+        insert into public.share_link_views (kind, target_id) values (${kind}, ${id})
+        on conflict (kind, target_id, day) do update set views = share_link_views.views + 1
+      `;
+    } catch (err) {
+      request.log.warn({ err }, "could not count a share link view");
+    }
+  };
+
   // These run as the owner, so they check visibility themselves: only what any
   // signed-in user could see in the app.
   app.get("/e/:id", async (request, reply) => {
@@ -48,7 +64,9 @@ export const webRoutes: FastifyPluginAsync<{
           where e.id = ${id} and e.status in ('published', 'cancelled')
         `
       : [];
-    return party ? html(reply, 200, partyPage(party, selfUrl(request))) : html(reply, 404, notFoundPage("party"));
+    if (!party) return html(reply, 404, notFoundPage("party"));
+    await countView(request, "party", party.id);
+    return html(reply, 200, partyPage(party, selfUrl(request)));
   });
 
   app.get("/p/:id", async (request, reply) => {
@@ -63,6 +81,8 @@ export const webRoutes: FastifyPluginAsync<{
           where p.id = ${id} and p.status = 'visible'
         `
       : [];
-    return post ? html(reply, 200, postPage(post, selfUrl(request))) : html(reply, 404, notFoundPage("post"));
+    if (!post) return html(reply, 404, notFoundPage("post"));
+    await countView(request, "post", post.id);
+    return html(reply, 200, postPage(post, selfUrl(request)));
   });
 };
