@@ -14,6 +14,7 @@ struct MainView: View {
     /// Parties near the user, for the Nearby tab and Home's row of parties.
     @State private var nearby: NearbyModel?
     @State private var nearbyPath: [Route] = []
+    @State private var homePath: [Route] = []
 
     init(me: OwnProfile, tab: Tab = .home) {
         self.me = me
@@ -22,7 +23,7 @@ struct MainView: View {
 
     var body: some View {
         TabView(selection: $tab) {
-            NavigationStack {
+            NavigationStack(path: $homePath) {
                 if let feed {
                     FeedView(paged: feed.paged, parties: nearby?.paged.items ?? []) {
                         tab = .nearby
@@ -54,12 +55,10 @@ struct MainView: View {
             }
             .tag(Tab.post)
 
-            NavigationStack {
-                ComingSoon(title: "Messages", systemImage: "bubble.left.and.bubble.right",
-                           text: "Your chats and party group chats.")
-            }
-            .tabItem { Label("Messages", systemImage: tab == .messages ? "bubble.left.and.bubble.right.fill" : "bubble.left.and.bubble.right") }
-            .tag(Tab.messages)
+            NavigationStack { InboxView().routeDestinations() }
+                .tabItem { Label("Messages", systemImage: tab == .messages ? "bubble.left.and.bubble.right.fill" : "bubble.left.and.bubble.right") }
+                .badge(app.unreadChats)
+                .tag(Tab.messages)
 
             NavigationStack { ProfileView(userId: me.id).routeDestinations() }
                 .tabItem { Label("Profile", systemImage: tab == .profile ? "person.crop.circle.fill" : "person.crop.circle") }
@@ -78,6 +77,35 @@ struct MainView: View {
         // Send what the user looked at before the app goes to the background.
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
             app.interactions.flush()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            Task { await app.refreshBadges() }
+        }
+        // Badges: now, whenever a message arrives, and every couple of minutes for notifications.
+        .task { await app.refreshBadges() }
+        .task { for await _ in app.live.messages(in: nil) { await app.refreshBadges() } }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(120))
+                await app.refreshBadges()
+            }
+        }
+        .onOpenURL { openLink($0) }
+    }
+}
+
+extension MainView {
+    /// Opens a shared party or post: parties on Nearby, posts on Home.
+    func openLink(_ url: URL) {
+        switch DeepLink.parse(url) {
+        case .party(let id):
+            tab = .nearby
+            nearbyPath.append(.event(id))
+        case .post(let id):
+            tab = .home
+            homePath.append(.post(id))
+        case nil:
+            break
         }
     }
 }
@@ -106,24 +134,6 @@ private struct ToastView: View {
         }
         .animation(.snappy, value: app.toast)
         .allowsHitTesting(false)
-    }
-}
-
-/// A tab whose native screen is still being built.
-private struct ComingSoon: View {
-    let title: String
-    let systemImage: String
-    let text: String
-
-    var body: some View {
-        ContentUnavailableView {
-            Label(title, systemImage: systemImage)
-        } description: {
-            Text("\(text)\nComing soon in the new iPhone app.")
-        }
-        .background(AppBackground())
-        .navigationTitle(title)
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
