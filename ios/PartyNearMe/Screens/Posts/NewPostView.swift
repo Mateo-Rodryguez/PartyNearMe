@@ -2,13 +2,28 @@ import CoreLocation
 import PhotosUI
 import SwiftUI
 
-/// The "+" tab: pick or take up to ten photos, write a caption, and share.
+/// A party a post can be attached to.
+struct PartyRef: Hashable, Identifiable {
+    let id: String
+    let title: String
+}
+
+/// The "+" tab: pick or take up to ten photos, write a caption, pick the party it
+/// was at, and share. Opened from a party's page, the post goes to that party.
 struct NewPostView: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.dismiss) private var dismiss
+    /// Set when opened from a party's page; the screen closes after posting.
+    let preset: PartyRef?
     /// Called once the post is made, so Home can refresh and show it.
     let onPosted: () -> Void
 
     static let maxPhotos = 10
+    /// Parties you can post to: ones that started up to this long ago, or haven't started yet.
+    static let recentParty: TimeInterval = 3 * 86400
+
+    @State private var party: PartyRef?
+    @State private var parties: [PartyRef] = []
 
     @State private var picked: [PhotosPickerItem] = []
     @State private var photos: [PickedPhoto] = []
@@ -19,6 +34,12 @@ struct NewPostView: View {
     @State private var loadingPhotos = false
     @State private var progress: Double?
     @State private var error: String?
+
+    init(party: PartyRef? = nil, onPosted: @escaping () -> Void = {}) {
+        preset = party
+        self.onPosted = onPosted
+        _party = State(initialValue: party)
+    }
 
     private var sharing: Bool { progress != nil }
 
@@ -33,6 +54,7 @@ struct NewPostView: View {
                 PartyField("Caption", text: $caption, prompt: "Write a caption…")
                     .textInputAutocapitalization(.sentences)
                     .onChange(of: caption) { _, new in if new.count > 2200 { caption = String(new.prefix(2200)) } }
+                partyPicker
                 PartyField("Place (optional)", text: $place, prompt: "e.g. Fabric, London")
                     .textInputAutocapitalization(.words)
                     .onChange(of: place) { _, new in if new.count > 120 { place = String(new.prefix(120)) } }
@@ -52,8 +74,9 @@ struct NewPostView: View {
         .scrollDismissesKeyboard(.interactively)
         .background(AppBackground())
         .safeAreaInset(edge: .bottom) { shareBar }
-        .navigationTitle("New post")
+        .navigationTitle(preset == nil ? "New post" : "Post to the party")
         .navigationBarTitleDisplayMode(.inline)
+        .task { if preset == nil { await loadParties() } }
         .onChange(of: picked) { _, items in Task { await load(items) } }
         .fullScreenCover(isPresented: $showCamera) {
             CameraPicker { image in
@@ -61,6 +84,43 @@ struct NewPostView: View {
             }
             .ignoresSafeArea()
         }
+    }
+
+    @ViewBuilder private var partyPicker: some View {
+        if let preset {
+            Label(preset.title, systemImage: "party.popper.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Color.appText)
+                .padding(.horizontal, 14)
+                .frame(minHeight: 44)
+                .background(Capsule().fill(Color.appRaised))
+        } else if !parties.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("At a party?").font(.footnote.weight(.semibold)).foregroundStyle(Color.appSecondaryText)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ChoiceChip(title: "None", selected: party == nil) { party = nil }
+                        ForEach(parties) { p in
+                            ChoiceChip(title: p.title, selected: party?.id == p.id) { party = p }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// The parties you're going to or hosting, recent or coming up, soonest first.
+    private func loadParties() async {
+        let cutoff = Date().addingTimeInterval(-Self.recentParty)
+        var all: [Event] = []
+        for organising in [false, true] {
+            if let events = try? await app.api.myEvents(organising: organising) { all += events }
+        }
+        var seen = Set<String>()
+        parties = all
+            .filter { $0.isPublished && (Formatting.date($0.startsAt) ?? cutoff) >= cutoff && seen.insert($0.id).inserted }
+            .sorted { $0.startsAt < $1.startsAt }
+            .map { PartyRef(id: $0.id, title: $0.title) }
     }
 
     private var emptyPicker: some View {
@@ -185,6 +245,7 @@ struct NewPostView: View {
                 _ = try await app.api.createPost(NewPost(
                     uploadIds: ids,
                     caption: trimmedCaption.isEmpty ? nil : trimmedCaption,
+                    eventId: party?.id,
                     lat: here?.latitude,
                     lng: here?.longitude,
                     placeName: trimmedPlace.isEmpty ? nil : trimmedPlace
@@ -193,6 +254,11 @@ struct NewPostView: View {
                 caption = ""
                 place = ""
                 app.show("Posted. It shows up for everyone once the photo is checked.")
+                if preset != nil {
+                    dismiss()
+                } else {
+                    party = nil
+                }
                 onPosted()
             } catch {
                 self.error = error.userMessage

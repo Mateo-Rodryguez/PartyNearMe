@@ -237,3 +237,151 @@ struct Interaction: Codable, Equatable {
 enum ReportTarget: String {
     case post, event, user, message, comment
 }
+
+/// A party.
+struct Event: Codable, Equatable, Identifiable {
+    let id: String
+    let organiser: Person
+    var title: String
+    var description: String?
+    var startsAt: String
+    var endsAt: String?
+    var venueName: String?
+    var lat: Double
+    var lng: Double
+    var coverUrl: String?
+    /// The kind of party, one of the interests; nil when the host didn't pick one.
+    var interestId: Int?
+    /// "published" or "cancelled".
+    var status: String
+    var goingCount: Int
+    var interestedCount: Int
+    /// "going", "interested", or "requested" while a private party's host hasn't answered.
+    var myRsvp: String?
+    /// Off Nearby; the venue shows only to the host and approved guests.
+    var isPrivate: Bool
+    /// You can't see the venue yet; lat and lng are only the rough area.
+    var detailsHidden: Bool
+    /// Requests waiting for your answer, on your own private party.
+    var requestedCount: Int
+    var ticketUrl: String?
+    var savedByMe: Bool
+    /// Up to three people the user follows who are going.
+    var friendsGoing: [Person]
+    var friendsGoingCount: Int
+    /// The party's group chat, when you're in it (the host and people going).
+    var chatId: String?
+    let createdAt: String
+    var distanceM: Int?
+
+    var isPublished: Bool { status == "published" }
+    var isCancelled: Bool { status == "cancelled" }
+
+    init(id: String, organiser: Person, title: String, description: String? = nil, startsAt: String, endsAt: String? = nil,
+         venueName: String? = nil, lat: Double, lng: Double, coverUrl: String? = nil, interestId: Int? = nil,
+         status: String = "published", goingCount: Int = 0, interestedCount: Int = 0, myRsvp: String? = nil,
+         isPrivate: Bool = false, detailsHidden: Bool = false, requestedCount: Int = 0, ticketUrl: String? = nil,
+         savedByMe: Bool = false, friendsGoing: [Person] = [], friendsGoingCount: Int = 0, chatId: String? = nil,
+         createdAt: String, distanceM: Int? = nil) {
+        self.id = id
+        self.organiser = organiser
+        self.title = title
+        self.description = description
+        self.startsAt = startsAt
+        self.endsAt = endsAt
+        self.venueName = venueName
+        self.lat = lat
+        self.lng = lng
+        self.coverUrl = coverUrl
+        self.interestId = interestId
+        self.status = status
+        self.goingCount = goingCount
+        self.interestedCount = interestedCount
+        self.myRsvp = myRsvp
+        self.isPrivate = isPrivate
+        self.detailsHidden = detailsHidden
+        self.requestedCount = requestedCount
+        self.ticketUrl = ticketUrl
+        self.savedByMe = savedByMe
+        self.friendsGoing = friendsGoing
+        self.friendsGoingCount = friendsGoingCount
+        self.chatId = chatId
+        self.createdAt = createdAt
+        self.distanceM = distanceM
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        organiser = try c.decode(Person.self, forKey: .organiser)
+        title = try c.decode(String.self, forKey: .title)
+        description = try c.decodeIfPresent(String.self, forKey: .description)
+        startsAt = try c.decode(String.self, forKey: .startsAt)
+        endsAt = try c.decodeIfPresent(String.self, forKey: .endsAt)
+        venueName = try c.decodeIfPresent(String.self, forKey: .venueName)
+        lat = try c.decode(Double.self, forKey: .lat)
+        lng = try c.decode(Double.self, forKey: .lng)
+        coverUrl = try c.decodeIfPresent(String.self, forKey: .coverUrl)
+        interestId = try c.decodeIfPresent(Int.self, forKey: .interestId)
+        status = try c.decode(String.self, forKey: .status)
+        goingCount = try c.decode(Int.self, forKey: .goingCount)
+        interestedCount = try c.decode(Int.self, forKey: .interestedCount)
+        myRsvp = try c.decodeIfPresent(String.self, forKey: .myRsvp)
+        isPrivate = try c.decodeIfPresent(Bool.self, forKey: .isPrivate) ?? false
+        detailsHidden = try c.decodeIfPresent(Bool.self, forKey: .detailsHidden) ?? false
+        requestedCount = try c.decodeIfPresent(Int.self, forKey: .requestedCount) ?? 0
+        ticketUrl = try c.decodeIfPresent(String.self, forKey: .ticketUrl)
+        savedByMe = try c.decodeIfPresent(Bool.self, forKey: .savedByMe) ?? false
+        friendsGoing = try c.decodeIfPresent([Person].self, forKey: .friendsGoing) ?? []
+        friendsGoingCount = try c.decodeIfPresent(Int.self, forKey: .friendsGoingCount) ?? 0
+        chatId = try c.decodeIfPresent(String.self, forKey: .chatId)
+        createdAt = try c.decode(String.self, forKey: .createdAt)
+        distanceM = try c.decodeIfPresent(Int.self, forKey: .distanceM)
+    }
+}
+
+struct EventPage: Decodable {
+    let events: [Event]
+    let nextCursor: String?
+}
+
+struct EventList: Decodable {
+    let events: [Event]
+}
+
+struct NewEvent: Encodable {
+    var title: String
+    var description: String?
+    var startsAt: String
+    var endsAt: String?
+    var venueName: String?
+    var interestId: Int?
+    var isPrivate: Bool
+    var ticketUrl: String?
+    var lat: Double
+    var lng: Double
+    var publish = true
+}
+
+/// Changes to a party. Only fields that are set are sent; `description`, `venueName`
+/// and `ticketUrl` are cleared by sending an empty string.
+struct EventUpdate: Encodable {
+    var title: String?
+    var description: String?
+    var startsAt: String?
+    var endsAt: String?
+    var venueName: String?
+    var interestId: Int?
+    var isPrivate: Bool?
+    var ticketUrl: String?
+    var lat: Double?
+    var lng: Double?
+    /// "published" or "cancelled".
+    var status: String?
+}
+
+/// A private party's guest list, for its host.
+struct GuestList: Decodable, Equatable {
+    var requested: [Person]
+    var going: [Person]
+}
