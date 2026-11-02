@@ -43,6 +43,24 @@ struct FeedView: View {
                 HStack {
                     Wordmark(size: 26)
                     Spacer()
+                    NavigationLink(value: Route.notifications) {
+                        Image(systemName: "bell")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(Color.appText)
+                            .frame(width: 42, height: 42)
+                            .overlay(alignment: .topTrailing) {
+                                if app.unreadNotifications > 0 {
+                                    Text(app.unreadNotifications > 9 ? "9+" : String(app.unreadNotifications))
+                                        .font(.caption2.weight(.bold))
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 5)
+                                        .frame(minWidth: 18, minHeight: 18)
+                                        .background(Capsule().fill(Brand.gradient))
+                                        .offset(x: 2, y: 2)
+                                }
+                            }
+                    }
+                    .accessibilityLabel(app.unreadNotifications > 0 ? "Notifications, \(app.unreadNotifications) new" : "Notifications")
                 }
                 .padding(.horizontal, 20)
                 .frame(height: 52)

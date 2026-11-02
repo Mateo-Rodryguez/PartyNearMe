@@ -10,6 +10,38 @@ enum Route: Hashable {
     case guests(eventId: String, title: String)
     /// A new post at a party, from its page.
     case newPost(eventId: String, title: String)
+    case invite(eventId: String, title: String)
+    case chat(id: String, title: String)
+    /// The one-to-one chat with someone, made if it's new.
+    case chatWith(userId: String, title: String)
+    case notifications
+}
+
+/// Links that open a screen: partynearme://party/<id> and partynearme://post/<id>,
+/// which the shared web pages link to, and those pages' own addresses (…/e/<id>, …/p/<id>).
+enum DeepLink {
+    enum Target: Equatable {
+        case party(String)
+        case post(String)
+    }
+
+    static func parse(_ url: URL) -> Target? {
+        let parts: [String]
+        switch url.scheme?.lowercased() {
+        case AppConfig.appScheme:
+            parts = [url.host ?? ""] + url.pathComponents.filter { $0 != "/" }
+        case "https":
+            parts = url.pathComponents.filter { $0 != "/" }
+        default:
+            return nil
+        }
+        guard parts.count == 2, UUID(uuidString: parts[1]) != nil else { return nil }
+        switch parts[0] {
+        case "party", "e": return .party(parts[1])
+        case "post", "p": return .post(parts[1])
+        default: return nil
+        }
+    }
 }
 
 extension View {
@@ -24,6 +56,10 @@ extension View {
             case .event(let id): EventView(id: id)
             case let .guests(eventId, title): GuestListView(eventId: eventId, title: title)
             case let .newPost(eventId, title): NewPostView(party: PartyRef(id: eventId, title: title))
+            case let .invite(eventId, title): InviteView(eventId: eventId, title: title)
+            case let .chat(id, title): ChatView(start: .conversation(id), title: title)
+            case let .chatWith(userId, title): ChatView(start: .person(userId), title: title)
+            case .notifications: NotificationsView()
             }
         }
     }
