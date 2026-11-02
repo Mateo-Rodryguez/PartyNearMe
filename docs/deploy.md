@@ -67,9 +67,11 @@ Both are set up in the Supabase dashboard, under Authentication:
 
 ## Usage statistics (PostHog)
 
-The app can count which features get used (app opened, post created, party
-created, RSVP, comment, share, invites sent), sent straight from the phone to
-PostHog's EU cloud. It is off until the app has a project key:
+The app counts which screens and features get used, where people get stuck
+(errors, empty Nearby, failed sign-ins) and how long they stay, sent straight
+from the phone to PostHog's EU cloud. The full list of events and the
+dashboards to build are in [analytics.md](analytics.md). It is off until the
+app has a project key:
 
 1. Sign up at eu.posthog.com (free tier, EU region) and create a project.
 2. Project settings: turn on **Discard client IP data**, so no addresses are kept.
@@ -78,7 +80,9 @@ PostHog's EU cloud. It is off until the app has a project key:
    `app/iosKit/.../MainViewController.kt`.
 
 Events carry the account id, the platform and plain counts only, and no person
-profiles are made. People can turn it off under Settings > Share usage stats, which
+profiles are made. Feedback, the recommend score and "how did you hear about
+us?" work without PostHog: they go to the `feedback` table in Supabase (SQL in
+analytics.md). People can turn it off under Settings > Share usage stats, which
 appears once a key is set. The privacy policy already describes it.
 
 ## Error reports (Sentry)
