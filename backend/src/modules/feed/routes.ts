@@ -20,6 +20,8 @@ const decodeCursor = (cursor: string) => {
 };
 
 const INTERACTION_KINDS = ["impression", "dwell", "open", "share", "skip", "not_interested"] as const;
+/** Where in the app it happened; For You is measured against the plain lists. */
+export const SURFACES = ["for_you_parties", "nearby", "feed", "profile", "saved", "search", "other"] as const;
 
 const interaction = z
   .object({
@@ -27,6 +29,11 @@ const interaction = z
     post_id: z.guid().optional(),
     event_id: z.guid().optional(),
     dwell_ms: z.number().int().min(0).max(60 * 60 * 1000).optional(),
+    surface: z.enum(SURFACES).optional(),
+    /** The serve_id of the ranked list the item was in (GET /feed, GET /events/for-you). */
+    serve_id: z.guid().optional(),
+    /** Its place in that list, from 0. */
+    position: z.number().int().min(0).max(999).optional(),
   })
   .strict()
   .refine((i) => i.post_id || i.event_id, "post_id or event_id is required")
@@ -56,7 +63,14 @@ export const feedRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string | 
           cursor: z.string().max(200).optional(),
         })
         .refine((q) => (q.lat === undefined) === (q.lng === undefined), { message: "lat and lng go together" }),
-      response: { 200: z.object({ posts: z.array(post), next_cursor: z.string().nullable() }) },
+      response: {
+        200: z.object({
+          posts: z.array(post),
+          next_cursor: z.string().nullable(),
+          /** Send back with impressions and opens from this list, so the ranking can be measured. */
+          serve_id: z.guid(),
+        }),
+      },
     },
   }, async (request) => {
     const me = request.userId;
@@ -109,6 +123,7 @@ export const feedRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string | 
     return {
       posts,
       next_cursor: nextOffset < snapshot.post_ids.length ? encodeCursor(snapshot.id, nextOffset) : null,
+      serve_id: snapshot.id,
     };
   });
 
@@ -126,9 +141,15 @@ export const feedRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string | 
       post_id: e.post_id ?? null,
       event_id: e.event_id ?? null,
       dwell_ms: e.dwell_ms ?? null,
+      surface: e.surface ?? null,
+      serve_id: e.serve_id ?? null,
+      position: e.position ?? null,
     }));
     // The log is service-only, so this runs as the owner with the user id from the token.
-    await db`insert into public.interactions ${db(rows, "user_id", "kind", "post_id", "event_id", "dwell_ms")}`;
+    await db`
+      insert into public.interactions
+      ${db(rows, "user_id", "kind", "post_id", "event_id", "dwell_ms", "surface", "serve_id", "position")}
+    `;
     return reply.status(202).send(null);
   });
 };

@@ -1,4 +1,6 @@
 import type { Db } from "../../db.js";
+import { authorAffinity, interestAffinity } from "../recommend/affinity.js";
+import { diversify as diversifyBy } from "../recommend/parties.js";
 
 /**
  * Feed v1 weights. Each signal is scaled to 0..1 before weighting. Tune here;
@@ -11,6 +13,8 @@ export const WEIGHTS = {
   popular: 1, // likes, on a log scale up to 100
   eventSoon: 1, // attached to an event happening in the next 48 hours
   myEvent: 1, // attached to an event I RSVP'd to
+  author: 2, // how much I like this person's posts and parties (-1..1), see recommend/affinity.ts
+  interest: 1.5, // from a kind of party I like (-1..1)
 } as const;
 /** Posts I've already been shown keep this share of their score. */
 export const SEEN_FACTOR = 0.3;
@@ -37,8 +41,12 @@ export async function rankPosts(db: Db, me: string, here: { lat: number; lng: nu
     ? db`extensions.st_setsrid(extensions.st_makepoint(${here.lng}, ${here.lat}), 4326)::extensions.geography`
     : db`null::extensions.geography`;
   return db<Ranked[]>`
-    with candidates as (
+    with ia as (${interestAffinity(db, me)}),
+         aa as (${authorAffinity(db, me)}),
+    candidates as (
       select p.id, p.author_id, p.like_count, p.created_at,
+             coalesce((select ia.affinity from ia where ia.interest_id = e.interest_id), 0) as interest_affinity,
+             coalesce((select aa.affinity from aa where aa.author_id = p.author_id), 0) as author_affinity,
              coalesce(p.location, e.location) as location,
              e.starts_at as event_starts_at,
              exists (select 1 from public.follows f
@@ -68,6 +76,8 @@ export async function rankPosts(db: Db, me: string, here: { lat: number; lng: nu
         + ${WEIGHTS.popular}::float8 * least(ln(1 + like_count) / ln(101), 1)
         + ${WEIGHTS.eventSoon}::float8 * coalesce(event_starts_at between now() - interval '6 hours' and now() + interval '48 hours', false)::int
         + ${WEIGHTS.myEvent}::float8 * my_event::int
+        + ${WEIGHTS.author}::float8 * author_affinity
+        + ${WEIGHTS.interest}::float8 * interest_affinity
       ) * case when seen then ${SEEN_FACTOR}::float8 else 1 end as score
     from candidates
     order by score desc, id
@@ -75,21 +85,6 @@ export async function rankPosts(db: Db, me: string, here: { lat: number; lng: nu
   `.then((rows) => rows.map((r) => ({ ...r, score: Number(r.score) })));
 }
 
-/**
- * Reorders a ranked list so no author appears more than maxRun times in a
- * row, pulling the next-best post from someone else forward. Posts are only
- * pushed down, never dropped; a long tail from one author stays at the end.
- */
-export function diversify<T extends { author_id: string }>(ranked: T[], maxRun = MAX_RUN): T[] {
-  const pending = [...ranked];
-  const out: T[] = [];
-  while (pending.length > 0) {
-    const last = out.slice(-maxRun);
-    const blocked = last.length === maxRun && last.every((p) => p.author_id === last[0]?.author_id)
-      ? last[0]?.author_id
-      : undefined;
-    const index = blocked === undefined ? 0 : pending.findIndex((p) => p.author_id !== blocked);
-    out.push(...pending.splice(index === -1 ? 0 : index, 1));
-  }
-  return out;
-}
+/** No more than maxRun posts in a row from one author; see recommend/parties.ts. */
+export const diversify = <T extends { author_id: string }>(ranked: T[], maxRun = MAX_RUN): T[] =>
+  diversifyBy(ranked, (p) => p.author_id, maxRun);

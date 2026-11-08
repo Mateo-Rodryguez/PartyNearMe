@@ -110,6 +110,7 @@ select tests.expect_error(
 select tests.expect_error($$select count(*) from public.outbox$$, 'outbox is not readable');
 select tests.expect_error($$select count(*) from public.interactions$$, 'interactions are not readable');
 select tests.expect_error($$select count(*) from public.feed_snapshots$$, 'feed snapshots are not readable');
+select tests.expect_error($$select count(*) from public.recommendation_serves$$, 'recommendation serves are not readable');
 select tests.expect_error(
   $$insert into public.device_tokens (token, user_id, platform) values ('tok-0123456789', '00000000-0000-0000-0000-00000000000b', 'ios')$$,
   'cannot register a phone for someone else');

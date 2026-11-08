@@ -9,7 +9,7 @@ const MAX_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
 const lat = z.number().min(-90).max(90);
 const lng = z.number().min(-180).max(180);
-const timestamp = z.iso.datetime({ offset: true });
+export const timestamp = z.iso.datetime({ offset: true });
 
 const person = z.object({
   id: z.guid(),
@@ -18,7 +18,7 @@ const person = z.object({
   avatar_url: z.string().nullable(),
 });
 
-const event = z.object({
+export const event = z.object({
   id: z.guid(),
   organiser: person,
   title: z.string(),
@@ -53,7 +53,7 @@ const event = z.object({
 });
 type Event = z.infer<typeof event>;
 
-const nearbyEvent = event.extend({ distance_m: z.number().int() });
+export const nearbyEvent = event.extend({ distance_m: z.number().int() });
 
 const eventFields = {
   title: z.string().trim().min(1).max(120),
@@ -144,7 +144,7 @@ const detailsHidden = (tx: Tx, me: string) => tx`
 `;
 
 /** Columns every event response needs; RLS decides which events are visible. */
-const eventSelect = (tx: Tx, me: string, base: string | undefined) => tx`
+export const eventSelect = (tx: Tx, me: string, base: string | undefined) => tx`
   e.id, e.title, e.description, e.starts_at, e.ends_at, e.interest_id, e.status, e.created_at,
   e.is_private, e.ticket_url, ${detailsHidden(tx, me)} as details_hidden,
   case when ${detailsHidden(tx, me)} then null else e.venue_name end as venue_name,
