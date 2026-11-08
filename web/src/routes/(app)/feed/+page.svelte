@@ -56,6 +56,7 @@
 
 <PageHeader title="PartyNearMe">
 	{#snippet actions()}
+		<a class="bell search" href="/search" aria-label="Search people"><Icon name="search" /></a>
 		<a class="bell" href="/notifications" aria-label={unread.notifications ? `Notifications, ${unread.notifications} new` : 'Notifications'}>
 			<Icon name="bell" />
 			{#if unread.notifications}<span class="badge">{unread.notifications > 9 ? '9+' : unread.notifications}</span>{/if}
@@ -93,6 +94,11 @@
 		place-items: center;
 		width: 40px;
 		height: 40px;
+	}
+	@media (min-width: 900px) {
+		.search {
+			display: none;
+		}
 	}
 	.badge {
 		position: absolute;

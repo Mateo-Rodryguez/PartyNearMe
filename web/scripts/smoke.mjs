@@ -69,6 +69,18 @@ const routes = [
 	[/\/uploads$/, { upload_id: 'u1', upload_url: 'https://630c8ac9872f11e09ffed9fe3cb05b0c.r2.cloudflarestorage.com/partynearme-media/uploads/x.jpg', headers: { 'content-type': 'image/jpeg' } }],
 	[/\/partynearme-media\//, null],
 	[/^\/posts$/, post],
+	[/\/conversations\/unread/, { unread_count: 2 }],
+	[/\/conversations\/[^/]+\/messages/, { has_more: false, messages: [
+		{ id: '3', conversation_id: 'chat1', sender_id: me.id, body: 'On my way!', created_at: soon },
+		{ id: '2', conversation_id: 'chat1', sender_id: ana.id, body: 'Come to this', created_at: soon, event_id: party.id },
+		{ id: '1', conversation_id: 'chat1', sender_id: ana.id, body: 'Hey! Are you coming tonight?', created_at: soon }
+	] }],
+	[/\/conversations\/[^/]+\/read/, null],
+	[/\/conversations\/[^/]+$/, { id: 'chat1', other: ana, unread_count: 0 }],
+	[/\/conversations$/, { next_cursor: null, conversations: [
+		{ id: 'chat1', other: ana, unread_count: 1, last_message: { id: '2', conversation_id: 'chat1', sender_id: ana.id, body: 'Hey! Are you coming tonight?', created_at: soon }, last_message_at: soon },
+		{ id: 'chat2', party: { id: party.id, title: party.title, cover_url: party.cover_url }, members: [ana, me], unread_count: 0, last_message: { id: '9', conversation_id: 'chat2', sender_id: me.id, body: 'See you all there', created_at: soon }, last_message_at: soon }
+	] }],
 	[/\/interests/, [{ id: 1, slug: 'house', name: 'House' }, { id: 2, slug: 'techno', name: 'Techno' }]],
 	[/\/interactions|\/like|\/save|\/follow/, null]
 ];
@@ -88,9 +100,22 @@ for (const scheme of ['dark', 'light']) {
 		calls.set(key, (calls.get(key) ?? 0) + 1);
 		if (calls.get(key) === 8) errors.push(`${scheme}: ${key} was requested 8 times`);
 		if (url.includes('supabase.co/auth/v1/settings')) return route.fulfill({ json: { external: { google: true, email: true } } });
+		if (route.request().method() === 'POST' && /\/messages$/.test(url)) {
+			const { body } = route.request().postDataJSON();
+			return route.fulfill({ json: { id: '5', conversation_id: 'chat1', sender_id: me.id, body, created_at: new Date().toISOString() } });
+		}
 		const match = routes.find(([pattern]) => pattern.test(new URL(url).pathname));
 		if (!match) return route.fulfill({ status: 404, json: { message: `No fixture for ${url}` } });
 		return match[1] === null ? route.fulfill({ status: 204 }) : route.fulfill({ json: match[1] });
+	});
+	// Live chat: a fake Realtime socket that delivers one new message after joining.
+	await context.routeWebSocket(/realtime\/v1\/websocket/, (ws) => {
+		ws.onMessage((text) => {
+			const frame = JSON.parse(String(text));
+			if (frame.event !== 'phx_join' || !frame.topic.endsWith('chat1')) return;
+			const record = { id: 4, conversation_id: 'chat1', sender_id: ana.id, body: 'Live message arrived', created_at: '2026-11-08 21:00:00+00' };
+			setTimeout(() => ws.send(JSON.stringify({ topic: frame.topic, event: 'postgres_changes', payload: { data: { type: 'INSERT', record } } })), 200);
+		});
 	});
 	const page = await context.newPage();
 	page.on('console', (m) => m.type() === 'error' && errors.push(`${scheme} ${page.url()}: ${m.text()}`));
@@ -118,6 +143,11 @@ for (const scheme of ['dark', 'light']) {
 	await shot('post', `/p/${post.id}`, 'See you there!');
 	await shot('profile', `/u/${ana.id}`, 'Out every weekend');
 	await shot('me', '/me', 'Your parties');
+	await shot('inbox', '/chat', 'See you all there');
+	await shot('chat', '/chat/chat1', 'Live message arrived');
+	await page.getByPlaceholder('Message…').fill('Be there at 10');
+	await page.keyboard.press('Enter');
+	await page.getByText('Be there at 10').waitFor();
 	await shot('notifications', '/notifications', 'Amazing!');
 	await shot('settings', '/settings', 'Who can message you');
 	await shot('saved', '/saved', 'Parties');

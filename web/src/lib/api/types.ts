@@ -188,3 +188,43 @@ export interface NotificationPage {
 }
 
 export type ReportTarget = 'post' | 'event' | 'user' | 'message' | 'comment';
+
+export interface Message {
+	/** A growing number (as text): higher is newer. */
+	id: string;
+	conversation_id: string;
+	sender_id: string;
+	body: string;
+	created_at: string;
+	/** Set on a party invite: the party the message is about. */
+	event_id?: string | null;
+}
+
+export interface ChatParty {
+	id: string;
+	title: string;
+	cover_url?: string | null;
+}
+
+export interface Conversation {
+	id: string;
+	/** The other person in a one-to-one chat; null in a party's group chat. */
+	other?: Person | null;
+	party?: ChatParty | null;
+	members?: Person[];
+	/** People you blocked in this party chat: their messages stay hidden. */
+	hidden_sender_ids?: string[];
+	last_message?: Message | null;
+	unread_count: number;
+	last_message_at?: string | null;
+}
+
+export interface ConversationPage {
+	conversations: Conversation[];
+	next_cursor?: string | null;
+}
+
+export interface MessagePage {
+	messages: Message[];
+	has_more: boolean;
+}
