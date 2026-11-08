@@ -16,3 +16,4 @@
 /chat           /200.html  200
 /chat/*         /200.html  200
 /host           /200.html  200
+/feedback       /200.html  200

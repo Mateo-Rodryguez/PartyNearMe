@@ -10,7 +10,12 @@ const realtime = 'wss://vvkckzrhzgdrazhjitse.supabase.co';
 const tiles = 'https://tiles.openfreemap.org';
 const uploads = 'https://630c8ac9872f11e09ffed9fe3cb05b0c.r2.cloudflarestorage.com';
 
+// Node's environment, typed here so the config needs no @types/node.
+const env = (globalThis as unknown as { process: { env: Record<string, string | undefined> } }).process.env;
+
 export default defineConfig({
+	// Cloudflare Pages sets the commit; feedback carries it like the apps carry their version.
+	define: { __APP_VERSION__: JSON.stringify((env.CF_PAGES_COMMIT_SHA ?? env.GITHUB_SHA ?? 'dev').slice(0, 7)) },
 	plugins: [
 		sveltekit({
 			compilerOptions: {

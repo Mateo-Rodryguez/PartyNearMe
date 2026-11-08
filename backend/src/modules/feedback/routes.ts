@@ -14,7 +14,7 @@ const feedbackBody = z
     score: z.number().int().min(0).max(10).optional(),
     body: z.string().trim().min(1).max(2000).optional(),
     screen: z.string().trim().max(40).optional(),
-    platform: z.enum(["android", "ios"]),
+    platform: z.enum(["android", "ios", "web"]),
     app_version: z.string().trim().max(20).optional(),
   })
   .strict();

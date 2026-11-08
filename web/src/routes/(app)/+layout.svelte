@@ -2,10 +2,12 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { flush } from '#lib/interactions.js';
+	import { me } from '#lib/me.svelte.js';
 	import { session } from '#lib/session.svelte.js';
 	import { unread } from '#lib/unread.svelte.js';
 	import Icon, { type IconName } from '#lib/ui/Icon.svelte';
 	import type { LayoutProps } from './$types';
+	import Setup from './Setup.svelte';
 
 	let { children }: LayoutProps = $props();
 
@@ -15,6 +17,12 @@
 			const next = page.url.pathname + page.url.search;
 			void goto(`/signin?next=${encodeURIComponent(next)}`, { replaceState: true });
 		}
+	});
+
+	// A new account picks a username before anything else, as on the phones.
+	$effect(() => {
+		const userId = session.userId;
+		if (userId) void me.load(userId);
 	});
 
 	// Send what the user looked at when they leave or switch tabs.
@@ -40,7 +48,9 @@
 	const current = (href: string) => page.url.pathname === href || page.url.pathname.startsWith(`${href}/`);
 </script>
 
-{#if session.current}
+{#if session.current && me.current && !me.current.username}
+	<Setup profile={me.current} ondone={(profile) => me.set(profile)} />
+{:else if session.current}
 	<div class="shell">
 		<nav aria-label="Main">
 			<a href="/feed" class="brand" aria-label="PartyNearMe home">

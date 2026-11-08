@@ -83,9 +83,14 @@ const routes = [
 		{ id: 'chat1', other: ana, unread_count: 1, last_message: { id: '2', conversation_id: 'chat1', sender_id: ana.id, body: 'Hey! Are you coming tonight?', created_at: soon }, last_message_at: soon },
 		{ id: 'chat2', party: { id: party.id, title: party.title, cover_url: party.cover_url }, members: [ana, me], unread_count: 0, last_message: { id: '9', conversation_id: 'chat2', sender_id: me.id, body: 'See you all there', created_at: soon }, last_message_at: soon }
 	] }],
+	[/\/me\/interests/, { ...me, created_at: soon, interest_ids: [1] }],
+	[/\/feedback$/, null],
 	[/\/interests/, [{ id: 1, slug: 'house', name: 'House' }, { id: 2, slug: 'techno', name: 'Techno' }]],
 	[/\/interactions|\/like|\/save|\/follow|\/approve|\/cover/, null]
 ];
+
+// A brand-new account has no username until setup saves one.
+let newAccount = false;
 
 const browser = await chromium.launch();
 const errors = [];
@@ -105,6 +110,10 @@ for (const scheme of ['dark', 'light']) {
 		if (route.request().method() === 'POST' && /\/messages$/.test(url)) {
 			const { body } = route.request().postDataJSON();
 			return route.fulfill({ json: { id: '5', conversation_id: 'chat1', sender_id: me.id, body, created_at: new Date().toISOString() } });
+		}
+		if (newAccount && new URL(url).pathname === '/me') {
+			if (route.request().method() === 'PATCH') newAccount = false;
+			else return route.fulfill({ json: { id: me.id, username: null, display_name: null, created_at: soon, interest_ids: [] } });
 		}
 		const match = routes.find(([pattern]) => pattern.test(new URL(url).pathname));
 		if (!match) return route.fulfill({ status: 404, json: { message: `No fixture for ${url}` } });
@@ -139,7 +148,30 @@ for (const scheme of ['dark', 'light']) {
 
 	// Signed in from here on.
 	await page.evaluate((userId) => localStorage.setItem('pnm.session', JSON.stringify({ accessToken: 't', refreshToken: 'r', expiresAt: Date.now() / 1000 + 3600, userId })), me.id);
+	// A new account goes through setup first.
+	newAccount = true;
+	await shot('setup-username', '/feed', 'Pick a username');
+	await page.getByLabel('Username').fill('New Name!');
+	await page.getByRole('button', { name: 'Continue' }).click();
+	await page.getByText('What are you into?').waitFor();
+	await page.getByRole('button', { name: 'House' }).click();
+	await page.screenshot({ path: `${out}/setup-interests-${scheme}.png` });
+	await page.getByRole('button', { name: 'Continue' }).click();
+	await page.getByRole('radio', { name: 'A friend told me' }).click();
+	await page.getByRole('button', { name: 'Continue' }).click();
+	await page.getByText('Find parties near you').waitFor();
+	await page.screenshot({ path: `${out}/setup-location-${scheme}.png` });
+	await page.getByRole('button', { name: 'Not now' }).click();
+	await page.getByText('What a night').first().waitFor();
+
+	// Someone who knows the app gets asked if they'd recommend it.
+	await page.evaluate(() => localStorage.setItem('pnm.activity', JSON.stringify({ firstDay: 1, lastDay: 1, days: 5, askedDay: 0 })));
 	await shot('feed', '/feed', 'What a night');
+	await page.getByRole('radio', { name: '9' }).click();
+	await page.getByPlaceholder('What do you love most? (optional)').fill('The party map');
+	await page.screenshot({ path: `${out}/recommend-${scheme}.png` });
+	await page.getByRole('button', { name: 'Send', exact: true }).click();
+	await page.getByText('Thank you! Tell a friend tonight').waitFor();
 	await page.getByRole('button', { name: 'Like' }).first().click();
 	await page.getByText('18 likes').waitFor();
 	await shot('nearby', '/nearby', 'Rooftop Sunset Session');
@@ -167,6 +199,17 @@ for (const scheme of ['dark', 'light']) {
 	await page.getByText('Going (2)').waitFor();
 	await shot('notifications', '/notifications', 'Amazing!');
 	await shot('settings', '/settings', 'Who can message you');
+	await page.getByRole('button', { name: 'Delete account' }).click();
+	await page.getByText('Why are you leaving?').waitFor();
+	await page.screenshot({ path: `${out}/delete-account-${scheme}.png` });
+	await page.getByRole('button', { name: 'Keep my account' }).click();
+	await page.getByRole('link', { name: 'Send feedback' }).click();
+	await page.getByText('We read every message').waitFor();
+	await page.screenshot({ path: `${out}/feedback-${scheme}.png` });
+	await page.getByRole('radio', { name: 'I have an idea' }).click();
+	await page.getByLabel('Your feedback').fill('A dark map');
+	await page.getByRole('button', { name: 'Send' }).click();
+	await page.getByText('Thanks! We read every one.').waitFor();
 	await shot('saved', '/saved', 'Parties');
 	await shot('new-post', '/new', 'Choose photos');
 	await page.locator('input[type=file]').first().setInputFiles({

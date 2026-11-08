@@ -4,11 +4,13 @@
 	import type { AccountSettings, Interest, ListedPerson, OwnProfile } from '#lib/api/types.js';
 	import { config } from '#lib/config.js';
 	import { nameOf } from '#lib/format.js';
+	import { me as own } from '#lib/me.svelte.js';
 	import { shrink } from '#lib/photos.js';
 	import { prefs, type Theme } from '#lib/prefs.svelte.js';
 	import { session } from '#lib/session.svelte.js';
 	import { toast } from '#lib/toast.svelte.js';
 	import Avatar from '#lib/ui/Avatar.svelte';
+	import Sheet from '#lib/ui/Sheet.svelte';
 	import Spinner from '#lib/ui/Spinner.svelte';
 	import PageHeader from '../PageHeader.svelte';
 
@@ -21,6 +23,10 @@
 	let bio = $state('');
 	let saving = $state(false);
 	let avatarInput = $state<HTMLInputElement>();
+	let deleting = $state(false);
+	let leavingReason = $state('');
+	let confirmText = $state('');
+	let deleteBusy = $state(false);
 
 	const hearts = [
 		{ id: null, label: 'Not shown' },
@@ -51,6 +57,7 @@
 		saving = true;
 		try {
 			me = await api.updateMe({ display_name: displayName.trim(), username: username.trim().replace(/^@/, ''), bio: bio.trim() });
+			own.set(me);
 			toast.show('Saved');
 		} catch (e) {
 			toast.show(e instanceof Error ? e.message : "Couldn't save that");
@@ -110,15 +117,19 @@
 		await goto('/', { replaceState: true });
 	}
 
-	async function deleteAccount() {
-		if (!confirm('Delete your account? Your profile, photos, parties and messages are deleted for good.')) return;
-		if (prompt('Type DELETE to confirm') !== 'DELETE') return;
+	async function deleteAccount(e: SubmitEvent) {
+		e.preventDefault();
+		deleteBusy = true;
 		try {
+			// Why people leave is the strongest signal there is; it's optional and never blocks deleting.
+			if (leavingReason.trim()) await api.sendFeedback('leaving', { body: leavingReason, screen: 'settings' }).catch(() => undefined);
 			await api.deleteAccount();
 			session.set(null);
 			await goto('/', { replaceState: true });
-		} catch (e) {
-			toast.show(e instanceof Error ? e.message : "Couldn't delete the account");
+		} catch (err) {
+			toast.show(err instanceof Error ? err.message : "Couldn't delete the account");
+		} finally {
+			deleteBusy = false;
 		}
 	}
 </script>
@@ -205,6 +216,11 @@
 		</section>
 
 		<section>
+			<h2>Help us improve</h2>
+			<a class="row" href="/feedback">Send feedback</a>
+		</section>
+
+		<section>
 			<h2>About</h2>
 			<a class="row" href="{config.apiBaseUrl}/privacy">Privacy policy</a>
 			<a class="row" href="{config.apiBaseUrl}/terms">Terms</a>
@@ -213,10 +229,26 @@
 		<section class="account">
 			<p class="muted">Signed in as {session.current?.email ?? nameOf(me)}</p>
 			<button class="btn block" onclick={signOut}>Sign out</button>
-			<button class="btn block danger outline" onclick={deleteAccount}>Delete account</button>
+			<button class="btn block danger outline" onclick={() => (deleting = true)}>Delete account</button>
 		</section>
 	</div>
 {/if}
+
+<Sheet bind:open={deleting} title="Delete your account?">
+	<form class="delete" onsubmit={deleteAccount}>
+		<p class="muted">Your profile, photos, parties and messages are deleted for good. This can't be undone.</p>
+		<label>
+			<span class="overline">Why are you leaving? (optional)</span>
+			<textarea class="field" rows="3" maxlength="2000" bind:value={leavingReason}></textarea>
+		</label>
+		<label>
+			<span class="overline">Type DELETE to confirm</span>
+			<input class="field" autocapitalize="characters" autocomplete="off" bind:value={confirmText} />
+		</label>
+		<button class="btn block danger" disabled={confirmText.trim() !== 'DELETE' || deleteBusy}>{deleteBusy ? 'Deleting…' : 'Delete for good'}</button>
+		<button type="button" class="btn block outline" onclick={() => (deleting = false)}>Keep my account</button>
+	</form>
+</Sheet>
 
 <style>
 	.page {
@@ -260,5 +292,12 @@
 	}
 	.account {
 		gap: 10px;
+	}
+	.delete {
+		display: grid;
+		gap: 12px;
+	}
+	.delete p {
+		margin: 0;
 	}
 </style>

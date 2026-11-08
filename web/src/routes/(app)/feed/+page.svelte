@@ -9,11 +9,15 @@
 	import Empty from '#lib/ui/Empty.svelte';
 	import LoadMore from '#lib/ui/LoadMore.svelte';
 	import PostCard from '#lib/ui/PostCard.svelte';
+	import RecommendCard from '#lib/ui/RecommendCard.svelte';
+	import { visitAndCheck } from '#lib/recommend.js';
 	import PageHeader from '../PageHeader.svelte';
 
 	// The last feed shows at once while the free server wakes up, as on the phones.
 	const CACHE = `pnm.feed.${session.userId}`;
 	let slow = $state(false);
+	// Once someone knows the app, ask if they'd recommend it (see lib/recommend.ts).
+	let askRecommend = $state(visitAndCheck());
 
 	const feed = new Paged<Post>(async (cursor) => {
 		const here = lastLocation();
@@ -66,6 +70,10 @@
 
 {#if slow}
 	<p class="waking muted" role="status">Waking the server up, this can take a moment…</p>
+{/if}
+
+{#if askRecommend}
+	<RecommendCard ondone={() => (askRecommend = false)} />
 {/if}
 
 <div class="feed">

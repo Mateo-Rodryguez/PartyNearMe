@@ -5,5 +5,6 @@ import { defineConfig } from 'vitest/config';
 // but without the rest of SvelteKit.
 export default defineConfig({
 	plugins: [svelte()],
+	define: { __APP_VERSION__: JSON.stringify('test') },
 	test: { include: ['src/**/*.test.ts'], environment: 'node' }
 });

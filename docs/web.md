@@ -25,6 +25,10 @@ A new feature means a small change in each, because these are shared:
   BlurHash preview, like the apps.
 - **The last feed shows at once** while the free server wakes up.
 - **Ranking:** impressions, dwell time and opens go to `/interactions` like the apps.
+- **Learning what people think:** new accounts go through the same setup as
+  the apps (username, interests, how they heard about us, location), and
+  feedback, the recommend card and the leaving reason go to `/feedback` with
+  platform `web` (see [analytics.md](analytics.md)).
 - **Security:** a Content Security Policy that only allows our API and
   Supabase; the session is a bearer token, never a cookie.
 
