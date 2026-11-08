@@ -27,6 +27,14 @@ val firebase: Map<String, String> = file("google-services.json").takeIf { it.exi
     )
 } ?: emptyMap()
 
+/**
+ * Release signing with the Play upload key, read from the environment so the key never
+ * touches the repo. CI writes the key file from GitHub secrets (see
+ * .github/workflows/android-release.yml). Without them a release build is unsigned,
+ * which is enough to check that it builds.
+ */
+val uploadKeystore: String? = System.getenv("ANDROID_KEYSTORE_FILE")?.takeIf { file(it).exists() }
+
 android {
     namespace = "com.partynearme.app"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -36,13 +44,27 @@ android {
         applicationId = "com.partynearme.app"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "0.1.0"
+        // Every upload to Play needs a higher versionCode; CI passes its run number.
+        versionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
+        versionName = System.getenv("VERSION_NAME") ?: "0.1.0"
         // The same string resources Google's plugin would generate; Firebase starts from them.
         firebase.forEach { (name, value) -> resValue("string", name, value) }
         manifestPlaceholders["sentryEnvironment"] = "production"
     }
+    signingConfigs {
+        if (uploadKeystore != null) {
+            create("upload") {
+                storeFile = file(uploadKeystore)
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD") ?: System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            }
+        }
+    }
     buildTypes {
+        getByName("release") {
+            if (uploadKeystore != null) signingConfig = signingConfigs.getByName("upload")
+        }
         // Crashes from debug builds (CI, the emulator, test APKs) are kept apart in Sentry.
         getByName("debug") { manifestPlaceholders["sentryEnvironment"] = "debug" }
     }

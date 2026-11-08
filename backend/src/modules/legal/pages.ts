@@ -99,7 +99,7 @@ community safe.</p>
 posts, photos, events, RSVPs, messages, likes, follows and reports straight away, and the photo files shortly after.
 Server logs are kept for a short time to fix problems.</p>
 
-<h2>Deleting your account</h2>
+<h2 id="delete">Deleting your account</h2>
 <p>In the app: Profile, the ⋮ menu, <em>Delete account</em>. You can also email ${contact} and we'll do it for you.</p>
 
 <h2>Your rights</h2>
