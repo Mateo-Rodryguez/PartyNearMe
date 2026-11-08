@@ -112,6 +112,9 @@ struct TaggedPerson: Codable, Equatable, Hashable, Identifiable {
     var displayName: String?
 
     var name: String { displayName ?? username.map { "@\($0)" } ?? "Someone" }
+
+    /// The same person as a picker row, so a post's tags can start a picker.
+    var listed: ListedPerson { ListedPerson(id: id, username: username, displayName: displayName) }
 }
 
 struct Post: Codable, Equatable, Identifiable {
@@ -223,6 +226,8 @@ struct NewPost: Encodable {
     var lat: Double?
     var lng: Double?
     var placeName: String?
+    /// People tagged in the photos; nil leaves the key out.
+    var tagIds: [String]?
 }
 
 /// What the user saw or did, reported in batches for ranking.

@@ -308,6 +308,12 @@ final class DemoAPI: PartyAPI {
     func setLiked(_ id: String, liked: Bool) async throws {}
     func setSaved(_ id: String, saved: Bool) async throws {}
     func untagMe(_ postId: String) async throws {}
+    func setTags(_ postId: String, userIds: [String]) async throws -> Post {
+        var post = try await self.post(postId)
+        let people = Demo.people.filter { userIds.contains($0.id) }
+        post.tags = people.map { TaggedPerson(id: $0.id, username: $0.username, displayName: $0.displayName) }
+        return post
+    }
     func userPosts(_ userId: String, cursor: String?) async throws -> PostPage {
         let posts = userId == Demo.me.id ? Demo.myPosts : Demo.feed.filter { $0.author.id == userId }
         return PostPage(posts: cursor == nil ? posts : [], nextCursor: nil)

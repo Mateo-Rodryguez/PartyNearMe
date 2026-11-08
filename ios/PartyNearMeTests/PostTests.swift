@@ -20,6 +20,23 @@ final class PostTests: XCTestCase {
         XCTAssertEqual(post.media.first?.aspectRatio ?? 0, 0.8, accuracy: 0.001)
     }
 
+    func testNewPostSendsTagsOnlyWhenSomeoneIsTagged() throws {
+        let tagged = try JSON.encoder.encode(NewPost(uploadIds: ["up1"], tagIds: ["u2", "u3"]))
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: tagged) as? [String: Any])
+        XCTAssertEqual(object["tag_ids"] as? [String], ["u2", "u3"])
+        XCTAssertEqual(object["upload_ids"] as? [String], ["up1"])
+
+        let plain = try JSON.encoder.encode(NewPost(uploadIds: ["up1"]))
+        let keys = try XCTUnwrap(JSONSerialization.jsonObject(with: plain) as? [String: Any]).keys
+        XCTAssertEqual(Set(keys), ["upload_ids"])
+    }
+
+    func testTaggedPersonBecomesAPickerRow() {
+        let person = TaggedPerson(id: "u2", username: "alex", displayName: nil)
+        XCTAssertEqual(person.listed, ListedPerson(id: "u2", username: "alex", displayName: nil))
+        XCTAssertEqual(person.listed.name, "@alex")
+    }
+
     func testMediaPicksTheSmallestCopyThatIsBigEnough() throws {
         let post = try JSON.decoder.decode(Post.self, from: Data(postJSON.utf8))
         let media = try XCTUnwrap(post.media.first)
