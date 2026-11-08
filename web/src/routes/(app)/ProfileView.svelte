@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { api } from '#lib/api/client.js';
 	import type { Event, Post, PublicProfile } from '#lib/api/types.js';
 	import { nameOf } from '#lib/format.js';
@@ -66,6 +67,16 @@
 		}
 	}
 
+	async function message() {
+		if (!profile) return;
+		try {
+			const chat = await api.startConversation(profile.id);
+			await goto(`/chat/${chat.id}`);
+		} catch (e) {
+			toast.show(e instanceof Error ? e.message : "Couldn't start a chat");
+		}
+	}
+
 	let menu = $state(false);
 	let reporting = $state(false);
 
@@ -130,9 +141,12 @@
 		{#if !own && profile.is_blocked}
 			<button class="btn block outline" onclick={toggleBlock}>Unblock</button>
 		{:else if !own}
-			<button class="btn block" class:primary={!profile.is_following} onclick={toggleFollow}>
-				{profile.is_following ? 'Following' : 'Follow'}
-			</button>
+			<div class="actions">
+				<button class="btn" class:primary={!profile.is_following} onclick={toggleFollow}>
+					{profile.is_following ? 'Following' : 'Follow'}
+				</button>
+				<button class="btn" onclick={message}>Message</button>
+			</div>
 		{/if}
 	</section>
 
@@ -221,6 +235,11 @@
 	}
 	.about .btn {
 		margin-top: 8px;
+	}
+	.actions {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 8px;
 	}
 	.tabs {
 		display: flex;

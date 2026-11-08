@@ -4,6 +4,10 @@ import type {
 	AccountSettings,
 	Comment,
 	CommentPage,
+	Conversation,
+	ConversationPage,
+	Message,
+	MessagePage,
 	Event,
 	EventPage,
 	Interaction,
@@ -152,6 +156,17 @@ export const api = {
 		call<void>('POST', '/reports', { body: { target_type: target, target_id: targetId, reason } }),
 	block: (userId: string, blocked: boolean) => call<void>(blocked ? 'PUT' : 'DELETE', `/users/${id(userId)}/block`),
 	blockedUsers: async () => (await call<PeoplePage>('GET', '/me/blocks')).users,
+
+	// Chat
+	inbox: (cursor?: string | null) => call<ConversationPage>('GET', '/conversations', { query: { cursor } }),
+	startConversation: (userId: string) => call<Conversation>('POST', '/conversations', { body: { user_id: userId } }),
+	conversation: (conversationId: string) => call<Conversation>('GET', `/conversations/${id(conversationId)}`),
+	unreadMessages: async () => (await call<{ unread_count: number }>('GET', '/conversations/unread')).unread_count,
+	/** Newest first; pass the oldest id you have as [before] to page back. */
+	messages: (conversationId: string, before?: string | null) =>
+		call<MessagePage>('GET', `/conversations/${id(conversationId)}/messages`, { query: { before } }),
+	send: (conversationId: string, body: string) => call<Message>('POST', `/conversations/${id(conversationId)}/messages`, { body: { body } }),
+	markRead: (conversationId: string) => call<void>('POST', `/conversations/${id(conversationId)}/read`),
 
 	// Notifications
 	notifications: () => call<NotificationPage>('GET', '/notifications'),

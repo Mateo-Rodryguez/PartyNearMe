@@ -161,6 +161,10 @@
 				</div>
 			{/if}
 
+			{#if event.chat_id}
+				<a class="btn outline block" href="/chat/{event.chat_id}"><Icon name="comment" size={18} /> Party chat</a>
+			{/if}
+
 			{#if isHost}
 				<p class="muted">You're hosting. Editing and guest lists are in the phone app for now.</p>
 			{/if}

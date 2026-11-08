@@ -28,11 +28,13 @@
 		return () => document.removeEventListener('visibilitychange', onHide);
 	});
 
-	const tabs: { href: string; label: string; icon: IconName }[] = [
+	// The same tabs as the apps; Search sits in the feed's header on phones.
+	const tabs: { href: string; label: string; icon: IconName; wideOnly?: boolean }[] = [
 		{ href: '/feed', label: 'Home', icon: 'home' },
 		{ href: '/nearby', label: 'Parties', icon: 'place' },
+		{ href: '/search', label: 'Search', icon: 'search', wideOnly: true },
 		{ href: '/new', label: 'Post', icon: 'add' },
-		{ href: '/search', label: 'Search', icon: 'search' },
+		{ href: '/chat', label: 'Chat', icon: 'comment' },
 		{ href: '/me', label: 'Profile', icon: 'person' }
 	];
 	const current = (href: string) => page.url.pathname === href || page.url.pathname.startsWith(`${href}/`);
@@ -46,8 +48,11 @@
 				<span>PartyNearMe</span>
 			</a>
 			{#each tabs as tab (tab.href)}
-				<a href={tab.href} class="tab" aria-current={current(tab.href) ? 'page' : undefined}>
-					<Icon name={tab.icon} size={26} />
+				<a href={tab.href} class="tab" class:wide-only={tab.wideOnly} aria-current={current(tab.href) ? 'page' : undefined}>
+					<span class="glyph">
+						<Icon name={tab.icon} size={26} />
+						{#if tab.href === '/chat' && unread.messages}<span class="dot" aria-label="{unread.messages} unread"></span>{/if}
+					</span>
 					<span>{tab.label}</span>
 				</a>
 			{/each}
@@ -97,6 +102,24 @@
 	.tab[aria-current='page'] {
 		color: var(--primary);
 	}
+	.wide-only {
+		display: none;
+	}
+	.glyph {
+		position: relative;
+		display: grid;
+	}
+	.dot {
+		position: absolute;
+		top: 0;
+		right: -2px;
+		width: 9px;
+		height: 9px;
+		border-radius: 50%;
+		background: var(--gradient);
+		border: 2px solid var(--background);
+		box-sizing: content-box;
+	}
 	/* Wider screens: a rail down the left, Instagram-style, with the content centred. */
 	@media (min-width: 900px) {
 		nav {
@@ -121,7 +144,8 @@
 		.brand img {
 			border-radius: 10px;
 		}
-		.tab {
+		.tab,
+		.wide-only {
 			display: flex;
 			align-items: center;
 			gap: 14px;
