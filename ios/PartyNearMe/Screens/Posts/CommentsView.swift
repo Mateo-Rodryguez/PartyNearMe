@@ -120,6 +120,7 @@ struct CommentsView: View {
                 let comment = try await app.api.addComment(postId, body: body)
                 withAnimation { paged.items.insert(comment, at: 0) }
                 draft = ""
+                app.analytics.capture("comment_posted")
             } catch {
                 app.show(error.userMessage)
             }

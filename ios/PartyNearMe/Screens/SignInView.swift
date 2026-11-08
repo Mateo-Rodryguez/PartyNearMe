@@ -187,20 +187,33 @@ struct SignInView: View {
         busy = true
         error = nil
         focus = nil
+        let action = switch mode {
+        case .reset: "reset_password"
+        case .create: "sign_up"
+        case .signIn: "sign_in"
+        }
         Task {
             do {
+                var checkEmail = false
                 switch mode {
                 case .reset:
                     try await app.sendPasswordReset(email: address)
                     sentTo = (address, true)
                 case .create:
                     let signedIn = try await app.sessions.signUp(email: address, password: password)
-                    if !signedIn { sentTo = (address, false) }
+                    if !signedIn {
+                        sentTo = (address, false)
+                        checkEmail = true
+                    }
                 case .signIn:
                     try await app.sessions.signIn(email: address, password: password)
                 }
+                app.analytics.capture("auth_succeeded", ["method": "email", "action": action, "check_email": checkEmail])
             } catch {
                 self.error = error.userMessage
+                // The message is ours or Supabase's ("Invalid login credentials"), never what was typed.
+                app.analytics.capture("auth_failed", ["method": "email", "action": action,
+                                                      "reason": String(error.userMessage.prefix(80))])
             }
             busy = false
         }
@@ -211,15 +224,17 @@ struct SignInView: View {
         error = nil
         Task {
             do {
-                _ = try await app.sessions.signIn(with: "google") { url in
+                let done = try await app.sessions.signIn(with: "google") { url in
                     do {
                         return try await webAuthenticationSession.authenticate(using: url, callbackURLScheme: AppConfig.appScheme)
                     } catch ASWebAuthenticationSessionError.canceledLogin {
                         return nil
                     }
                 }
+                app.analytics.capture(done ? "auth_succeeded" : "auth_cancelled", ["method": "google"])
             } catch {
                 self.error = error.userMessage
+                app.analytics.capture("auth_failed", ["method": "google", "reason": String(error.userMessage.prefix(80))])
             }
             busy = false
         }

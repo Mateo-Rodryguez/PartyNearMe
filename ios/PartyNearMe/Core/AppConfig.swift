@@ -11,6 +11,11 @@ enum AppConfig {
     /// Crash reports go to the Sentry project partynearme-app (the DSN is public).
     static let sentryDSN = "https://7a9348ef5e13ce90b731507e7b463137@o4512272125394944.ingest.de.sentry.io/4512272236609616"
 
+    /// Usage stats go to the PostHog EU project PartyNearMe. The project token is
+    /// public and can only send events (docs/analytics.md, docs/deploy.md).
+    static let posthogKey: String? = "phc_B4hyjqciBxdUAianpS5sdiwKvHqwccTDQpu6wLTdGcyw"
+    static let posthogHost = "https://eu.i.posthog.com"
+
     /// Links starting with this open the app: browser sign-in coming back, shared parties and posts.
     static let appScheme = "partynearme"
     /// Where browser sign-in (Google, later Apple) returns to. Supabase allows it under Redirect URLs.

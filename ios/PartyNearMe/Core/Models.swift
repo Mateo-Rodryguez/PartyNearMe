@@ -609,3 +609,22 @@ enum ModerationAction: String {
     case removePicture = "remove_picture"
     case deleteAccount = "delete_account"
 }
+
+/// Something the user told us: what they love, a problem, an idea, a recommend
+/// score, how they found us, or why they left (docs/analytics.md).
+struct Feedback: Encodable, Equatable {
+    enum Kind: String, Encodable {
+        case love, problem, idea
+        case recommend = "nps"
+        case heardFrom = "heard_from"
+        case leaving
+    }
+
+    let kind: Kind
+    var score: Int?
+    var body: String?
+    /// The screen it was sent from.
+    var screen: String?
+    var platform = "ios"
+    var appVersion: String?
+}

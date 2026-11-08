@@ -20,6 +20,30 @@ enum Route: Hashable {
     case settings
     case blocked
     case moderation
+    case feedback
+
+    /// The name the screen is counted under in analytics. Part of the event contract
+    /// shared with Android (docs/analytics.md): never rename one, add a new name instead.
+    var screenName: String {
+        switch self {
+        case .post: return "post"
+        case .comments: return "comments"
+        case .user: return "profile"
+        case let .people(_, followers, _): return followers ? "followers" : "following"
+        case .event: return "party"
+        case .guests: return "guest_list"
+        case .newPost: return "new_post"
+        case .invite: return "invite"
+        case .chat, .chatWith: return "chat"
+        case .notifications: return "notifications"
+        case .search: return "search"
+        case .saved: return "saved"
+        case .settings: return "settings"
+        case .blocked: return "blocked"
+        case .moderation: return "moderation"
+        case .feedback: return "feedback"
+        }
+    }
 }
 
 /// Links that open a screen: partynearme://party/<id> and partynearme://post/<id>,
@@ -53,25 +77,31 @@ extension View {
     /// Lets every screen in a tab push any route.
     func routeDestinations() -> some View {
         navigationDestination(for: Route.self) { route in
-            switch route {
-            case .post(let id): PostDetailView(id: id)
-            case .comments(let postId): CommentsView(postId: postId)
-            case .user(let id): ProfileView(userId: id)
-            case let .people(userId, followers, title): PeopleListView(userId: userId, followers: followers, title: title)
-            case .event(let id): EventView(id: id)
-            case let .guests(eventId, title): GuestListView(eventId: eventId, title: title)
-            case let .newPost(eventId, title): NewPostView(party: PartyRef(id: eventId, title: title))
-            case let .invite(eventId, title): InviteView(eventId: eventId, title: title)
-            case let .chat(id, title): ChatView(start: .conversation(id), title: title)
-            case let .chatWith(userId, title): ChatView(start: .person(userId), title: title)
-            case .notifications: NotificationsView()
-            case .search: SearchView()
-            case .saved: SavedView()
-            case .settings: SettingsView()
-            case .blocked: BlockedView()
-            case .moderation: ModerationView()
-            }
+            destination(route).analyticsScreen(route.screenName)
         }
+    }
+}
+
+@MainActor @ViewBuilder
+private func destination(_ route: Route) -> some View {
+    switch route {
+    case .post(let id): PostDetailView(id: id)
+    case .comments(let postId): CommentsView(postId: postId)
+    case .user(let id): ProfileView(userId: id)
+    case let .people(userId, followers, title): PeopleListView(userId: userId, followers: followers, title: title)
+    case .event(let id): EventView(id: id)
+    case let .guests(eventId, title): GuestListView(eventId: eventId, title: title)
+    case let .newPost(eventId, title): NewPostView(party: PartyRef(id: eventId, title: title))
+    case let .invite(eventId, title): InviteView(eventId: eventId, title: title)
+    case let .chat(id, title): ChatView(start: .conversation(id), title: title)
+    case let .chatWith(userId, title): ChatView(start: .person(userId), title: title)
+    case .notifications: NotificationsView()
+    case .search: SearchView()
+    case .saved: SavedView()
+    case .settings: SettingsView()
+    case .blocked: BlockedView()
+    case .moderation: ModerationView()
+    case .feedback: FeedbackView()
     }
 }
 

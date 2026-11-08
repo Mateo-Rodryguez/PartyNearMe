@@ -1,11 +1,17 @@
 import SwiftUI
 
 /// The steps after picking a username on a new account: what you're into (for the
-/// feed and Nearby filters), then location, asked for with a reason before the
-/// phone's own prompt, as Apple recommends. Both can be skipped.
+/// feed and Nearby filters), how you heard about us, then location, asked for with
+/// a reason before the phone's own prompt, as Apple recommends. All can be skipped.
 struct OnboardingView: View {
+    @Environment(AppModel.self) private var app
     @State private var step: Int
+    /// How many interests were picked, for the funnel.
+    @State private var interests = 0
     let onDone: () -> Void
+
+    /// Each step is its own screen in analytics, so the funnel shows where people give up.
+    static let screens = ["onboarding_interests", "onboarding_heard_from", "onboarding_location"]
 
     init(step: Int = 0, onDone: @escaping () -> Void) {
         _step = State(initialValue: step)
@@ -14,26 +20,37 @@ struct OnboardingView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            StepDots(step: step, count: 2)
+            StepDots(step: step, count: Self.screens.count)
                 .padding(.horizontal, 24)
                 .padding(.top, 12)
             Group {
-                if step == 0 {
-                    InterestsStep { withAnimation(.snappy) { step = 1 } }
-                        .transition(.asymmetric(insertion: .move(edge: .leading), removal: .move(edge: .leading)).combined(with: .opacity))
-                } else {
-                    LocationStep(onDone: onDone)
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                switch step {
+                case 0:
+                    InterestsStep { picked in
+                        interests = picked
+                        withAnimation(.snappy) { step = 1 }
+                    }
+                    .transition(.asymmetric(insertion: .move(edge: .leading), removal: .move(edge: .leading)).combined(with: .opacity))
+                case 1:
+                    HeardFromStep { withAnimation(.snappy) { step = 2 } }
+                        .transition(.asymmetric(insertion: .move(edge: .trailing), removal: .move(edge: .leading)).combined(with: .opacity))
+                default:
+                    LocationStep { allowed in
+                        app.analytics.capture("onboarding_completed", ["interests": interests, "location": allowed])
+                        onDone()
+                    }
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
             }
             .padding(.top, 24)
         }
+        .analyticsScreen(Self.screens[min(step, Self.screens.count - 1)])
     }
 }
 
 private struct InterestsStep: View {
     @Environment(AppModel.self) private var app
-    let onNext: () -> Void
+    let onNext: (_ picked: Int) -> Void
 
     @State private var all: [Interest] = []
     @State private var picked: Set<Int> = []
@@ -74,13 +91,13 @@ private struct InterestsStep: View {
     }
 
     private func next() {
-        guard !picked.isEmpty else { return onNext() }
+        guard !picked.isEmpty else { return onNext(0) }
         busy = true
         error = nil
         Task {
             do {
                 _ = try await app.api.setInterests(picked.sorted())
-                onNext()
+                onNext(picked.count)
             } catch {
                 self.error = error.userMessage
             }
@@ -91,7 +108,7 @@ private struct InterestsStep: View {
 
 private struct LocationStep: View {
     @Environment(AppModel.self) private var app
-    let onDone: () -> Void
+    let onDone: (_ allowed: Bool) -> Void
     @State private var asking = false
 
     var body: some View {
@@ -117,12 +134,12 @@ private struct LocationStep: View {
             PrimaryButton("Allow location", busy: asking) {
                 asking = true
                 Task {
-                    _ = await app.location.current()
+                    let here = await app.location.current()
                     asking = false
-                    onDone()
+                    onDone(here != nil)
                 }
             }
-            Button("Not now", action: onDone)
+            Button("Not now") { onDone(false) }
                 .font(.body.weight(.semibold))
                 .foregroundStyle(Color.appAccent)
                 .disabled(asking)

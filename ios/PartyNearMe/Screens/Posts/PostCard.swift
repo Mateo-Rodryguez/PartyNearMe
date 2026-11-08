@@ -127,7 +127,10 @@ struct PostCard: View {
                         .foregroundStyle(Color.appText)
                         .frame(width: 44, height: 44)
                 }
-                .simultaneousGesture(TapGesture().onEnded { app.interactions.share(postId: post.id) })
+                .simultaneousGesture(TapGesture().onEnded {
+                    app.interactions.share(postId: post.id)
+                    app.analytics.capture("link_shared", ["kind": "post"])
+                })
                 .accessibilityLabel("Share")
             }
 

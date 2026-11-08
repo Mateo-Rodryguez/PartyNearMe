@@ -71,6 +71,12 @@ struct FeedView: View {
                 }
                 .padding(.horizontal, 20)
                 .frame(height: 52)
+                if app.askRecommend {
+                    RecommendCard { withAnimation(.snappy) { app.askRecommend = false } }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
                 PartyRail(parties: parties, onStart: onStartParty)
                 ForEach($paged.items) { $post in
                     PostCard(post: $post, onDeleted: { paged.remove { $0.id == post.id } }, onNotInterested: {

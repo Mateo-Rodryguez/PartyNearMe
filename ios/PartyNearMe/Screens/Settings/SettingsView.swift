@@ -15,6 +15,8 @@ struct SettingsView: View {
     @State private var confirmSignOut = false
     @State private var confirmDelete = false
     @State private var deleting = false
+    /// "What made you leave?", asked when deleting the account.
+    @State private var leavingReason = ""
 
     var body: some View {
         Form {
@@ -48,6 +50,26 @@ struct SettingsView: View {
                 }
                 .listRowBackground(Color.appField)
             }
+            Section {
+                NavigationLink(value: Route.feedback) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Label("Send feedback", systemImage: "heart.text.square")
+                        Text("What you love, what's not working, or an idea").font(.caption).foregroundStyle(Color.appSecondaryText)
+                    }
+                }
+                if AppConfig.posthogKey != nil {
+                    Toggle(isOn: shareUsage) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Share usage stats")
+                            Text("Which screens and features get used, never what you post or say")
+                                .font(.caption).foregroundStyle(Color.appSecondaryText)
+                        }
+                    }
+                }
+            } header: {
+                Text("Help make PartyNearMe better")
+            }
+            .listRowBackground(Color.appField)
             Section("About") {
                 Link(destination: AppConfig.privacyURL) { Label("Privacy policy", systemImage: "hand.raised") }
                 Link(destination: AppConfig.termsURL) { Label("Terms", systemImage: "doc.text") }
@@ -81,8 +103,11 @@ struct SettingsView: View {
         .confirmationDialog("Sign out?", isPresented: $confirmSignOut, titleVisibility: .visible) {
             Button("Sign out", role: .destructive) { Task { await app.signOut() } }
         }
-        .confirmationDialog("Delete your account?", isPresented: $confirmDelete, titleVisibility: .visible) {
+        .alert("Delete your account?", isPresented: $confirmDelete) {
+            // The one moment someone tells us what we got wrong; kept without their account.
+            TextField("What made you leave? (optional)", text: $leavingReason)
             Button("Delete account", role: .destructive, action: deleteAccount)
+            Button("Cancel", role: .cancel) { leavingReason = "" }
         } message: {
             Text("Your profile, photos, parties and messages are deleted for good. This can't be undone.")
         }
@@ -240,13 +265,23 @@ struct SettingsView: View {
         }
     }
 
+    /// Usage stats on or off. Turning off is counted just before it takes effect, so we know how many do.
+    private var shareUsage: Binding<Bool> {
+        Binding(get: { prefs.shareUsage }, set: { on in
+            if !on { app.analytics.capture("usage_stats_turned_off") }
+            prefs.shareUsage = on
+            if on { app.analytics.capture("usage_stats_turned_on") }
+            Task { await app.analytics.flush() }
+        })
+    }
+
     private func deleteAccount() {
         deleting = true
+        let reason = leavingReason
         Task {
             do {
-                try await app.api.deleteAccount()
-                app.pushToken = nil
-                app.sessions.forget()
+                // On success the session ends and the app returns to sign-in by itself.
+                try await app.deleteAccount(reason: reason)
             } catch {
                 app.show(error.userMessage)
             }
