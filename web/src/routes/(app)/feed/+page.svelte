@@ -1,0 +1,89 @@
+<script lang="ts">
+	import { api, FeedExpiredError } from '#lib/api/client.js';
+	import type { Post } from '#lib/api/types.js';
+	import { lastLocation } from '#lib/location.js';
+	import { Paged } from '#lib/paged.svelte.js';
+	import { session } from '#lib/session.svelte.js';
+	import Empty from '#lib/ui/Empty.svelte';
+	import LoadMore from '#lib/ui/LoadMore.svelte';
+	import PostCard from '#lib/ui/PostCard.svelte';
+	import PageHeader from '../PageHeader.svelte';
+
+	// The last feed shows at once while the free server wakes up, as on the phones.
+	const CACHE = `pnm.feed.${session.userId}`;
+	let slow = $state(false);
+
+	const feed = new Paged<Post>(async (cursor) => {
+		const here = lastLocation();
+		try {
+			const page = await api.feed(here?.lat ?? null, here?.lng ?? null, cursor);
+			if (!cursor) {
+				try {
+					localStorage.setItem(CACHE, JSON.stringify(page.posts.slice(0, 10)));
+				} catch {
+					// Storage full or off: no saved copy.
+				}
+			}
+			return { items: page.posts, next: page.next_cursor ?? null };
+		} catch (e) {
+			if (e instanceof FeedExpiredError && cursor) {
+				void feed.refresh();
+				return { items: [], next: null };
+			}
+			throw e;
+		}
+	});
+
+	try {
+		feed.items = JSON.parse(localStorage.getItem(CACHE) ?? '[]') as Post[];
+	} catch {
+		// Nothing saved.
+	}
+
+	$effect(() => {
+		const timer = setTimeout(() => (slow = feed.loading), 4000);
+		void feed.refresh().finally(() => {
+			clearTimeout(timer);
+			slow = false;
+		});
+		return () => clearTimeout(timer);
+	});
+</script>
+
+<svelte:head><title>PartyNearMe</title></svelte:head>
+
+<PageHeader title="PartyNearMe" />
+
+{#if slow}
+	<p class="waking muted" role="status">Waking the server up, this can take a moment…</p>
+{/if}
+
+<div class="feed">
+	{#each feed.items as post, i (post.id)}
+		<PostCard bind:post={feed.items[i]} eager={i === 0} />
+	{/each}
+</div>
+
+{#if feed.loadedOnce && !feed.items.length && !feed.error}
+	<Empty title="Nothing here yet">
+		Follow people and say you're going to parties, and their photos show up here.
+		<p><a class="btn primary" href="/nearby">Find parties</a></p>
+	</Empty>
+{:else}
+	<LoadMore list={feed} />
+{/if}
+
+<style>
+	.feed {
+		display: grid;
+		gap: 8px;
+	}
+	.waking {
+		text-align: center;
+		padding: 8px 16px;
+		font-size: 14px;
+	}
+	:global(.empty .btn) {
+		margin-top: 12px;
+	}
+</style>

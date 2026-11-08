@@ -1,0 +1,11 @@
+# App pages are drawn in the browser: they all boot from the app shell.
+# The landing page (/) is built ahead as its own index.html.
+/feed           /200.html  200
+/nearby         /200.html  200
+/search         /200.html  200
+/me             /200.html  200
+/signin         /200.html  200
+/auth/callback  /200.html  200
+/e/*            /200.html  200
+/p/*            /200.html  200
+/u/*            /200.html  200

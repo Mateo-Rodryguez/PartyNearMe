@@ -1,0 +1,115 @@
+import { config } from '#lib/config.js';
+import { session } from '#lib/session.svelte.js';
+import type {
+	Comment,
+	CommentPage,
+	Event,
+	EventPage,
+	Interaction,
+	Interest,
+	OwnProfile,
+	PeoplePage,
+	Post,
+	PostPage,
+	PublicProfile,
+	Rsvp
+} from './types';
+
+export class ApiError extends Error {
+	constructor(
+		readonly status: number,
+		message: string
+	) {
+		super(message);
+	}
+}
+
+/** The feed snapshot behind a cursor has expired; reload from the top. */
+export class FeedExpiredError extends ApiError {
+	constructor() {
+		super(410, 'The feed has moved on');
+	}
+}
+
+type Query = Record<string, string | number | boolean | null | undefined>;
+
+function url(path: string, query: Query = {}) {
+	const u = new URL(`${config.apiBaseUrl}${path}`);
+	for (const [key, value] of Object.entries(query)) if (value != null) u.searchParams.set(key, String(value));
+	return u;
+}
+
+const id = (value: string) => encodeURIComponent(value);
+
+/** Every call is signed in; a 401 triggers one token refresh and a retry. */
+async function call<T>(method: string, path: string, { query, body }: { query?: Query; body?: unknown } = {}): Promise<T> {
+	const attempt = (token: string) =>
+		fetch(url(path, query), {
+			method,
+			headers: {
+				authorization: `Bearer ${token}`,
+				...(body !== undefined ? { 'content-type': 'application/json' } : {})
+			},
+			body: body !== undefined ? JSON.stringify(body) : undefined
+		});
+	const token = await session.accessToken();
+	let response = await attempt(token);
+	if (response.status === 401) response = await attempt(await session.refresh(token));
+	if (response.status === 410 && path === '/feed') throw new FeedExpiredError();
+	const text = await response.text();
+	if (!response.ok) throw new ApiError(response.status, errorMessage(response.status, text));
+	return (text ? JSON.parse(text) : undefined) as T;
+}
+
+function errorMessage(status: number, text: string) {
+	if (status >= 500) return 'Something went wrong on our side. Try again in a moment.';
+	try {
+		const message = (JSON.parse(text) as { message?: unknown }).message;
+		if (typeof message === 'string') return message;
+	} catch {
+		// Not JSON.
+	}
+	return `Request failed (${status})`;
+}
+
+export const api = {
+	// Feed
+	feed: (lat: number | null, lng: number | null, cursor?: string | null) =>
+		call<PostPage>('GET', '/feed', { query: { lat, lng, cursor, limit: 20 } }),
+	logInteractions: (events: Interaction[]) => call<void>('POST', '/interactions', { body: { events } }),
+
+	// Posts
+	post: (postId: string) => call<Post>('GET', `/posts/${id(postId)}`),
+	like: (postId: string, liked: boolean) => call<void>(liked ? 'PUT' : 'DELETE', `/posts/${id(postId)}/like`),
+	savePost: (postId: string, saved: boolean) => call<void>(saved ? 'PUT' : 'DELETE', `/posts/${id(postId)}/save`),
+	comments: (postId: string, cursor?: string | null) =>
+		call<CommentPage>('GET', `/posts/${id(postId)}/comments`, { query: { cursor } }),
+	addComment: (postId: string, body: string) => call<Comment>('POST', `/posts/${id(postId)}/comments`, { body: { body } }),
+	deleteComment: (commentId: string) => call<void>('DELETE', `/comments/${id(commentId)}`),
+	userPosts: (userId: string, cursor?: string | null) =>
+		call<PostPage>('GET', `/users/${id(userId)}/posts`, { query: { cursor } }),
+
+	// Parties
+	nearbyEvents: (q: { lat: number; lng: number; radiusKm?: number; cursor?: string | null; from?: string; to?: string; interestId?: number | null }) =>
+		call<EventPage>('GET', '/events/nearby', {
+			query: { lat: q.lat, lng: q.lng, radius_km: q.radiusKm ?? 10, cursor: q.cursor, from: q.from, to: q.to, interest_id: q.interestId }
+		}),
+	event: (eventId: string) => call<Event>('GET', `/events/${id(eventId)}`),
+	eventPosts: (eventId: string, cursor?: string | null) =>
+		call<PostPage>('GET', `/events/${id(eventId)}/posts`, { query: { cursor } }),
+	myEvents: (organising: boolean) => call<Event[]>('GET', '/me/events', { query: { role: organising ? 'organising' : 'going' } }),
+	/** Null takes the RSVP off. */
+	rsvp: async (eventId: string, status: Exclude<Rsvp, 'requested'> | null): Promise<Event> => {
+		if (status) return call<Event>('PUT', `/events/${id(eventId)}/rsvp`, { body: { status } });
+		await call<void>('DELETE', `/events/${id(eventId)}/rsvp`);
+		return api.event(eventId);
+	},
+	saveEvent: (eventId: string, saved: boolean) => call<void>(saved ? 'PUT' : 'DELETE', `/events/${id(eventId)}/save`),
+
+	// People
+	me: () => call<OwnProfile>('GET', '/me'),
+	interests: () => call<Interest[]>('GET', '/interests'),
+	user: (userId: string) => call<PublicProfile>('GET', `/users/${id(userId)}`),
+	follow: (userId: string, following: boolean) => call<void>(following ? 'PUT' : 'DELETE', `/users/${id(userId)}/follow`),
+	searchUsers: (q: string) => call<PeoplePage>('GET', '/users/search', { query: { q } })
+};
