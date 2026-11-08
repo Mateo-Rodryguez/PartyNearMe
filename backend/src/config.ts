@@ -17,6 +17,9 @@ export function databaseUrlProblem(value: string): string | null {
   return null;
 }
 
+/** The web app on Cloudflare Pages, its preview builds, and local development. */
+export const DEFAULT_WEB_ORIGINS = "https://partynearme.pages.dev,https://*.partynearme.pages.dev,http://localhost:5173";
+
 const configSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
@@ -54,6 +57,12 @@ const configSchema = z.object({
   SENTRY_DSN: z.url({ protocol: /^https$/ }).optional(),
   // Public base URL photos are served from (R2 public bucket or custom domain).
   MEDIA_BASE_URL: z.url({ protocol: /^https$/ }).transform((url) => url.replace(/\/+$/, "")).optional(),
+  // Web app addresses allowed to call the API from a browser (CORS), comma separated.
+  // "https://*.example.pages.dev" also allows that site's preview builds.
+  WEB_ORIGINS: z
+    .string()
+    .default(DEFAULT_WEB_ORIGINS)
+    .transform((value) => value.split(",").map((origin) => origin.trim().replace(/\/+$/, "")).filter(Boolean)),
 });
 
 export type Config = z.infer<typeof configSchema>;
