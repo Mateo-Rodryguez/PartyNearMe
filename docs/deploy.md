@@ -70,8 +70,9 @@ Both are set up in the Supabase dashboard, under Authentication:
 The app counts which screens and features get used, where people get stuck
 (errors, empty Nearby, failed sign-ins) and how long they stay, sent straight
 from the phone to PostHog's EU cloud. The full list of events and the
-dashboards to build are in [analytics.md](analytics.md). It is off until the
-app has a project key:
+dashboards to build are in [analytics.md](analytics.md). The project
+(PartyNearMe, EU cloud, free plan, set up 2026-11-08) and its key are already
+in the app. To set it up again from scratch:
 
 1. Sign up at eu.posthog.com (free tier, EU region) and create a project.
 2. Project settings: turn on **Discard client IP data**, so no addresses are kept.

@@ -46,15 +46,15 @@ jobs:
           exit $missing
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 3.0.0 # pinned: 3.0 made commands target the local database unless given --remote
       - name: Link project
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
       - name: Dump roles, schema and data
         run: |
           mkdir dump
-          supabase db dump --linked --password "$SUPABASE_DB_PASSWORD" --role-only -f dump/roles.sql
-          supabase db dump --linked --password "$SUPABASE_DB_PASSWORD" -f dump/schema.sql
-          supabase db dump --linked --password "$SUPABASE_DB_PASSWORD" --data-only --use-copy -f dump/data.sql
+          supabase db dump --remote --password "$SUPABASE_DB_PASSWORD" --role-only -f dump/roles.sql
+          supabase db dump --remote --password "$SUPABASE_DB_PASSWORD" -f dump/schema.sql
+          supabase db dump --remote --password "$SUPABASE_DB_PASSWORD" --data-only --use-copy -f dump/data.sql
           ls -l dump
           # An empty dump means something went wrong, not that there is no data.
           for f in dump/*.sql; do [ -s "$f" ] || { echo "::error::$f is empty"; exit 1; }; done
