@@ -104,12 +104,18 @@ protocol PartyAPI: AnyObject {
     func unreadNotifications() async throws -> Int
     /// Called when the user opens their notifications, so the bell's count clears.
     func markNotificationsSeen() async throws
+
+    /// Something the user told us (docs/analytics.md). Private: nobody can read it back through the API.
+    func sendFeedback(_ feedback: Feedback) async throws
 }
 
 /// The PartyNearMe API. Every call is signed in; a 401 triggers one token refresh and a retry.
 @MainActor
 final class APIClient: PartyAPI {
     private let sessions: SessionManager
+    /// Told about every call's outcome (method, path as called, status; 0 when no
+    /// answer came), so analytics can count actions and struggles.
+    var onResult: @MainActor (String, String, Int) -> Void = { _, _, _ in }
 
     init(sessions: SessionManager) {
         self.sessions = sessions
@@ -191,9 +197,18 @@ final class APIClient: PartyAPI {
         var request = URLRequest(url: url)
         request.httpMethod = "PUT"
         for (name, value) in ticket.headers { request.setValue(value, forHTTPHeaderField: name) }
-        let (_, response) = try await HTTP.session.upload(for: request, from: jpeg)
-        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard (200..<300).contains(status) else { throw APIError(status: status, message: "The photo didn't upload. Try again.") }
+        let status: Int
+        do {
+            let (_, response) = try await HTTP.session.upload(for: request, from: jpeg)
+            status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        } catch {
+            if !(error is CancellationError) && (error as? URLError)?.code != .cancelled { onResult("PUT", "/photo-upload", 0) }
+            throw error
+        }
+        guard (200..<300).contains(status) else {
+            onResult("PUT", "/photo-upload", status)
+            throw APIError(status: status, message: "The photo didn't upload. Try again.")
+        }
         return ticket.uploadId
     }
 
@@ -391,6 +406,10 @@ final class APIClient: PartyAPI {
 
     func markNotificationsSeen() async throws { try await callUnit("POST", "/notifications/seen") }
 
+    // MARK: Feedback
+
+    func sendFeedback(_ feedback: Feedback) async throws { try await callUnit("POST", "/feedback", body: feedback) }
+
     // MARK: Plumbing
 
     private func call<T: Decodable>(_ method: String, _ path: String, query: [URLQueryItem] = []) async throws -> T {
@@ -427,8 +446,17 @@ final class APIClient: PartyAPI {
         }
 
         let token = try await sessions.accessToken()
-        var (data, status) = try await attempt(token)
-        if status == 401 { (data, status) = try await attempt(try await sessions.refresh(stale: token)) }
+        var data: Data
+        var status: Int
+        do {
+            (data, status) = try await attempt(token)
+            if status == 401 { (data, status) = try await attempt(try await sessions.refresh(stale: token)) }
+        } catch {
+            // No answer at all (offline, timed out) counts as status 0; a screen closing doesn't count.
+            if !(error is CancellationError) && (error as? URLError)?.code != .cancelled { onResult(method, path, 0) }
+            throw error
+        }
+        onResult(method, path, status)
         guard (200..<300).contains(status) else { throw APIError(status: status, message: Self.errorMessage(status: status, data: data)) }
         return data
     }

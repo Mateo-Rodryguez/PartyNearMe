@@ -312,7 +312,10 @@ struct EventView: View {
                           message: Text("\(event.title) on PartyNearMe")) {
                     Image(systemName: "square.and.arrow.up")
                 }
-                .simultaneousGesture(TapGesture().onEnded { app.interactions.share(eventId: event.id) })
+                .simultaneousGesture(TapGesture().onEnded {
+                    app.interactions.share(eventId: event.id)
+                    app.analytics.capture("link_shared", ["kind": "party"])
+                })
                 Menu {
                     if isHost {
                         Button("Edit party", systemImage: "pencil") { editing = true }
@@ -407,6 +410,7 @@ struct EventView: View {
         Task {
             do {
                 event = try await app.api.rsvp(id, status: status)
+                app.analytics.capture("rsvp_changed", ["status": status ?? "none"])
                 if status == "going", event?.myRsvp == "requested" { app.show("Asked. You'll get a notification when the host lets you in.") }
             } catch {
                 app.show(error.userMessage)

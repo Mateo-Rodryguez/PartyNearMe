@@ -142,6 +142,7 @@ struct InviteView: View {
         PeoplePicker(title: "Invite to \(title)", button: "Send invites") { people in
             do {
                 let result = try await app.api.invite(eventId, userIds: people.map(\.id))
+                app.analytics.capture("invites_sent", ["sent": result.sent, "skipped": result.skipped])
                 app.show(Self.resultText(sent: result.sent, skipped: result.skipped))
                 return result.sent > 0
             } catch {

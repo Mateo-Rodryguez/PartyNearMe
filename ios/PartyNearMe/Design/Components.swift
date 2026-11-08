@@ -102,6 +102,8 @@ struct PressStyle: ButtonStyle {
 struct ChoiceChip: View {
     let title: String
     let selected: Bool
+    /// Stretches across the screen, for a list of answers.
+    var fullWidth = false
     let action: () -> Void
 
     var body: some View {
@@ -111,6 +113,7 @@ struct ChoiceChip: View {
                 .lineLimit(1)
                 .foregroundStyle(selected ? Color.white : Color.appText)
                 .padding(.horizontal, 16)
+                .frame(maxWidth: fullWidth ? .infinity : nil)
                 .frame(height: 40)
                 .background {
                     if selected { Capsule().fill(Brand.gradient) } else { Capsule().fill(Color.appRaised) }

@@ -12,6 +12,10 @@ final class AppModel {
     let location: any LocationProvider
     /// New chat messages as they arrive.
     let live: any LiveMessages
+    /// Usage stats: what gets used, skipped and struggled with (docs/analytics.md).
+    let analytics: Analytics
+    /// Set when it's time to ask "would you recommend PartyNearMe?" at the top of Home.
+    var askRecommend = false
     /// Chats with unread messages, for the Messages tab's badge.
     var unreadChats = 0
     /// New notifications, for the bell on Home.
@@ -50,11 +54,12 @@ final class AppModel {
     }
 
     init(sessions: SessionManager, api: any PartyAPI, location: any LocationProvider, live: any LiveMessages,
-         auth: AuthClient = AuthClient(), demoScreen: String? = nil) {
+         analytics: Analytics = .off, auth: AuthClient = AuthClient(), demoScreen: String? = nil) {
         self.sessions = sessions
         self.api = api
         self.location = location
         self.live = live
+        self.analytics = analytics
         self.auth = auth
         self.demoScreen = demoScreen
     }
@@ -62,8 +67,11 @@ final class AppModel {
     /// The real app: the session in the Keychain, the live API.
     static func live() -> AppModel {
         let sessions = SessionManager(store: KeychainSessionStore())
-        return AppModel(sessions: sessions, api: APIClient(sessions: sessions), location: DeviceLocation(),
-                        live: Realtime(sessions: sessions))
+        let analytics = Analytics(key: AppConfig.posthogKey, enabled: { AppPrefs.shared.shareUsage })
+        let api = APIClient(sessions: sessions)
+        api.onResult = { method, path, status in analytics.apiResult(method: method, path: path, status: status) }
+        return AppModel(sessions: sessions, api: api, location: DeviceLocation(), live: Realtime(sessions: sessions),
+                        analytics: analytics)
     }
 
     /// The sign-in providers switched on in Supabase. Empty when offline.
@@ -91,6 +99,34 @@ final class AppModel {
         }
         pushToken = nil
         interactions.flush()
+        analytics.capture("signed_out")
+        await analytics.flush()
+        analytics.reset()
         await sessions.signOut()
+    }
+
+    /// Deletes the account, first sending the reason for leaving if one was given.
+    func deleteAccount(reason: String) async throws {
+        if !reason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            try? await sendFeedback(.leaving, body: reason)
+        }
+        try await api.deleteAccount()
+        pushToken = nil
+        await analytics.flush() // Sends account_deleted, the strongest "didn't like it" there is.
+        analytics.reset()
+        sessions.forget()
+    }
+
+    /// Sends something the user told us (see docs/analytics.md): what they love,
+    /// what's wrong, an idea, a recommend score, how they found us, or why they left.
+    /// Unlike usage stats, this is sent even with "Share usage stats" off, since
+    /// the person chose to send it.
+    func sendFeedback(_ kind: Feedback.Kind, body: String? = nil, score: Int? = nil) async throws {
+        let trimmed = body?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let text: String? = trimmed.isEmpty ? nil : String(trimmed.prefix(2000))
+        try await api.sendFeedback(Feedback(kind: kind, score: score, body: text,
+                                            screen: analytics.screen.map { String($0.prefix(40)) }, platform: "ios",
+                                            appVersion: Analytics.bundleVersion.map { String($0.prefix(20)) }))
+        analytics.capture("feedback_sent", ["kind": kind.rawValue, "score": score, "has_text": text != nil])
     }
 }

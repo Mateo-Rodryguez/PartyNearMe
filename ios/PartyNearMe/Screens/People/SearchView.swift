@@ -48,6 +48,7 @@ struct SearchView: View {
             do {
                 results = try await app.api.searchUsers(String(text.prefix(60)))
                 error = nil
+                if results.isEmpty && text.count >= 3 { app.analytics.capture("search_no_results", ["length": text.count]) }
             } catch is CancellationError {
                 return
             } catch {

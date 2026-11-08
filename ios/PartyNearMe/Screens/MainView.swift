@@ -15,9 +15,15 @@ struct MainView: View {
     @State private var nearby: NearbyModel?
     @State private var nearbyPath: [Route] = []
     @State private var homePath: [Route] = []
+    /// The first time in the app, straight after onboarding.
+    private let firstRun: Bool
+    /// The demo shows the recommend card without waiting a week.
+    private let forceRecommend: Bool
 
-    init(me: OwnProfile, tab: Tab = .home) {
+    init(me: OwnProfile, tab: Tab = .home, firstRun: Bool = false, askRecommend: Bool = false) {
         self.me = me
+        self.firstRun = firstRun
+        forceRecommend = askRecommend
         _tab = State(initialValue: tab)
     }
 
@@ -29,6 +35,7 @@ struct MainView: View {
                         tab = .nearby
                         nearby?.creating = true
                     }
+                    .analyticsScreen("home")
                     .routeDestinations()
                 }
             }
@@ -37,7 +44,9 @@ struct MainView: View {
 
             NavigationStack(path: $nearbyPath) {
                 if let nearby {
-                    NearbyView(model: nearby) { nearbyPath.append(.event($0.id)) }.routeDestinations()
+                    NearbyView(model: nearby) { nearbyPath.append(.event($0.id)) }
+                        .analyticsScreen("nearby")
+                        .routeDestinations()
                 }
             }
             .tabItem { Label("Nearby", systemImage: tab == .nearby ? "mappin.circle.fill" : "mappin.circle") }
@@ -48,6 +57,7 @@ struct MainView: View {
                     tab = .home
                     Task { await feed?.paged.refresh() }
                 }
+                .analyticsScreen("new_post")
             }
             .tabItem {
                 Image(uiImage: PostTabIcon.image)
@@ -55,18 +65,19 @@ struct MainView: View {
             }
             .tag(Tab.post)
 
-            NavigationStack { InboxView().routeDestinations() }
+            NavigationStack { InboxView().analyticsScreen("inbox").routeDestinations() }
                 .tabItem { Label("Messages", systemImage: tab == .messages ? "bubble.left.and.bubble.right.fill" : "bubble.left.and.bubble.right") }
                 .badge(app.unreadChats)
                 .tag(Tab.messages)
 
-            NavigationStack { ProfileView(userId: me.id).routeDestinations() }
+            NavigationStack { ProfileView(userId: me.id).analyticsScreen("my_profile").routeDestinations() }
                 .tabItem { Label("Profile", systemImage: tab == .profile ? "person.crop.circle.fill" : "person.crop.circle") }
                 .tag(Tab.profile)
         }
         .sensoryFeedback(.selection, trigger: tab)
         .overlay(alignment: .bottom) { ToastView() }
         .onAppear {
+            if forceRecommend { app.askRecommend = true }
             if feed == nil { feed = FeedModel(app: app) }
             if nearby == nil {
                 let model = NearbyModel(app: app)
@@ -80,6 +91,17 @@ struct MainView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             Task { await app.refreshBadges() }
+        }
+        .task {
+            app.analytics.capture("app_opened", ["first_run": firstRun])
+            // Asked once someone knows the app: closing it, answering it or ignoring it all wait another 90 days.
+            let prefs = AppPrefs.shared
+            let today = AppPrefs.today()
+            prefs.activeOn(today)
+            if app.demoScreen == nil, prefs.recommendDue(today) {
+                prefs.recommendAskedDay = today
+                app.askRecommend = true
+            }
         }
         // Badges: now, whenever a message arrives, and every couple of minutes for notifications.
         .task { await app.refreshBadges() }
@@ -97,7 +119,15 @@ struct MainView: View {
 extension MainView {
     /// Opens a shared party or post: parties on Nearby, posts on Home.
     func openLink(_ url: URL) {
-        switch DeepLink.parse(url) {
+        let target = DeepLink.parse(url)
+        let kind: String
+        switch target {
+        case .party: kind = "party"
+        case .post: kind = "post"
+        case nil: kind = "other"
+        }
+        app.analytics.capture("link_opened", ["kind": kind])
+        switch target {
         case .party(let id):
             tab = .nearby
             nearbyPath.append(.event(id))

@@ -250,6 +250,8 @@ struct NewPostView: View {
                     lng: here?.longitude,
                     placeName: trimmedPlace.isEmpty ? nil : trimmedPlace
                 ))
+                // Tagging people comes later on iPhone; the property is there so both apps send the same shape.
+                app.analytics.capture("post_created", ["photos": ids.count, "tagged": 0, "at_party": party != nil])
                 photos = []
                 caption = ""
                 place = ""

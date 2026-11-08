@@ -54,12 +54,19 @@ final class NearbyModel {
         let location = await app.location.current()
         here = location
         noLocation = location == nil
-        guard let location else { return ([], nil) }
+        guard let location else {
+            if cursor == nil { app.analytics.capture("nearby_no_location") }
+            return ([], nil)
+        }
         let window = time.window()
         let page = try await app.api.nearbyEvents(
             lat: location.latitude, lng: location.longitude, radiusKm: radiusKm, cursor: cursor,
             from: window.map { Formatting.iso($0.from) }, to: window.map { Formatting.iso($0.to) }, interestId: kind
         )
+        // Nothing on near someone is the biggest reason a party app disappoints; count it.
+        if cursor == nil && page.events.isEmpty {
+            app.analytics.capture("nearby_empty", ["radius_km": Int(radiusKm), "time": "\(time)".lowercased(), "kind_filter": kind != nil])
+        }
         return (page.events, page.nextCursor)
     }
 }

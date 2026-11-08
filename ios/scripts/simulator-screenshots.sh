@@ -33,7 +33,7 @@ shot() {
   fi
   # Photos load from the internet on the screens with them.
   case "$name" in
-    *feed*|*post*|*me*|*user*|*app*|*followers*|*nearby*|*event*|*guests*|*spot*|*inbox*|*chat*|*notifications*|*invite*|*saved*|*settings*|*blocked*|*moderation*) sleep 9 ;;
+    *feed*|*post*|*me*|*user*|*app*|*followers*|*nearby*|*event*|*guests*|*spot*|*inbox*|*chat*|*notifications*|*invite*|*saved*|*settings*|*recommend*|*blocked*|*moderation*) sleep 9 ;;
     *) sleep 4 ;;
   esac
   xcrun simctl io booted screenshot "$out/$name.png" > /dev/null
@@ -43,9 +43,9 @@ shot() {
   fi
 }
 
-screens=(sign_in sign_up forgot profile_setup onboarding location app feed post comments new_post me user followers
+screens=(sign_in sign_up forgot profile_setup onboarding heard_from location app feed post comments new_post me user followers
   nearby nearby_map event my_event new_event edit_event pick_spot guests inbox chat party_chat notifications invite
-  search saved settings blocked moderation)
+  search saved settings feedback recommend blocked moderation)
 
 # The real app, signed out: checks it starts against the real configuration.
 xcrun simctl ui booted appearance light

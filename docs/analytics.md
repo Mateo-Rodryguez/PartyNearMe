@@ -65,7 +65,7 @@ add a new name instead, or the history splits.
 | `app_opened` | `first_run` or `resumed` | signed-in app start; or back after 30+ minutes away |
 | `app_backgrounded` | `seconds` | app leaves the screen; `$screen_name` is where people left |
 | `link_opened` | `kind` (`party`/`post`/`other`) | a shared link opened the app |
-| `notification_opened` | `type` | a push notification was tapped |
+| `notification_opened` | `type` | a push notification was tapped (Android; iPhone once push is set up) |
 | `signed_out` | | |
 | `account_deleted` | | the strongest "didn't like it" there is |
 
@@ -94,8 +94,8 @@ Captured by the screen, because they carry useful detail:
 | `link_shared` | `kind` (`party`/`post`) |
 
 Captured automatically from a successful API call (`Analytics.ACTIONS` on
-Android), so every screen that does them is covered. The iPhone app should do
-the same in its API client:
+Android, `Analytics.actions` on iPhone), so every screen that does them is
+covered:
 
 | Call | Event |
 | --- | --- |

@@ -140,6 +140,7 @@ struct EventFormView: View {
             NavigationStack { MapPinPicker(start: spot, chosen: $spot) }
         }
         .interactiveDismissDisabled(busy)
+        .analyticsScreen(editing == nil ? "new_party" : "edit_party")
     }
 
     private var coverPicker: some View {
@@ -248,6 +249,7 @@ struct EventFormView: View {
             lat: here.latitude,
             lng: here.longitude
         ))
+        app.analytics.capture("party_created", ["has_cover": cover != nil, "has_kind": made.interestId != nil])
         await uploadCover(to: made.id, failure: "Your party is live, but the cover didn't upload. Try again from its page.")
         app.show("Your party is live")
         return made

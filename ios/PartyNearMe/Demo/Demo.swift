@@ -10,11 +10,11 @@ enum Demo {
     static var requestedScreen: String? { UserDefaults.standard.string(forKey: "demo") }
 
     /// Every screen the demo can show, in the order CI screenshots them.
-    static let screens = ["sign_in", "sign_up", "forgot", "profile_setup", "onboarding", "location", "app",
+    static let screens = ["sign_in", "sign_up", "forgot", "profile_setup", "onboarding", "heard_from", "location", "app",
                           "feed", "post", "comments", "new_post", "me", "user", "followers",
                           "nearby", "nearby_map", "event", "my_event", "new_event", "edit_event", "pick_spot", "guests",
                           "inbox", "chat", "party_chat", "notifications", "invite",
-                          "search", "saved", "settings", "blocked", "moderation"]
+                          "search", "saved", "settings", "feedback", "recommend", "blocked", "moderation"]
 
     static func model(for screen: String) -> AppModel {
         let signedOut = ["sign_in", "sign_up", "forgot"].contains(screen)
@@ -31,7 +31,8 @@ enum Demo {
         case "forgot": SignInView(mode: .reset)
         case "profile_setup": ProfileSetupView(profile: newAccount) { _ in }
         case "onboarding": OnboardingView { }
-        case "location": OnboardingView(step: 1) { }
+        case "heard_from": OnboardingView(step: 1) { }
+        case "location": OnboardingView(step: 2) { }
         case "app": SignedInView()
         case "feed": MainView(me: me, tab: .home)
         case "new_post": MainView(me: me, tab: .post)
@@ -56,6 +57,8 @@ enum Demo {
         case "search": NavigationStack { SearchView().routeDestinations() }
         case "saved": NavigationStack { SavedView().routeDestinations() }
         case "settings": NavigationStack { SettingsView().routeDestinations() }
+        case "feedback": NavigationStack { FeedbackView(kind: .problem).routeDestinations() }
+        case "recommend": MainView(me: me, tab: .home, askRecommend: true)
         case "blocked": NavigationStack { BlockedView().routeDestinations() }
         case "moderation": NavigationStack { ModerationView().routeDestinations() }
         default: SignInView()
@@ -457,6 +460,7 @@ final class DemoAPI: PartyAPI {
     }
     func unreadNotifications() async throws -> Int { 2 }
     func markNotificationsSeen() async throws {}
+    func sendFeedback(_ feedback: Feedback) async throws {}
 
     private func replace(_ event: Event) {
         if let index = events.firstIndex(where: { $0.id == event.id }) { events[index] = event }
