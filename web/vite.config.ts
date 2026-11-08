@@ -6,6 +6,8 @@ const api = 'https://partynearme-api.onrender.com';
 const supabase = 'https://vvkckzrhzgdrazhjitse.supabase.co';
 // Photo uploads go straight to the R2 bucket with a signed address.
 const realtime = 'wss://vvkckzrhzgdrazhjitse.supabase.co';
+// Map tiles for picking a party's spot (free, no key).
+const tiles = 'https://tiles.openfreemap.org';
 const uploads = 'https://630c8ac9872f11e09ffed9fe3cb05b0c.r2.cloudflarestorage.com';
 
 export default defineConfig({
@@ -27,7 +29,9 @@ export default defineConfig({
 					// Photos come from the media bucket; avatars and covers too.
 					'img-src': ['self', 'data:', 'blob:', 'https:'],
 					// wss: for live chat through Supabase Realtime.
-					'connect-src': ['self', api, supabase, realtime, uploads],
+					'connect-src': ['self', api, supabase, realtime, uploads, tiles],
+					// The map draws in a web worker it starts from a blob.
+					'worker-src': ['self', 'blob:'],
 					'base-uri': ['self'],
 					'form-action': ['self'],
 					'object-src': ['none']

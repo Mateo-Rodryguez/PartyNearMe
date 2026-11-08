@@ -112,7 +112,11 @@
 
 <svelte:head><title>New post · PartyNearMe</title></svelte:head>
 
-<PageHeader title="New post" back />
+<PageHeader title="New post" back>
+	{#snippet actions()}
+		<a class="host" href="/host">Host a party instead</a>
+	{/snippet}
+</PageHeader>
 
 <form class="form" onsubmit={share}>
 	<div
@@ -205,6 +209,12 @@
 </form>
 
 <style>
+	.host {
+		color: var(--primary);
+		font-weight: 600;
+		font-size: 14px;
+		padding: 8px;
+	}
 	.form {
 		display: grid;
 		gap: 18px;
