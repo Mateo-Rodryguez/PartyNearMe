@@ -17,8 +17,8 @@ private val CONFIG = AppConfig(
     apiBaseUrl = "https://partynearme-api.onrender.com",
     supabaseUrl = "https://vvkckzrhzgdrazhjitse.supabase.co",
     supabaseKey = "sb_publishable_lU8CqYjRgUy5kr9Y8QbBNQ_NiPtoCil",
-    // Usage stats stay off until the PostHog project key goes here (docs/deploy.md).
-    posthogKey = null,
+    // PostHog EU project "PartyNearMe" (public, write-only token; docs/deploy.md).
+    posthogKey = "phc_B4hyjqciBxdUAianpS5sdiwKvHqwccTDQpu6wLTdGcyw",
 )
 
 class PartyApp : Application() {
