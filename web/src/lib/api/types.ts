@@ -81,6 +81,8 @@ export interface Post {
 export interface PostPage {
 	posts: Post[];
 	next_cursor?: string | null;
+	/** Which ranked list this is (GET /feed), sent back with impressions so ranking can be measured. */
+	serve_id?: string;
 }
 
 export type Rsvp = 'going' | 'interested' | 'requested';
@@ -113,6 +115,44 @@ export interface Event {
 	chat_id?: string | null;
 	created_at: string;
 	distance_m?: number | null;
+	/** Why For you recommends it, ready to show; only from GET /events/for-you. */
+	reason?: Reason | null;
+}
+
+/** "Because you like Music", "2 people you follow are going"... written by the server. */
+export interface Reason {
+	kind: string;
+	text: string;
+}
+
+/** Parties ranked by what this person likes (docs/recommendations.md). One page. */
+export interface ForYouPage {
+	events: Event[];
+	serve_id: string;
+}
+
+/** Where an interaction happened, so For you can be compared with the plain lists. */
+export type Surface = 'for_you_parties' | 'nearby' | 'feed' | 'profile' | 'saved' | 'search' | 'other';
+
+/** Which list, and where in it, something was seen or opened. */
+export interface Placement {
+	surface: Surface;
+	serve_id?: string | null;
+	position?: number;
+}
+
+interface Outcomes {
+	impressions: number;
+	opens: number;
+	rsvps: number;
+	likes: number;
+}
+
+/** GET /moderation/recommendation-stats: what came of what people were shown. */
+export interface RecommendationStats {
+	by_day: (Outcomes & { day: string; surface: string; users: number })[];
+	by_reason: (Outcomes & { reason: string })[];
+	by_position: (Outcomes & { positions: string })[];
 }
 
 export interface EventPage {
@@ -140,6 +180,9 @@ export interface Interaction {
 	post_id?: string;
 	event_id?: string;
 	dwell_ms?: number;
+	surface?: Surface;
+	serve_id?: string;
+	position?: number;
 }
 
 export interface UploadTicket {

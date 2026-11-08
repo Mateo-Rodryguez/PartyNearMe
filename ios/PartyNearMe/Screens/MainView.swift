@@ -32,7 +32,7 @@ struct MainView: View {
         TabView(selection: $tab) {
             NavigationStack(path: $homePath) {
                 if let feed {
-                    FeedView(paged: feed.paged, parties: nearby?.paged.items ?? []) {
+                    FeedView(paged: feed.paged, serveId: feed.serveId, parties: nearby?.paged.items ?? []) {
                         tab = .nearby
                         nearby?.creating = true
                     }

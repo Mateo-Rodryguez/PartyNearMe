@@ -99,6 +99,10 @@ struct EventCard: View {
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
             VStack(alignment: .leading, spacing: 4) {
+                // Friends going already shows with their faces; other reasons get a line of their own.
+                if let reason = event.reason, reason.kind != "friends_going" || event.friendsGoing.isEmpty {
+                    Text(reason.text).font(.footnote.weight(.semibold)).foregroundStyle(Color.appAccent).lineLimit(1)
+                }
                 Text(event.title).font(.headline).foregroundStyle(Color.appText).lineLimit(2)
                 Text(subtitle).font(.subheadline).foregroundStyle(Color.appSecondaryText).lineLimit(1)
                 HStack {

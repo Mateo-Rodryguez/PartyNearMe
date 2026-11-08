@@ -192,6 +192,8 @@ struct Post: Codable, Equatable, Identifiable {
 struct PostPage: Decodable {
     let posts: [Post]
     let nextCursor: String?
+    /// Which ranked list this is (GET /feed), sent back with impressions so ranking can be measured.
+    var serveId: String?
 }
 
 /// A comment under a post.
@@ -236,6 +238,12 @@ struct Interaction: Codable, Equatable {
     var postId: String?
     var eventId: String?
     var dwellMs: Int?
+    /// Where it happened: for_you_parties, nearby, feed, profile, saved, search or other.
+    var surface: String?
+    /// The ranked list it was in, from GET /feed or GET /events/for-you.
+    var serveId: String?
+    /// Its place in that list, from 0.
+    var position: Int?
 }
 
 /// What gets reported: the server's names for each kind of thing.
@@ -278,6 +286,8 @@ struct Event: Codable, Equatable, Identifiable {
     var chatId: String?
     let createdAt: String
     var distanceM: Int?
+    /// Why For you recommends it, ready to show; only from GET /events/for-you.
+    var reason: Reason? = nil
 
     var isPublished: Bool { status == "published" }
     var isCancelled: Bool { status == "cancelled" }
@@ -343,6 +353,18 @@ struct Event: Codable, Equatable, Identifiable {
         createdAt = try c.decode(String.self, forKey: .createdAt)
         distanceM = try c.decodeIfPresent(Int.self, forKey: .distanceM)
     }
+}
+
+/// "Because you like Music", "2 people you follow are going"... written by the server.
+struct Reason: Codable, Equatable {
+    let kind: String
+    let text: String
+}
+
+/// Parties ranked by what this person likes (docs/recommendations.md). One page.
+struct ForYouPage: Decodable {
+    let events: [Event]
+    let serveId: String
 }
 
 struct EventPage: Decodable {

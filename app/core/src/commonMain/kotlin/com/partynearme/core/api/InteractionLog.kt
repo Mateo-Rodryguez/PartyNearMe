@@ -17,21 +17,41 @@ class InteractionLog(
     private val pending = mutableListOf<Interaction>()
     private val seen = mutableSetOf<String>()
 
-    suspend fun impression(postId: String) {
-        val isNew = lock.withLock { seen.add(postId) }
-        if (isNew) add(Interaction(kind = "impression", postId = postId))
+    /**
+     * Something was on screen in a list. [surface] says which list (feed,
+     * for_you_parties, nearby...), [serveId] and [position] where in a ranked one.
+     * Counted once per item and list per session.
+     */
+    suspend fun impression(
+        postId: String? = null,
+        eventId: String? = null,
+        surface: String? = null,
+        serveId: String? = null,
+        position: Int? = null,
+    ) {
+        val isNew = lock.withLock { seen.add("$surface:${postId ?: eventId}") }
+        if (isNew) add(Interaction("impression", postId, eventId, surface = surface, serveId = serveId, position = position))
     }
 
     /** Time spent on a post; very short glances are not worth sending. */
-    suspend fun dwell(postId: String, millis: Long) {
-        if (millis >= MIN_DWELL_MS) add(Interaction(kind = "dwell", postId = postId, dwellMs = millis.coerceAtMost(MAX_DWELL_MS)))
+    suspend fun dwell(postId: String, millis: Long, surface: String? = null, serveId: String? = null) {
+        if (millis >= MIN_DWELL_MS) {
+            add(Interaction("dwell", postId, dwellMs = millis.coerceAtMost(MAX_DWELL_MS), surface = surface, serveId = serveId))
+        }
     }
 
-    suspend fun open(postId: String) = add(Interaction(kind = "open", postId = postId))
+    suspend fun open(
+        postId: String? = null,
+        eventId: String? = null,
+        surface: String? = null,
+        serveId: String? = null,
+        position: Int? = null,
+    ) = add(Interaction("open", postId, eventId, surface = surface, serveId = serveId, position = position))
     /** Someone shared a post or party: a strong signal for ranking. */
     suspend fun share(postId: String? = null, eventId: String? = null) =
         add(Interaction(kind = "share", postId = postId, eventId = eventId))
-    suspend fun notInterested(postId: String) = add(Interaction(kind = "not_interested", postId = postId), flushNow = true)
+    suspend fun notInterested(postId: String? = null, eventId: String? = null) =
+        add(Interaction(kind = "not_interested", postId = postId, eventId = eventId), flushNow = true)
 
     suspend fun add(event: Interaction, flushNow: Boolean = false) {
         val full = lock.withLock {

@@ -364,6 +364,22 @@ final class DemoAPI: PartyAPI {
         }
         return EventPage(events: shown.sorted { $0.startsAt < $1.startsAt }, nextCursor: nil)
     }
+    func forYouEvents(lat: Double, lng: Double, radiusKm: Double, from: String?, to: String?,
+                      interestId: Int?) async throws -> ForYouPage {
+        let page = try await nearbyEvents(lat: lat, lng: lng, radiusKm: radiusKm, cursor: nil, from: from, to: to,
+                                          interestId: interestId)
+        // The demo puts parties with friends going first, as the real ranking tends to.
+        let ranked = page.events.sorted { $0.friendsGoingCount > $1.friendsGoingCount }.map { event -> Event in
+            var event = event
+            if event.friendsGoingCount > 0 {
+                event.reason = Reason(kind: "friends_going", text: "\(event.friendsGoingCount) people you follow are going")
+            } else if event.interestId == 1 {
+                event.reason = Reason(kind: "interest", text: "Because you like Music")
+            }
+            return event
+        }
+        return ForYouPage(events: ranked, serveId: "00000000-0000-0000-0000-000000000000")
+    }
     func myEvents(organising: Bool) async throws -> [Event] {
         events.filter { organising ? $0.organiser.id == Demo.me.id : $0.myRsvp == "going" }
     }

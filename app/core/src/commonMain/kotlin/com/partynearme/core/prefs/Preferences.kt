@@ -25,6 +25,8 @@ data class LocalPrefs(
     val activeDays: Int = 0,
     /** When the recommend card was last answered or closed; 0 for never. */
     val recommendAskedDay: Long = 0,
+    /** Parties sorted by date instead of For you (ranked by what this person likes). */
+    val partiesSoonest: Boolean = false,
 ) {
     /** Counts [today] as a day the app was used. */
     fun activeOn(today: Long): LocalPrefs = when {
@@ -69,6 +71,7 @@ class Preferences(private val settings: Settings? = null) {
             putLong(LAST_ACTIVE, next.lastActiveDay)
             putInt(ACTIVE_DAYS, next.activeDays)
             putLong(RECOMMEND_ASKED, next.recommendAskedDay)
+            putBoolean(PARTIES_SOONEST, next.partiesSoonest)
         }
     }
 
@@ -85,6 +88,7 @@ class Preferences(private val settings: Settings? = null) {
             lastActiveDay = s.getLong(LAST_ACTIVE, 0),
             activeDays = s.getInt(ACTIVE_DAYS, 0),
             recommendAskedDay = s.getLong(RECOMMEND_ASKED, 0),
+            partiesSoonest = s.getBoolean(PARTIES_SOONEST, false),
         )
     }
 
@@ -98,5 +102,6 @@ class Preferences(private val settings: Settings? = null) {
         const val LAST_ACTIVE = "pref_last_active_day"
         const val ACTIVE_DAYS = "pref_active_days"
         const val RECOMMEND_ASKED = "pref_recommend_asked_day"
+        const val PARTIES_SOONEST = "pref_parties_soonest"
     }
 }

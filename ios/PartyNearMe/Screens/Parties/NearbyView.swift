@@ -20,6 +20,12 @@ final class NearbyModel {
     private(set) var kind: Int?
     /// The kinds to filter by, loaded with the first page.
     private(set) var kinds: [Interest] = []
+    /// For you ranks parties by what this person likes; Soonest is by date. Remembered on the phone.
+    private(set) var forYou = !AppPrefs.shared.partiesSoonest
+    /// The ranked list on screen (For you only), sent with impressions and opens so it can be measured.
+    private(set) var serveId: String?
+    /// Which list impressions and opens came from.
+    var surface: String { forYou ? "for_you_parties" : "nearby" }
     var showMap = false
     /// The new party form is open; Home's "Start one" opens it too.
     var creating = false
@@ -38,6 +44,17 @@ final class NearbyModel {
     func refreshIfRadiusChanged() {
         if paged.loadedOnce, let loadedRadius, loadedRadius != radiusKm { Task { await paged.refresh() } }
     }
+
+    func sort(forYou: Bool, app: AppModel) {
+        guard forYou != self.forYou else { return }
+        self.forYou = forYou
+        AppPrefs.shared.partiesSoonest = !forYou
+        app.analytics.capture("for_you_sort", ["sort": forYou ? "for_you" : "soonest"])
+        Task { await paged.refresh() }
+    }
+
+    /// Where `event` sits in the list, for measuring.
+    func position(of event: Event) -> Int { paged.items.firstIndex { $0.id == event.id } ?? 0 }
 
     func filter(time: PartyTime? = nil, kind: Int?? = nil) {
         let newTime = time ?? self.time
@@ -59,6 +76,19 @@ final class NearbyModel {
             return ([], nil)
         }
         let window = time.window()
+        if forYou {
+            // One ranked page: there are rarely more parties in range than that.
+            let ranked = try await app.api.forYouEvents(
+                lat: location.latitude, lng: location.longitude, radiusKm: radiusKm,
+                from: window.map { Formatting.iso($0.from) }, to: window.map { Formatting.iso($0.to) }, interestId: kind
+            )
+            serveId = ranked.serveId
+            if ranked.events.isEmpty {
+                app.analytics.capture("nearby_empty", ["radius_km": Int(radiusKm), "time": "\(time)".lowercased(), "kind_filter": kind != nil])
+            }
+            return (ranked.events, nil)
+        }
+        serveId = nil
         let page = try await app.api.nearbyEvents(
             lat: location.latitude, lng: location.longitude, radiusKm: radiusKm, cursor: cursor,
             from: window.map { Formatting.iso($0.from) }, to: window.map { Formatting.iso($0.to) }, interestId: kind
@@ -135,6 +165,9 @@ struct NearbyView: View {
     private var filters: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
+                ChoiceChip(title: "For you", selected: model.forYou) { model.sort(forYou: true, app: app) }
+                ChoiceChip(title: "Soonest", selected: !model.forYou) { model.sort(forYou: false, app: app) }
+                Divider().frame(height: 24).padding(.horizontal, 4)
                 ForEach(PartyTime.allCases) { time in
                     ChoiceChip(title: time.rawValue, selected: model.time == time) { model.filter(time: time) }
                 }
@@ -171,24 +204,40 @@ struct NearbyView: View {
         return groups
     }
 
+    /// A party in the list: notes that it was seen and opened, and from where, to measure For you.
+    private func row(_ event: Event) -> some View {
+        NavigationLink(value: Route.event(event.id)) { EventCard(event: event) }
+            .buttonStyle(.plain)
+            .simultaneousGesture(TapGesture().onEnded {
+                app.interactions.open(eventId: event.id, surface: model.surface, serveId: model.serveId,
+                                      position: model.position(of: event))
+            })
+            .onAppear {
+                model.paged.onAppear(event, threshold: 3)
+                app.interactions.impression(eventId: event.id, surface: model.surface, serveId: model.serveId,
+                                            position: model.position(of: event))
+            }
+    }
+
     private var list: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20, pinnedViews: .sectionHeaders) {
-                ForEach(days) { group in
-                    Section {
-                        ForEach(group.events) { event in
-                            NavigationLink(value: Route.event(event.id)) { EventCard(event: event) }
-                                .buttonStyle(.plain)
-                                .onAppear { model.paged.onAppear(event, threshold: 3) }
+                if model.forYou {
+                    // Best first, each with the reason it's here.
+                    ForEach(model.paged.items) { event in row(event) }
+                } else {
+                    ForEach(days) { group in
+                        Section {
+                            ForEach(group.events) { event in row(event) }
+                        } header: {
+                            Text(group.id.uppercased())
+                                .font(.overline)
+                                .tracking(1)
+                                .foregroundStyle(Color.appSecondaryText)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.vertical, 6)
+                                .background(Color.appBackground)
                         }
-                    } header: {
-                        Text(group.id.uppercased())
-                            .font(.overline)
-                            .tracking(1)
-                            .foregroundStyle(Color.appSecondaryText)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.vertical, 6)
-                            .background(Color.appBackground)
                     }
                 }
                 if let error = model.paged.error, !model.paged.items.isEmpty {

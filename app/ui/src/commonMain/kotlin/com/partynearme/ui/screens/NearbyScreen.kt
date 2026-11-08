@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -64,11 +65,12 @@ import com.partynearme.ui.radiusLabel
 import com.partynearme.ui.tonightWindow
 import com.partynearme.ui.weekendWindow
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 /** The time filter above the Nearby list. */
 enum class PartyTime(val label: String) { AnyTime("Any time"), Tonight("Tonight"), Weekend("This weekend") }
 
-class NearbyState(private val ui: Ui, scope: CoroutineScope) {
+class NearbyState(private val ui: Ui, private val scope: CoroutineScope) {
     var noLocation by mutableStateOf(false)
         private set
     val list = LazyListState()
@@ -82,6 +84,13 @@ class NearbyState(private val ui: Ui, scope: CoroutineScope) {
     /** The kinds to filter by, loaded with the first page. */
     var kinds by mutableStateOf(emptyList<Interest>())
         private set
+    /** For you ranks parties by what this person likes; Soonest is by date. Remembered on the phone. */
+    var forYou by mutableStateOf(!ui.prefs.current.partiesSoonest)
+        private set
+    /** The ranked list on screen (For you only), sent with impressions and opens so it can be measured. */
+    private var serveId: String? = null
+    /** Which list impressions and opens came from. */
+    val surface: String get() = if (forYou) "for_you_parties" else "nearby"
     val paged = Paged(scope) { cursor ->
         if (cursor == null) radiusKm = ui.prefs.current.radiusKm
         if (kinds.isEmpty()) attempt { ui.api.interests() }.onSuccess { kinds = it }
@@ -95,10 +104,19 @@ class NearbyState(private val ui: Ui, scope: CoroutineScope) {
                 PartyTime.Tonight -> tonightWindow()
                 PartyTime.Weekend -> weekendWindow()
             }
-            ui.api.nearbyEvents(
-                here.lat, here.lng, radiusKm = radiusKm.toDouble(), cursor = cursor,
-                from = window?.first?.toString(), to = window?.second?.toString(), interestId = kind,
-            ).let { it.events to it.nextCursor }
+            if (forYou) {
+                // One ranked page: there are rarely more parties in range than that.
+                ui.api.forYouEvents(
+                    here.lat, here.lng, radiusKm = radiusKm.toDouble(),
+                    from = window?.first?.toString(), to = window?.second?.toString(), interestId = kind,
+                ).let { serveId = it.serveId; it.events to null }
+            } else {
+                serveId = null
+                ui.api.nearbyEvents(
+                    here.lat, here.lng, radiusKm = radiusKm.toDouble(), cursor = cursor,
+                    from = window?.first?.toString(), to = window?.second?.toString(), interestId = kind,
+                ).let { it.events to it.nextCursor }
+            }
         }
         // Nothing on near someone is the biggest reason a party app disappoints; count it.
         if (cursor == null && page.first.isEmpty()) {
@@ -116,6 +134,28 @@ class NearbyState(private val ui: Ui, scope: CoroutineScope) {
         this.time = time
         this.kind = kind
         paged.refresh()
+    }
+
+    fun sort(forYou: Boolean) {
+        if (forYou == this.forYou) return
+        this.forYou = forYou
+        ui.prefs.update { it.copy(partiesSoonest = !forYou) }
+        ui.track("for_you_sort", "sort" to if (forYou) "for_you" else "soonest")
+        paged.refresh()
+    }
+
+    /** A party card was on screen at [position] in the list. */
+    fun seen(event: Event, position: Int) {
+        val serve = serveId
+        scope.launch { ui.app.interactions.impression(eventId = event.id, surface = surface, serveId = serve, position = position) }
+    }
+
+    /** Opens a party, noting which list and place it came from; [position] is null outside the list. */
+    fun open(event: Event, position: Int?) {
+        val serve = serveId
+        val from = if (position == null) "other" else surface
+        scope.launch { ui.app.interactions.open(eventId = event.id, surface = from, serveId = serve.takeIf { position != null }, position = position) }
+        ui.nav.open(Route.Event(event.id))
     }
 
     fun refreshIfRadiusChanged() {
@@ -170,19 +210,34 @@ fun NearbyScreen(ui: Ui, state: NearbyState) {
                         action = "Start a party",
                         onAction = { ui.nav.open(Route.NewEvent()) },
                     )
+                    state.forYou -> LazyColumn(
+                        state = state.list,
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                        contentPadding = PaddingValues(16.dp, 8.dp, 16.dp, 96.dp),
+                    ) {
+                        // Best first, each with the reason it's here.
+                        itemsIndexed(paged.items, key = { _, e -> e.id }) { index, event ->
+                            LaunchedEffect(event.id) { state.seen(event, index) }
+                            EventCard(event, showDay = true) { state.open(event, index) }
+                        }
+                    }
                     else -> LazyColumn(
                         state = state.list,
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                         contentPadding = PaddingValues(16.dp, 4.dp, 16.dp, 96.dp),
                     ) {
+                        val positions = paged.items.withIndex().associate { (i, e) -> e.id to i }
                         // Grouped by day, so "what's on tonight" is the first thing you see.
                         paged.items.groupBy { dayLabel(it.startsAt) }.forEach { (day, events) ->
                             item(key = "day-$day") {
                                 Text(day, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 8.dp))
                             }
                             items(events, key = { it.id }) { event ->
-                                EventCard(event) { ui.nav.open(Route.Event(event.id)) }
+                                val position = positions[event.id] ?: 0
+                                LaunchedEffect(event.id) { state.seen(event, position) }
+                                EventCard(event) { state.open(event, position) }
                             }
                         }
                     }
@@ -205,6 +260,9 @@ private fun Filters(state: NearbyState) {
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        item(key = "for-you") { ChoiceChip("For you", state.forYou, { state.sort(forYou = true) }) }
+        item(key = "soonest") { ChoiceChip("Soonest", !state.forYou, { state.sort(forYou = false) }) }
+        item { Box(Modifier.width(1.dp).height(24.dp).background(MaterialTheme.colorScheme.outlineVariant)) }
         items(PartyTime.entries) { t -> ChoiceChip(t.label, state.time == t, { state.filter(time = t) }) }
         if (state.kinds.isNotEmpty()) {
             item { Box(Modifier.width(1.dp).height(24.dp).background(MaterialTheme.colorScheme.outlineVariant)) }
@@ -217,7 +275,7 @@ private fun Filters(state: NearbyState) {
 
 /** A party as a big photo card: date tile, distance, title on the photo, and who's going below. */
 @Composable
-fun EventCard(event: Event, onClick: () -> Unit) {
+fun EventCard(event: Event, showDay: Boolean = false, onClick: () -> Unit) {
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(MaterialTheme.colorScheme.surfaceContainer)
             .clickable(onClick = onClick),
@@ -238,7 +296,8 @@ fun EventCard(event: Event, onClick: () -> Unit) {
                 Text(event.title, style = MaterialTheme.typography.headlineSmall, color = Color.White, maxLines = 2,
                     overflow = TextOverflow.Ellipsis)
                 Text(
-                    listOfNotNull(clockTime(event.startsAt), event.venueName).joinToString(" · "),
+                    listOfNotNull(if (showDay) dayLabel(event.startsAt) else null, clockTime(event.startsAt), event.venueName)
+                        .joinToString(" · "),
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.White.copy(alpha = 0.85f),
                     maxLines = 1,
@@ -247,6 +306,11 @@ fun EventCard(event: Event, onClick: () -> Unit) {
             }
         }
         Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Friends going already says it with their faces; other reasons get a line of their own.
+            event.reason?.takeIf { it.kind != "friends_going" || event.friendsGoing.isEmpty() }?.let {
+                Text(it.text, style = MaterialTheme.typography.labelLarge, color = Brand.Pink, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis)
+            }
             FriendsGoing(event)
             Text(
                 buildString {

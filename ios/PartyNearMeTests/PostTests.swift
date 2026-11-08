@@ -124,4 +124,23 @@ final class PostTests: XCTestCase {
         XCTAssertEqual(log.waiting.map(\.kind), ["impression", "dwell"])
         XCTAssertEqual(log.waiting.last?.dwellMs, InteractionLog.maxDwellMs)
     }
+
+    @MainActor
+    func testInteractionLogCountsAnImpressionOncePerListAndKeepsWhereItWas() {
+        let log = InteractionLog(batchSize: 100) { _ in }
+        log.impression(eventId: "e1", surface: "for_you_parties", serveId: "s1", position: 0)
+        log.impression(eventId: "e1", surface: "for_you_parties", serveId: "s1", position: 0)
+        log.impression(eventId: "e1", surface: "nearby", position: 3)
+        log.open(eventId: "e1", surface: "for_you_parties", serveId: "s1", position: 0)
+        XCTAssertEqual(log.waiting.map(\.kind), ["impression", "impression", "open"])
+        XCTAssertEqual(log.waiting.map(\.surface), ["for_you_parties", "nearby", "for_you_parties"])
+        XCTAssertEqual(log.waiting.map(\.serveId), ["s1", nil, "s1"])
+        XCTAssertEqual(log.waiting.map(\.position), [0, 3, 0])
+    }
+
+    func testDecodesForYouReasons() throws {
+        let json = #"{"kind":"interest","text":"Because you like Music"}"#
+        let reason = try JSONDecoder().decode(Reason.self, from: Data(json.utf8))
+        XCTAssertEqual(reason, Reason(kind: "interest", text: "Because you like Music"))
+    }
 }

@@ -130,6 +130,7 @@ covered:
 | --- | --- | --- |
 | `api_error` | `endpoint` (e.g. `POST /posts/:id/comments`), `status` (0 = no connection) | something failed on someone; ids are replaced by `:id`. A failed photo upload is `PUT /photo-upload`. |
 | `nearby_empty` | `radius_km`, `time`, `kind_filter` | no parties near someone: the biggest letdown a party app has |
+| `for_you_sort` | `sort` (`for_you`, `soonest`) | someone switched how parties are sorted: do they trust For you? (docs/recommendations.md) |
 | `nearby_no_location` | | Nearby without location access |
 | `search_no_results` | `length` | a people search (3+ letters) found nobody |
 | `auth_failed` | see above | |

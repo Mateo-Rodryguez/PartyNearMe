@@ -231,6 +231,12 @@ private object FakeApi {
         notification("follow", sam, 6.days, false),
     ).joinToString(",")
 
+    /** The parties as For you shows them, each with the line saying why. */
+    private val forYou get() = events.mapIndexed { i, e ->
+        val reason = listOf("Because you like Music", "From someone you follow", "Close to you").getOrNull(i)
+        if (reason == null) e else e.trimEnd().dropLast(1) + ""","reason":{"kind":"demo","text":"$reason"}}"""
+    }
+
     fun handle(method: HttpMethod, path: String): Pair<HttpStatusCode, String> = when {
         path == "/me" -> HttpStatusCode.OK to """{"id":"$ME","username":"mateo","display_name":"Mateo",
             "bio":"Building PartyNearMe","avatar_url":null,"relationship_status":"talking",
@@ -259,6 +265,8 @@ private object FakeApi {
         path.startsWith("/users/") -> HttpStatusCode.OK to """{"id":"$SAM","username":"sam","display_name":"Sam Rivera",
             "bio":"DJ and party host in London","avatar_url":"$SAM_AVATAR","relationship_status":"taken","parties":142,
             "followers":1890,"following":312,"is_following":true}"""
+        path == "/events/for-you" -> HttpStatusCode.OK to """{"events":[${forYou.joinToString(",")}],
+            "serve_id":"00000000-0000-0000-0000-000000000000"}"""
         path == "/events/nearby" -> HttpStatusCode.OK to """{"events":[${events.joinToString(",")}],"next_cursor":null}"""
         path.matches(Regex("/events/[^/]+/posts")) -> HttpStatusCode.OK to """{"posts":[$feedPosts],"next_cursor":null}"""
         path.endsWith("/guests") -> HttpStatusCode.OK to """{"requested":[$alex],"going":[$sam,$mateo]}"""

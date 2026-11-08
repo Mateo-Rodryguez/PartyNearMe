@@ -86,7 +86,7 @@ like within 24 hours of it counts as its outcome. The web app shows the stats
 on the moderation page.
 
 PostHog keeps the product side: `for_you_sort` (people switching between For
-you and Soonest), so we see whether people trust the ranking.
+you and Soonest, phones only), so we see whether people trust the ranking.
 
 ### Tuning loop
 
@@ -114,9 +114,9 @@ All three clients do the same:
 2. **Impressions**: when a party card is first on screen in either list, log
    `{kind: "impression", event_id, surface, position}` plus `serve_id` for For
    you. Once per card per load.
-3. **Opens**: opening a party logs `{kind: "open", event_id, surface}` (and
-   `serve_id`, `position` when it came from For you). Opening it from anywhere
-   else logs `surface: "other"`.
+3. **Opens**: opening a party from either list logs `{kind: "open", event_id,
+   surface, position}` (and `serve_id` for For you). Elsewhere (Home's party
+   row on Android) it may log `surface: "other"`.
 4. **Feed**: impressions, dwell and opens carry `surface: "feed"` and the
    `serve_id` from `GET /feed`, plus `position`.
 5. Everything goes through the existing batched `POST /interactions`.

@@ -45,6 +45,8 @@ final class AppPrefs {
     private(set) var lastActiveDay: Int { didSet { defaults.set(lastActiveDay, forKey: Keys.lastActive) } }
     private(set) var activeDays: Int { didSet { defaults.set(activeDays, forKey: Keys.activeDays) } }
     var recommendAskedDay: Int { didSet { defaults.set(recommendAskedDay, forKey: Keys.recommendAsked) } }
+    /// Parties sorted by date instead of For you (ranked by what this person likes).
+    var partiesSoonest: Bool { didSet { defaults.set(partiesSoonest, forKey: Keys.partiesSoonest) } }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -58,6 +60,7 @@ final class AppPrefs {
         lastActiveDay = defaults.integer(forKey: Keys.lastActive)
         activeDays = defaults.integer(forKey: Keys.activeDays)
         recommendAskedDay = defaults.integer(forKey: Keys.recommendAsked)
+        partiesSoonest = defaults.bool(forKey: Keys.partiesSoonest)
     }
 
     /// Today as a day number (days since 1970, UTC).
@@ -92,5 +95,6 @@ final class AppPrefs {
         static let lastActive = "pref_last_active_day"
         static let activeDays = "pref_active_days"
         static let recommendAsked = "pref_recommend_asked_day"
+        static let partiesSoonest = "pref_parties_soonest"
     }
 }

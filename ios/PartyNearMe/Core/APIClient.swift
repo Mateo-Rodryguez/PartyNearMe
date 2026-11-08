@@ -47,6 +47,9 @@ protocol PartyAPI: AnyObject {
     /// `from` and `to` are ISO-8601 times (default: now to two weeks ahead); `interestId` picks one kind of party.
     func nearbyEvents(lat: Double, lng: Double, radiusKm: Double, cursor: String?, from: String?, to: String?,
                       interestId: Int?) async throws -> EventPage
+    /// Parties around the user ranked by what they like, each with a reason.
+    func forYouEvents(lat: Double, lng: Double, radiusKm: Double, from: String?, to: String?,
+                      interestId: Int?) async throws -> ForYouPage
     /// Parties you host (`organising`) or said you're going to.
     func myEvents(organising: Bool) async throws -> [Event]
     func event(_ id: String) async throws -> Event
@@ -261,6 +264,18 @@ final class APIClient: PartyAPI {
     }
 
     // MARK: Parties
+
+    func forYouEvents(lat: Double, lng: Double, radiusKm: Double, from: String?, to: String?,
+                      interestId: Int?) async throws -> ForYouPage {
+        try await call("GET", "/events/for-you", query: [
+            .init(name: "lat", value: String(lat)),
+            .init(name: "lng", value: String(lng)),
+            .init(name: "radius_km", value: String(radiusKm)),
+            .init(name: "from", value: from),
+            .init(name: "to", value: to),
+            .init(name: "interest_id", value: interestId.map { String($0) }),
+        ])
+    }
 
     func nearbyEvents(lat: Double, lng: Double, radiusKm: Double, cursor: String?, from: String?, to: String?,
                       interestId: Int?) async throws -> EventPage {

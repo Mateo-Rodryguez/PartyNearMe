@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { api } from '#lib/api/client.js';
-	import type { Person, Post } from '#lib/api/types.js';
+	import type { Person, Placement, Post } from '#lib/api/types.js';
 	import { count, nameOf, timeAgo } from '#lib/format.js';
 	import { interactions } from '#lib/interactions.js';
 	import { postLink, share } from '#lib/share.js';
@@ -17,8 +17,16 @@
 		post = $bindable(),
 		eager = false,
 		detail = false,
+		placement,
 		ongone
-	}: { post: Post; eager?: boolean; detail?: boolean; ongone?: () => void } = $props();
+	}: {
+		post: Post;
+		eager?: boolean;
+		detail?: boolean;
+		/** Which list the post is in, and where, for measuring the ranking. */
+		placement?: Placement;
+		ongone?: () => void;
+	} = $props();
 
 	const own = $derived(post.author.id === session.userId);
 	const taggedMe = $derived(post.tags.some((t) => t.id === session.userId));
@@ -41,10 +49,10 @@
 		const observer = new IntersectionObserver(
 			([entry]) => {
 				if (entry.isIntersecting) {
-					interactions.impression(post.id);
+					interactions.impression(post.id, placement);
 					since = performance.now();
 				} else if (since) {
-					interactions.dwell(post.id, performance.now() - since);
+					interactions.dwell(post.id, performance.now() - since, placement);
 					since = 0;
 				}
 			},
@@ -52,7 +60,7 @@
 		);
 		observer.observe(card);
 		return () => {
-			if (since) interactions.dwell(post.id, performance.now() - since);
+			if (since) interactions.dwell(post.id, performance.now() - since, placement);
 			observer.disconnect();
 		};
 	});

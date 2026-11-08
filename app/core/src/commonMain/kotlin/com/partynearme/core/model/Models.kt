@@ -163,7 +163,12 @@ data class TaggedPerson(
 }
 
 @Serializable
-data class PostPage(val posts: List<Post>, @SerialName("next_cursor") val nextCursor: String? = null)
+data class PostPage(
+    val posts: List<Post>,
+    @SerialName("next_cursor") val nextCursor: String? = null,
+    /** Which ranked list this is (GET /feed), sent back with impressions so ranking can be measured. */
+    @SerialName("serve_id") val serveId: String? = null,
+)
 
 @Serializable
 data class Event(
@@ -199,7 +204,17 @@ data class Event(
     @SerialName("chat_id") val chatId: String? = null,
     @SerialName("created_at") val createdAt: String,
     @SerialName("distance_m") val distanceM: Int? = null,
+    /** Why For you recommends it, ready to show; only on GET /events/for-you. */
+    val reason: Reason? = null,
 )
+
+/** "Because you like Music", "2 people you follow are going"... written by the server. */
+@Serializable
+data class Reason(val kind: String, val text: String)
+
+/** Parties ranked by what this person likes (docs/recommendations.md). One page. */
+@Serializable
+data class ForYouPage(val events: List<Event>, @SerialName("serve_id") val serveId: String)
 
 @Serializable
 data class EventList(val events: List<Event>)
@@ -356,4 +371,10 @@ data class Interaction(
     @SerialName("post_id") val postId: String? = null,
     @SerialName("event_id") val eventId: String? = null,
     @SerialName("dwell_ms") val dwellMs: Long? = null,
+    /** Where it happened: for_you_parties, nearby, feed, profile, saved, search or other. */
+    val surface: String? = null,
+    /** The ranked list it was in, from GET /feed or GET /events/for-you. */
+    @SerialName("serve_id") val serveId: String? = null,
+    /** Its place in that list, from 0. */
+    val position: Int? = null,
 )

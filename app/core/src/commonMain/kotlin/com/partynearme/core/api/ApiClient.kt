@@ -12,6 +12,7 @@ import com.partynearme.core.model.Event
 import com.partynearme.core.model.EventList
 import com.partynearme.core.model.EventPage
 import com.partynearme.core.model.EventUpdate
+import com.partynearme.core.model.ForYouPage
 import com.partynearme.core.model.GuestList
 import com.partynearme.core.model.Interaction
 import com.partynearme.core.model.Interest
@@ -146,6 +147,20 @@ class ApiClient(
     ): EventPage =
         call(HttpMethod.Get, "/events/nearby") {
             parameter("lat", lat); parameter("lng", lng); parameter("radius_km", radiusKm); parameter("cursor", cursor)
+            parameter("from", from); parameter("to", to); parameter("interest_id", interestId)
+        }
+
+    /** Parties around the user ranked by what they like, with a reason for each. */
+    suspend fun forYouEvents(
+        lat: Double,
+        lng: Double,
+        radiusKm: Double = 25.0,
+        from: String? = null,
+        to: String? = null,
+        interestId: Int? = null,
+    ): ForYouPage =
+        call(HttpMethod.Get, "/events/for-you") {
+            parameter("lat", lat); parameter("lng", lng); parameter("radius_km", radiusKm)
             parameter("from", from); parameter("to", to); parameter("interest_id", interestId)
         }
 
