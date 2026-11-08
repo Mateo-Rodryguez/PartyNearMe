@@ -1,8 +1,10 @@
 import Fastify, { type FastifyInstance } from "fastify";
+import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import { serializerCompiler, validatorCompiler } from "fastify-type-provider-zod";
 import { authenticate, type TokenVerifier } from "./auth.js";
 import type { Config } from "./config.js";
+import { originMatcher } from "./cors.js";
 import type { Db } from "./db.js";
 import { registerErrorHandler } from "./errors.js";
 import type { ErrorReporter } from "./monitoring.js";
@@ -42,6 +44,16 @@ export async function buildApp({ config, db, verifyToken, storage, reportError }
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   registerErrorHandler(app, reportError);
+
+  // The web app runs on another origin. Sign-in is a bearer token, never a cookie,
+  // so no credentials mode is needed and other sites can't act as a signed-in user.
+  const allowOrigin = originMatcher(config.WEB_ORIGINS);
+  await app.register(cors, {
+    origin: (origin, done) => done(null, origin !== undefined && allowOrigin(origin)),
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allowedHeaders: ["authorization", "content-type"],
+    maxAge: 86_400,
+  });
 
   await app.register(rateLimit, { max: config.RATE_LIMIT_PER_MINUTE, timeWindow: "1 minute" });
 
