@@ -265,3 +265,16 @@ export interface GuestList {
 
 /** What people can tell us; the same kinds as the apps (FeedbackKind). */
 export type FeedbackKind = 'love' | 'problem' | 'idea' | 'nps' | 'heard_from' | 'leaving';
+
+/** One reported thing in the moderators' queue (GET /moderation/queue). */
+export interface ReportedItem {
+	target_type: 'post' | 'event' | 'user' | 'message' | 'comment' | string;
+	target_id: string;
+	report_count: number;
+	reasons: string[];
+	first_reported_at: string;
+	/** Null when it was deleted after being reported. */
+	preview?: { title: string; body?: string | null; image_url?: string | null; status?: string | null; user_id?: string | null } | null;
+}
+
+export type ModerationAction = 'remove' | 'restore' | 'dismiss' | 'remove_picture' | 'delete_account';

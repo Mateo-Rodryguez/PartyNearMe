@@ -8,6 +8,7 @@ import type {
 	ConversationPage,
 	Message,
 	MessagePage,
+	ModerationAction,
 	Event,
 	EventPage,
 	EventUpdate,
@@ -23,6 +24,7 @@ import type {
 	Post,
 	PostPage,
 	PublicProfile,
+	ReportedItem,
 	ReportTarget,
 	Rsvp,
 	UploadTicket
@@ -176,6 +178,11 @@ export const api = {
 	report: (target: ReportTarget, targetId: string, reason: string) =>
 		call<void>('POST', '/reports', { body: { target_type: target, target_id: targetId, reason } }),
 	block: (userId: string, blocked: boolean) => call<void>(blocked ? 'PUT' : 'DELETE', `/users/${id(userId)}/block`),
+	/** Open reports, one entry per reported thing. Moderators only. */
+	moderationQueue: async () => (await call<{ items: ReportedItem[] }>('GET', '/moderation/queue')).items,
+	/** Acts on a reported thing and closes its reports. Moderators only. */
+	moderate: (targetType: string, targetId: string, action: ModerationAction, note?: string) =>
+		call<void>('POST', '/moderation/actions', { body: { target_type: targetType, target_id: targetId, action, note: note || undefined } }),
 	blockedUsers: async () => (await call<PeoplePage>('GET', '/me/blocks')).users,
 
 	// Chat

@@ -215,6 +215,13 @@
 			{/if}
 		</section>
 
+		{#if me.is_moderator}
+			<section>
+				<h2>Moderation</h2>
+				<a class="row" href="/moderation">Reports to review</a>
+			</section>
+		{/if}
+
 		<section>
 			<h2>Help us improve</h2>
 			<a class="row" href="/feedback">Send feedback</a>
