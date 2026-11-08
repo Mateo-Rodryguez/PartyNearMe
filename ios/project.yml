@@ -29,6 +29,8 @@ targets:
       path: PartyNearMe/PartyNearMe.entitlements
       properties:
         com.apple.developer.applesignin: [Default]
+        # Xcode switches this to production when the build is exported for TestFlight.
+        aps-environment: development
     info:
       path: PartyNearMe/Info.plist
       properties:

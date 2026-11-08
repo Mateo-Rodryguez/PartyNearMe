@@ -1,3 +1,4 @@
+import http2 from "node:http2";
 import { importPKCS8, SignJWT } from "jose";
 
 export interface PushMessage {
@@ -7,9 +8,11 @@ export interface PushMessage {
   data: Record<string, string>;
 }
 
+export type Platform = "android" | "ios";
+
 export interface Pusher {
   /** Sends to one device; resolves false when the token is no longer valid. */
-  send(token: string, message: PushMessage): Promise<boolean>;
+  send(token: string, message: PushMessage, platform?: Platform): Promise<boolean>;
 }
 
 interface ServiceAccount {
@@ -86,6 +89,122 @@ export function fcmPusher(account: ServiceAccount, doFetch: typeof fetch = fetch
       // The app was uninstalled or the token rotated: forget it.
       if (res.status === 404 || code === "UNREGISTERED") return false;
       throw new Error(`FCM send failed: ${res.status} ${code ?? ""}`.trim());
+    },
+  };
+}
+
+export interface ApnsKey {
+  /** The .p8 file's contents (BEGIN PRIVATE KEY ... END PRIVATE KEY). */
+  key: string;
+  keyId: string;
+  teamId: string;
+  /** The app's bundle id, which APNs calls the topic. */
+  bundleId: string;
+  /** Development builds from Xcode use the sandbox; TestFlight and the App Store don't. */
+  sandbox?: boolean;
+}
+
+/** One HTTP/2 request to APNs; swapped out in tests. */
+export type ApnsRequest = (
+  origin: string,
+  path: string,
+  headers: Record<string, string>,
+  body: string,
+) => Promise<{ status: number; body: string }>;
+
+/** Keeps one HTTP/2 connection to APNs open and reuses it, as Apple asks. */
+export function http2ApnsRequest(): ApnsRequest {
+  let session: http2.ClientHttp2Session | null = null;
+  let sessionOrigin = "";
+  const connect = (origin: string) => {
+    if (session && !session.closed && !session.destroyed && sessionOrigin === origin) return session;
+    session?.close();
+    const opened = http2.connect(origin);
+    opened.on("error", () => opened.destroy());
+    opened.on("goaway", () => opened.close());
+    // Don't keep the process alive just for an idle push connection.
+    opened.unref();
+    session = opened;
+    sessionOrigin = origin;
+    return opened;
+  };
+  return (origin, path, headers, body) =>
+    new Promise((resolve, reject) => {
+      const stream = connect(origin).request({ ":method": "POST", ":path": path, ...headers });
+      let status = 0;
+      let text = "";
+      stream.setEncoding("utf8");
+      stream.setTimeout(10_000, () => stream.close(http2.constants.NGHTTP2_CANCEL));
+      stream.on("response", (h) => { status = Number(h[":status"]); });
+      stream.on("data", (chunk: string) => { text += chunk; });
+      stream.on("end", () => resolve({ status, body: text }));
+      stream.on("error", reject);
+      stream.on("close", () => { if (status === 0) reject(new Error("APNs request closed without a response")); });
+      stream.end(body);
+    });
+}
+
+/**
+ * Apple Push Notification service, sent straight from the server with a token-based
+ * (.p8) key, so the iPhone app needs no Firebase SDK. Tokens are refreshed every 50
+ * minutes; Apple rejects ones older than an hour and too-frequent new ones.
+ */
+export function apnsPusher(config: ApnsKey, request: ApnsRequest = http2ApnsRequest()): Pusher {
+  const origin = config.sandbox ? "https://api.sandbox.push.apple.com" : "https://api.push.apple.com";
+  let cached: { token: string; madeAt: number } | null = null;
+
+  const providerToken = async () => {
+    if (cached && Date.now() - cached.madeAt < 50 * 60_000) return cached.token;
+    const key = await importPKCS8(config.key.replace(/\\n/g, "\n"), "ES256");
+    const token = await new SignJWT({})
+      .setProtectedHeader({ alg: "ES256", kid: config.keyId })
+      .setIssuer(config.teamId)
+      .setIssuedAt()
+      .sign(key);
+    cached = { token, madeAt: Date.now() };
+    return token;
+  };
+
+  return {
+    async send(token, message) {
+      const payload = { aps: { alert: { title: message.title, body: message.body }, sound: "default" }, ...message.data };
+      const res = await request(origin, `/3/device/${encodeURIComponent(token)}`, {
+        authorization: `bearer ${await providerToken()}`,
+        "apns-topic": config.bundleId,
+        "apns-push-type": "alert",
+        "apns-priority": "10",
+        "content-type": "application/json",
+      }, JSON.stringify(payload));
+      if (res.status === 200) return true;
+      const reason = (() => {
+        try {
+          return (JSON.parse(res.body) as { reason?: string }).reason ?? "";
+        } catch {
+          return "";
+        }
+      })();
+      // Uninstalled, or a token from the other (sandbox/production) environment: forget it.
+      if (res.status === 410 || reason === "BadDeviceToken" || reason === "Unregistered" || reason === "DeviceTokenNotForTopic") {
+        return false;
+      }
+      if (reason === "ExpiredProviderToken") cached = null;
+      throw new Error(`APNs send failed: ${res.status} ${reason}`.trim());
+    },
+  };
+}
+
+/**
+ * Sends each device through the service for its platform: iPhones through APNs when
+ * an APNs key is set, everything else through Firebase. Returns null when neither is set.
+ */
+export function platformPusher(fcm: Pusher | null, apns: Pusher | null): Pusher | null {
+  if (!fcm && !apns) return null;
+  return {
+    async send(token, message, platform) {
+      const via = platform === "ios" && apns ? apns : fcm;
+      // No sender for this platform yet: keep the token for when one is set up.
+      if (!via) return true;
+      return via.send(token, message, platform);
     },
   };
 }

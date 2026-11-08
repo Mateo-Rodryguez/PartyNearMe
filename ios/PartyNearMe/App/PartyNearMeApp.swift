@@ -3,6 +3,7 @@ import SwiftUI
 
 @main
 struct PartyNearMeApp: App {
+    @UIApplicationDelegateAdaptor(PushDelegate.self) private var pushDelegate
     @State private var app: AppModel
 
     init() {

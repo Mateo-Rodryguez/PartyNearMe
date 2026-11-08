@@ -65,7 +65,8 @@ add a new name instead, or the history splits.
 | `app_opened` | `first_run` or `resumed` | signed-in app start; or back after 30+ minutes away |
 | `app_backgrounded` | `seconds` | app leaves the screen; `$screen_name` is where people left |
 | `link_opened` | `kind` (`party`/`post`/`other`) | a shared link opened the app |
-| `notification_opened` | `type` | a push notification was tapped (Android; iPhone once push is set up) |
+| `notification_opened` | `type` | a push notification was tapped |
+| `push_permission` | `granted` | the answer to the system "allow notifications?" question, asked once (iPhone only for now) |
 | `signed_out` | | |
 | `account_deleted` | | the strongest "didn't like it" there is |
 

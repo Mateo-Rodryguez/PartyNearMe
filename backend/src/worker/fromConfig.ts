@@ -1,7 +1,7 @@
 import type { Config } from "../config.js";
 import type { Db } from "../db.js";
 import { openAiModerator } from "./moderation.js";
-import { fcmPusher, parseServiceAccount } from "./push.js";
+import { apnsPusher, fcmPusher, parseServiceAccount, platformPusher } from "./push.js";
 import { r2ObjectStore } from "./objectStore.js";
 import { startWorker, type WorkerDeps } from "./worker.js";
 
@@ -24,6 +24,17 @@ export function startWorkerFromConfig(config: Config, db: Db, log: WorkerDeps["l
       secretAccessKey: R2_SECRET_ACCESS_KEY,
     }),
     moderator: openAiModerator(OPENAI_API_KEY),
-    pusher: config.FIREBASE_SERVICE_ACCOUNT ? fcmPusher(parseServiceAccount(config.FIREBASE_SERVICE_ACCOUNT)) : null,
+    pusher: platformPusher(
+      config.FIREBASE_SERVICE_ACCOUNT ? fcmPusher(parseServiceAccount(config.FIREBASE_SERVICE_ACCOUNT)) : null,
+      config.APNS_KEY && config.APNS_KEY_ID && config.APNS_TEAM_ID
+        ? apnsPusher({
+          key: config.APNS_KEY,
+          keyId: config.APNS_KEY_ID,
+          teamId: config.APNS_TEAM_ID,
+          bundleId: config.APNS_BUNDLE_ID,
+          sandbox: config.APNS_SANDBOX,
+        })
+        : null,
+    ),
   });
 }

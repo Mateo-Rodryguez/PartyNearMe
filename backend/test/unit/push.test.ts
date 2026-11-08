@@ -1,6 +1,6 @@
 import { exportPKCS8, generateKeyPair, decodeJwt, decodeProtectedHeader } from "jose";
 import { describe, expect, it } from "vitest";
-import { fcmPusher, parseServiceAccount } from "../../src/worker/push.js";
+import { apnsPusher, fcmPusher, memoryPusher, parseServiceAccount, platformPusher, type ApnsRequest } from "../../src/worker/push.js";
 
 async function account() {
   const { privateKey } = await generateKeyPair("RS256", { extractable: true });
@@ -63,5 +63,79 @@ describe("parseServiceAccount", () => {
     } catch (err) {
       expect(String(err)).not.toContain("SECRET");
     }
+  });
+});
+
+describe("apnsPusher", () => {
+  async function apnsKey() {
+    const { privateKey } = await generateKeyPair("ES256", { extractable: true });
+    return { key: await exportPKCS8(privateKey), keyId: "ABC123DEFG", teamId: "TEAM123456", bundleId: "com.partynearme.app" };
+  }
+
+  it("signs one provider token and sends an alert to the device", async () => {
+    const calls: { origin: string; path: string; headers: Record<string, string>; body: string }[] = [];
+    const request: ApnsRequest = async (origin, path, headers, body) => {
+      calls.push({ origin, path, headers, body });
+      return { status: 200, body: "" };
+    };
+    const pusher = apnsPusher(await apnsKey(), request);
+    expect(await pusher.send("aa11", message)).toBe(true);
+    expect(await pusher.send("bb22", message)).toBe(true);
+
+    expect(calls[0]?.origin).toBe("https://api.push.apple.com");
+    expect(calls[0]?.path).toBe("/3/device/aa11");
+    expect(calls[0]?.headers).toMatchObject({ "apns-topic": "com.partynearme.app", "apns-push-type": "alert" });
+    const jwt = (calls[0]?.headers.authorization ?? "").replace("bearer ", "");
+    expect(decodeProtectedHeader(jwt)).toMatchObject({ alg: "ES256", kid: "ABC123DEFG" });
+    expect(decodeJwt(jwt).iss).toBe("TEAM123456");
+    expect(calls[1]?.headers.authorization).toBe(calls[0]?.headers.authorization);
+    expect(JSON.parse(calls[0]?.body ?? "{}")).toEqual({
+      aps: { alert: { title: "Alice", body: "hi" }, sound: "default" },
+      type: "message",
+      conversation_id: "c1",
+    });
+  });
+
+  it("uses the sandbox when asked and accepts a key pasted with \\n", async () => {
+    const origins: string[] = [];
+    const key = await apnsKey();
+    const pusher = apnsPusher({ ...key, key: key.key.replace(/\n/g, "\\n"), sandbox: true }, async (origin) => {
+      origins.push(origin);
+      return { status: 200, body: "" };
+    });
+    expect(await pusher.send("aa", message)).toBe(true);
+    expect(origins).toEqual(["https://api.sandbox.push.apple.com"]);
+  });
+
+  it("reports dead tokens and throws on other errors", async () => {
+    let answer = { status: 410, body: JSON.stringify({ reason: "Unregistered" }) };
+    const pusher = apnsPusher(await apnsKey(), async () => answer);
+    expect(await pusher.send("gone", message)).toBe(false);
+    answer = { status: 400, body: JSON.stringify({ reason: "BadDeviceToken" }) };
+    expect(await pusher.send("bad", message)).toBe(false);
+    answer = { status: 500, body: JSON.stringify({ reason: "InternalServerError" }) };
+    await expect(pusher.send("x", message)).rejects.toThrow(/500 InternalServerError/);
+  });
+});
+
+describe("platformPusher", () => {
+  it("sends iPhones through APNs and the rest through Firebase", async () => {
+    const fcm = memoryPusher();
+    const apns = memoryPusher();
+    const pusher = platformPusher(fcm.pusher, apns.pusher);
+    await pusher?.send("phone", message, "android");
+    await pusher?.send("iphone", message, "ios");
+    expect(fcm.sent.map((s) => s.token)).toEqual(["phone"]);
+    expect(apns.sent.map((s) => s.token)).toEqual(["iphone"]);
+  });
+
+  it("falls back to Firebase for iPhones without an APNs key, and is null with neither", async () => {
+    const fcm = memoryPusher();
+    await platformPusher(fcm.pusher, null)?.send("iphone", message, "ios");
+    expect(fcm.sent.map((s) => s.token)).toEqual(["iphone"]);
+    expect(platformPusher(null, null)).toBeNull();
+    const apns = memoryPusher();
+    expect(await platformPusher(null, apns.pusher)?.send("phone", message, "android")).toBe(true);
+    expect(apns.sent).toEqual([]);
   });
 });
