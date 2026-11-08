@@ -1,0 +1,46 @@
+name: Web
+
+on:
+  push:
+    branches: [PartyApp]
+    paths: ["web/**", "design/**", "app/ui/src/commonMain/kotlin/com/partynearme/ui/Theme.kt", "ios/PartyNearMe/Design/Theme.swift", ".github/workflows/web.yml"]
+  pull_request:
+    paths: ["web/**", "design/**", "app/ui/src/commonMain/kotlin/com/partynearme/ui/Theme.kt", "ios/PartyNearMe/Design/Theme.swift", ".github/workflows/web.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Brand colours match on Android, iPhone and web
+        run: node ../design/check.mjs
+      - run: npm ci
+      - name: Types and Svelte checks
+        run: npm run check
+      - name: Unit tests
+        run: npm test
+      - name: Every page opens when visited directly
+        run: node scripts/check-redirects.mjs
+      - name: Build
+        run: npm run build
+      - name: Install Chromium
+        run: npm install --no-save playwright@1.63.0 && npx playwright install --with-deps chromium
+      - name: Open every page in a browser
+        run: node scripts/smoke.mjs screenshots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-screenshots
+          path: web/screenshots
+          retention-days: 14

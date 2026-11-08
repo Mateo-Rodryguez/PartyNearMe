@@ -10,7 +10,10 @@ This branch is the relaunch for Android and iOS. The original university prototy
 |---|---|
 | `backend/` | API and background worker: Node + TypeScript, Fastify |
 | `supabase/` | Database migrations (Postgres + PostGIS + pgvector) and database tests |
-| `app/` | Kotlin Multiplatform app for Android and iOS (not started yet) |
+| `app/` | Android app (Kotlin, Compose) |
+| `ios/` | iPhone app (Swift, SwiftUI) |
+| `web/` | Web app (SvelteKit), see `docs/web.md` |
+| `design/` | Brand colours shared by all three apps (`tokens.json`) |
 | `docs/` | Relaunch plan, target architecture, cost estimate, analysis of the old code |
 
 ## Running the backend
