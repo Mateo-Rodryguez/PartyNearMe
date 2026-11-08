@@ -14,6 +14,8 @@ final class AppModel {
     let live: any LiveMessages
     /// Usage stats: what gets used, skipped and struggled with (docs/analytics.md).
     let analytics: Analytics
+    /// Home's last first page, shown while the fresh one loads; nil in the demo.
+    let feedCache: FeedCache?
     /// Set when it's time to ask "would you recommend PartyNearMe?" at the top of Home.
     var askRecommend = false
     /// Chats with unread messages, for the Messages tab's badge.
@@ -54,12 +56,14 @@ final class AppModel {
     }
 
     init(sessions: SessionManager, api: any PartyAPI, location: any LocationProvider, live: any LiveMessages,
-         analytics: Analytics = .off, auth: AuthClient = AuthClient(), demoScreen: String? = nil) {
+         analytics: Analytics = .off, feedCache: FeedCache? = nil, auth: AuthClient = AuthClient(),
+         demoScreen: String? = nil) {
         self.sessions = sessions
         self.api = api
         self.location = location
         self.live = live
         self.analytics = analytics
+        self.feedCache = feedCache
         self.auth = auth
         self.demoScreen = demoScreen
     }
@@ -71,7 +75,7 @@ final class AppModel {
         let api = APIClient(sessions: sessions)
         api.onResult = { method, path, status in analytics.apiResult(method: method, path: path, status: status) }
         return AppModel(sessions: sessions, api: api, location: DeviceLocation(), live: Realtime(sessions: sessions),
-                        analytics: analytics)
+                        analytics: analytics, feedCache: FeedCache())
     }
 
     /// The sign-in providers switched on in Supabase. Empty when offline.
@@ -98,6 +102,7 @@ final class AppModel {
             try? await api.unregisterDevice(token: token)
         }
         pushToken = nil
+        feedCache?.clear()
         interactions.flush()
         analytics.capture("signed_out")
         await analytics.flush()
@@ -112,6 +117,7 @@ final class AppModel {
         }
         try await api.deleteAccount()
         pushToken = nil
+        feedCache?.clear()
         await analytics.flush() // Sends account_deleted, the strongest "didn't like it" there is.
         analytics.reset()
         sessions.forget()
