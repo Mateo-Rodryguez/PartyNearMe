@@ -42,6 +42,8 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: com.partynearme.app
             CFBundleURLSchemes: [partynearme]
+        # Only HTTPS, which is exempt, so TestFlight doesn't ask about export compliance each upload.
+        ITSAppUsesNonExemptEncryption: false
         NSCameraUsageDescription: PartyNearMe uses the camera so you can take photos to post.
         NSLocationWhenInUseUsageDescription: PartyNearMe uses your location to show parties near you and to place the parties you create.
     settings:

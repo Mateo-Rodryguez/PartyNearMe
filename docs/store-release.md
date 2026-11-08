@@ -70,3 +70,79 @@ After the first manual upload, Play can take uploads from CI:
 
 Then **Run workflow** with a track (internal, alpha = closed testing, beta, production).
 Leave status on `draft` until the app has passed its first review.
+
+## App Store (no Mac needed)
+
+The workflow `.github/workflows/ios-release.yml` archives the iPhone app on a cloud
+Mac, signs it and uploads it to App Store Connect, where it appears in TestFlight. It
+runs on every merge to `PartyApp` that touches `ios/`, and by hand from **Actions > iOS
+release > Run workflow** (with the version to show in the store). Until the secrets
+below exist it only checks that the Release build compiles.
+
+### 1. Register the app (developer.apple.com, once)
+
+1. **Certificates, Identifiers & Profiles > Identifiers > +**, App IDs, App. Bundle ID
+   **explicit** `com.partynearme.app`, description PartyNearMe. Tick
+   **Push Notifications** and **Sign in with Apple** (enable as a primary App ID).
+2. In App Store Connect: **Apps > + > New App**, iOS, name PartyNearMe, primary
+   language, bundle ID `com.partynearme.app`, SKU `partynearme`.
+
+### 2. App Store Connect API key (lets GitHub sign and upload)
+
+1. App Store Connect > **Users and Access > Integrations > App Store Connect API >
+   Team Keys > +**. Name it GitHub, access **Admin** (needed so Xcode can create the
+   distribution certificate in the cloud).
+2. Download the `.p8` file (only possible once). Note the **Key ID** and the
+   **Issuer ID** shown above the table.
+3. Your **Team ID** is under developer.apple.com > Account > Membership details.
+
+| GitHub secret | Value |
+|---|---|
+| `APP_STORE_CONNECT_KEY_P8` | the whole `.p8` file, opened in a text editor |
+| `APP_STORE_CONNECT_KEY_ID` | the Key ID |
+| `APP_STORE_CONNECT_ISSUER_ID` | the Issuer ID |
+| `APPLE_TEAM_ID` | the Team ID |
+
+Then **Run workflow**. About 20 minutes later the build is in TestFlight.
+
+### 3. Push notifications (APNs key)
+
+The server sends to iPhones straight through Apple, so this key goes into Render, not
+Firebase.
+
+1. developer.apple.com > **Keys > +**, name PartyNearMe push, tick **Apple Push
+   Notifications service (APNs)**, environment **Sandbox & Production**. Download the
+   `.p8` (only possible once) and note its **Key ID**.
+2. In Render (partynearme-api > Environment) add:
+   - `APNS_KEY`: the whole `.p8` file contents
+   - `APNS_KEY_ID`: its Key ID
+   - `APNS_TEAM_ID`: the Team ID
+
+### 4. Sign in with Apple
+
+The iPhone uses Apple's native sign-in, so Supabase only needs to know the app.
+Supabase dashboard > **Authentication > Sign In / Providers > Apple**: turn it on and
+put `com.partynearme.app` in **Client IDs**. The secret key fields can stay empty for
+the native flow. The button appears in the app as soon as the provider is on, and it
+must be on before the app is sent for review.
+
+### 5. TestFlight and review
+
+1. In TestFlight, add yourself under **Internal Testing**, install the TestFlight app on
+   the iPhone and accept the invite.
+2. When it works, fill in the App Store page (text, screenshots, privacy label and age
+   rating from the "PartyNearMe store forms" doc; privacy policy URL
+   `https://partynearme-api.onrender.com/privacy`, support URL the same site).
+3. Under **App Review Information**, give the reviewer demo account (see below) and a
+   note: "Party listings near you. Users can report posts, parties, comments and people
+   from the ⋮ menus and block people; reports are reviewed within 24 hours. Account
+   deletion is in Settings."
+4. Pick the build and **Submit for Review**.
+
+## Reviewer demo account (both stores)
+
+Both reviewers need to sign in. Create a normal account in the app, for example
+`review@` plus your domain or a spare Gmail address, finish onboarding, follow a couple
+of accounts and RSVP to a party so the screens aren't empty. Give its email and
+password in Play Console (**App content > App access**) and App Store Connect
+(**App Review Information**). Don't use your own account.
