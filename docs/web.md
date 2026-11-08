@@ -74,3 +74,23 @@ npm run build && node scripts/smoke.mjs   # every page in Chromium with a fake A
    use it in step 2.
 
 A custom domain comes last; Pages adds one for free once there is a domain.
+
+## Sign in with Apple on the web (optional, after the Apple Developer account)
+
+People who joined on iPhone with Apple have no password, so on the website they
+need "Continue with Apple" too. The iPhone's native sign-in doesn't need any of
+this; the web flow goes through Supabase and needs a **Services ID**:
+
+1. developer.apple.com > **Identifiers > + > Services IDs**: identifier
+   `com.partynearme.web`, description PartyNearMe web. Tick **Sign in with
+   Apple** > Configure: primary App ID `com.partynearme.app`, domain
+   `vvkckzrhzgdrazhjitse.supabase.co`, return URL
+   `https://vvkckzrhzgdrazhjitse.supabase.co/auth/v1/callback`.
+2. **Keys > +**: tick Sign in with Apple (primary App ID `com.partynearme.app`),
+   download the `.p8` once.
+3. Supabase > **Authentication > Sign In / Providers > Apple**: add
+   `com.partynearme.web` to **Client IDs** (keep `com.partynearme.app`), and paste a
+   **Secret Key**, made from the `.p8`, Key ID, Team ID and Services ID with the
+   generator on Supabase's "Login with Apple" guide. Apple makes this secret expire
+   every 6 months, so it needs making again then.
+4. Tell Claude, which flips `appleOnWeb` in `web/src/lib/config.ts` so the button shows.

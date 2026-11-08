@@ -56,6 +56,11 @@ const routes = [
 	[/\/users\/[^/]+\/(followers|following)$/, { users: [{ ...ana, is_following: true }, { ...me, is_following: false }], next_cursor: null }],
 	[/\/events\/[^/]+\/invites$/, { sent: 1, skipped: 0 }],
 	[/\/posts\/[^/]+\/tags$/, { ...post, author: me, tags: [ana] }],
+	[/\/moderation\/queue$/, { items: [
+		{ target_type: 'post', target_id: post.id, report_count: 2, reasons: ['spam', 'spam'], first_reported_at: soon, preview: { title: 'Post by @ana', body: 'What a night', image_url: photo('#ff3d7f'), status: 'visible', user_id: ana.id } },
+		{ target_type: 'comment', target_id: 'c9', report_count: 1, reasons: ['harassment'], first_reported_at: soon, preview: null }
+	] }],
+	[/\/moderation\/actions$/, null],
 	[/\/users\/search/, { users: [{ ...ana, is_following: true }] }],
 	[/\/users\/[^/]+\/posts/, { posts: [post, post].map((p, i) => ({ ...p, id: `${p.id.slice(0, -1)}${i}` })), next_cursor: null }],
 	[/\/users\/[^/]+$/, { ...ana, bio: 'Out every weekend', relationship_status: 'single', parties: 9, followers: 120, following: 80, is_following: false }],
@@ -64,7 +69,7 @@ const routes = [
 	[/\/me\/saved\/events/, { events: [party] }],
 	[/\/me\/settings/, { messages_from: 'everyone', push_messages: true, push_rsvps: true, push_reminders: true, push_comments: true }],
 	[/\/me\/blocks/, { users: [] }],
-	[/^\/me$/, { ...me, bio: 'Hi', created_at: soon, interest_ids: [1] }],
+	[/^\/me$/, { ...me, is_moderator: true, bio: 'Hi', created_at: soon, interest_ids: [1] }],
 	[/\/notifications\/unread/, { unread_count: 3 }],
 	[/\/notifications\/seen/, null],
 	[/\/notifications$/, { unread_count: 1, notifications: [
@@ -227,6 +232,14 @@ for (const scheme of ['dark', 'light']) {
 	await page.getByText('Why are you leaving?').waitFor();
 	await page.screenshot({ path: `${out}/delete-account-${scheme}.png` });
 	await page.getByRole('button', { name: 'Keep my account' }).click();
+	await page.getByRole('link', { name: 'Reports to review' }).click();
+	await page.getByText('Post by @ana').waitFor();
+	await page.screenshot({ path: `${out}/moderation-${scheme}.png` });
+	await page.getByRole('button', { name: 'Remove post' }).click();
+	await page.getByLabel('Note for the log (optional)').fill('Spam');
+	await page.getByRole('dialog').getByRole('button', { name: 'Remove post' }).click();
+	await page.getByText('Post by @ana').waitFor({ state: 'hidden' });
+	await page.goBack();
 	await page.getByRole('link', { name: 'Send feedback' }).click();
 	await page.getByText('We read every message').waitFor();
 	await page.screenshot({ path: `${out}/feedback-${scheme}.png` });
