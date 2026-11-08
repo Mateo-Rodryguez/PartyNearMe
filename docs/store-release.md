@@ -146,3 +146,18 @@ Both reviewers need to sign in. Create a normal account in the app, for example
 of accounts and RSVP to a party so the screens aren't empty. Give its email and
 password in Play Console (**App content > App access**) and App Store Connect
 (**App Review Information**). Don't use your own account.
+
+## Store images
+
+`store/make-store-images.py` turns the CI screenshots into store images: five
+screenshots per store with a headline on the brand gradient (1320 x 2868 for the
+6.9-inch iPhone slot, which App Store Connect scales down for other iPhones;
+1080 x 1920 for Play), plus Play's 512 x 512 icon and 1024 x 500 feature graphic.
+
+```
+git fetch origin ios-native-screenshots app-screenshots
+python3 store/make-store-images.py store-images
+```
+
+The screens come from the demo data, so rerun it after a redesign. Change the
+headlines or the screens in `SCREENS` at the top of the script.
