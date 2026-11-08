@@ -57,7 +57,15 @@ npm run build && node scripts/smoke.mjs   # every page in Chromium with a fake A
    `https://partynearme.pages.dev/auth/callback` and
    `https://*.partynearme.pages.dev/auth/callback` (previews). Needed for
    "Continue with Google"; email sign-in works without it.
-3. If the name `partynearme` was taken and Pages gave another address, set
+3. **R2 (for posting photos from the web):** Cloudflare dashboard > R2 >
+   `partynearme-media` > Settings > CORS policy > Add, and paste:
+   ```json
+   [{ "AllowedOrigins": ["https://partynearme.pages.dev", "http://localhost:5173"],
+      "AllowedMethods": ["PUT"], "AllowedHeaders": ["content-type"], "MaxAgeSeconds": 86400 }]
+   ```
+   The browser sends photos straight to the bucket with a signed address, like
+   the apps; without this rule the browser blocks the upload.
+4. If the name `partynearme` was taken and Pages gave another address, set
    `WEB_ORIGINS` on Render to that address (see `backend/src/config.ts`) and
    use it in step 2.
 

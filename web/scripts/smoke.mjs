@@ -54,6 +54,21 @@ const routes = [
 	[/\/users\/[^/]+\/posts/, { posts: [post, post].map((p, i) => ({ ...p, id: `${p.id.slice(0, -1)}${i}` })), next_cursor: null }],
 	[/\/users\/[^/]+$/, { ...ana, bio: 'Out every weekend', relationship_status: 'single', parties: 9, followers: 120, following: 80, is_following: false }],
 	[/\/me\/events/, [party]],
+	[/\/me\/saved\/posts/, { posts: [post], next_cursor: null }],
+	[/\/me\/saved\/events/, { events: [party] }],
+	[/\/me\/settings/, { messages_from: 'everyone', push_messages: true, push_rsvps: true, push_reminders: true, push_comments: true }],
+	[/\/me\/blocks/, { users: [] }],
+	[/^\/me$/, { ...me, bio: 'Hi', created_at: soon, interest_ids: [1] }],
+	[/\/notifications\/unread/, { unread_count: 3 }],
+	[/\/notifications\/seen/, null],
+	[/\/notifications$/, { unread_count: 1, notifications: [
+		{ id: 'n1', type: 'like', actor: ana, post_id: post.id, post_thumbnail_url: photo('#ff3d7f'), created_at: soon, unread: true },
+		{ id: 'n2', type: 'comment', actor: ana, post_id: post.id, comment_text: 'Amazing!', created_at: soon },
+		{ id: 'n3', type: 'reminder', event_id: party.id, event_title: party.title, event_cover_url: party.cover_url, created_at: soon }
+	] }],
+	[/\/uploads$/, { upload_id: 'u1', upload_url: 'https://630c8ac9872f11e09ffed9fe3cb05b0c.r2.cloudflarestorage.com/partynearme-media/uploads/x.jpg', headers: { 'content-type': 'image/jpeg' } }],
+	[/\/partynearme-media\//, null],
+	[/^\/posts$/, post],
 	[/\/interests/, [{ id: 1, slug: 'house', name: 'House' }, { id: 2, slug: 'techno', name: 'Techno' }]],
 	[/\/interactions|\/like|\/save|\/follow/, null]
 ];
@@ -66,7 +81,7 @@ for (const scheme of ['dark', 'light']) {
 		geolocation: { latitude: 51.5, longitude: -0.12 }, permissions: ['geolocation']
 	});
 	const calls = new Map();
-	await context.route(/onrender\.com|supabase\.co/, (route) => {
+	await context.route(/onrender\.com|supabase\.co|r2\.cloudflarestorage\.com/, (route) => {
 		const url = route.request().url();
 		// A page that keeps fetching the same thing is stuck in a loop.
 		const key = `${route.request().method()} ${new URL(url).pathname}`;
@@ -82,6 +97,7 @@ for (const scheme of ['dark', 'light']) {
 	page.on('pageerror', (e) => errors.push(`${scheme} ${page.url()}: ${e.message}`));
 
 	const shot = async (name, path, waitFor) => {
+		calls.clear(); // Counts are per page load.
 		await page.goto(site + path);
 		await page.getByText(waitFor).first().waitFor({ timeout: 10_000 });
 		await page.waitForTimeout(300);
@@ -102,6 +118,19 @@ for (const scheme of ['dark', 'light']) {
 	await shot('post', `/p/${post.id}`, 'See you there!');
 	await shot('profile', `/u/${ana.id}`, 'Out every weekend');
 	await shot('me', '/me', 'Your parties');
+	await shot('notifications', '/notifications', 'Amazing!');
+	await shot('settings', '/settings', 'Who can message you');
+	await shot('saved', '/saved', 'Parties');
+	await shot('new-post', '/new', 'Choose photos');
+	await page.locator('input[type=file]').first().setInputFiles({
+		name: 'night.png', mimeType: 'image/png',
+		buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==', 'base64')
+	});
+	await page.getByAltText('Photo 1').waitFor();
+	await page.getByPlaceholder('Say something').fill('Testing');
+	await page.getByRole('checkbox').uncheck();
+	await page.getByRole('button', { name: 'Share' }).click();
+	await page.waitForURL(/\/p\//);
 	await page.goto(`${site}/search`);
 	await page.getByPlaceholder('Search people').fill('an');
 	await page.getByText('@ana').waitFor();

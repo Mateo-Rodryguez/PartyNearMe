@@ -4,6 +4,8 @@
 	import { lastLocation } from '#lib/location.js';
 	import { Paged } from '#lib/paged.svelte.js';
 	import { session } from '#lib/session.svelte.js';
+	import { unread } from '#lib/unread.svelte.js';
+	import Icon from '#lib/ui/Icon.svelte';
 	import Empty from '#lib/ui/Empty.svelte';
 	import LoadMore from '#lib/ui/LoadMore.svelte';
 	import PostCard from '#lib/ui/PostCard.svelte';
@@ -52,7 +54,14 @@
 
 <svelte:head><title>PartyNearMe</title></svelte:head>
 
-<PageHeader title="PartyNearMe" />
+<PageHeader title="PartyNearMe">
+	{#snippet actions()}
+		<a class="bell" href="/notifications" aria-label={unread.notifications ? `Notifications, ${unread.notifications} new` : 'Notifications'}>
+			<Icon name="bell" />
+			{#if unread.notifications}<span class="badge">{unread.notifications > 9 ? '9+' : unread.notifications}</span>{/if}
+		</a>
+	{/snippet}
+</PageHeader>
 
 {#if slow}
 	<p class="waking muted" role="status">Waking the server up, this can take a moment…</p>
@@ -60,7 +69,7 @@
 
 <div class="feed">
 	{#each feed.items as post, i (post.id)}
-		<PostCard bind:post={feed.items[i]} eager={i === 0} />
+		<PostCard bind:post={feed.items[i]} eager={i === 0} ongone={() => (feed.items = feed.items.filter((p) => p.id !== post.id))} />
 	{/each}
 </div>
 
@@ -77,6 +86,28 @@
 	.feed {
 		display: grid;
 		gap: 8px;
+	}
+	.bell {
+		position: relative;
+		display: grid;
+		place-items: center;
+		width: 40px;
+		height: 40px;
+	}
+	.badge {
+		position: absolute;
+		top: 2px;
+		right: 0;
+		min-width: 18px;
+		height: 18px;
+		padding: 0 5px;
+		border-radius: 9px;
+		background: var(--gradient);
+		color: var(--on-primary);
+		font-size: 11px;
+		font-weight: 700;
+		line-height: 18px;
+		text-align: center;
 	}
 	.waking {
 		text-align: center;
