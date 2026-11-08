@@ -144,7 +144,7 @@ covered:
 
 ## Feedback (what people tell us)
 
-`POST /feedback` with `kind`, `platform`, optional `body`, `score`, `screen`,
+`POST /feedback` with `kind`, `platform` (`android`, `ios` or `web`), optional `body`, `score`, `screen`,
 `app_version`. Kinds:
 
 - `love`, `problem`, `idea`: **Settings > Send feedback**.

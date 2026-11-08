@@ -11,6 +11,7 @@ import type {
 	Event,
 	EventPage,
 	EventUpdate,
+	FeedbackKind,
 	GuestList,
 	NewEvent,
 	Interaction,
@@ -189,5 +190,18 @@ export const api = {
 	// Notifications
 	notifications: () => call<NotificationPage>('GET', '/notifications'),
 	unreadNotifications: async () => (await call<{ unread_count: number }>('GET', '/notifications/unread')).unread_count,
-	markNotificationsSeen: () => call<void>('POST', '/notifications/seen')
+	markNotificationsSeen: () => call<void>('POST', '/notifications/seen'),
+
+	// Feedback (see docs/analytics.md): what people tell us themselves.
+	sendFeedback: (kind: FeedbackKind, fields: { body?: string; score?: number; screen?: string } = {}) =>
+		call<void>('POST', '/feedback', {
+			body: {
+				kind,
+				body: fields.body?.trim() || undefined,
+				score: fields.score,
+				screen: fields.screen?.slice(0, 40),
+				platform: 'web',
+				app_version: config.version
+			}
+		})
 };

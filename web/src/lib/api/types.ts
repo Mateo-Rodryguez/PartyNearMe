@@ -262,3 +262,6 @@ export interface GuestList {
 	requested: Person[];
 	going: Person[];
 }
+
+/** What people can tell us; the same kinds as the apps (FeedbackKind). */
+export type FeedbackKind = 'love' | 'problem' | 'idea' | 'nps' | 'heard_from' | 'leaving';

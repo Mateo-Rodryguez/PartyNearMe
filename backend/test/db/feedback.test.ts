@@ -22,6 +22,13 @@ describe("POST /feedback", () => {
     expect(rows.filter((r) => r.kind === "nps").map((r) => r.score).sort()).toEqual([3, 9]);
   });
 
+  it("takes feedback from the web version too", async () => {
+    const alice = await ctx.createUser();
+    expect((await send(alice, { kind: "idea", body: "Dark mode on the site", platform: "web" })).statusCode).toBe(204);
+    const [row] = await ctx.db<{ platform: string }[]>`select platform from public.feedback where user_id = ${alice}`;
+    expect(row?.platform).toBe("web");
+  });
+
   it("turns away incomplete or unknown answers", async () => {
     const alice = await ctx.createUser();
     expect((await send(alice, { kind: "nps" })).statusCode).toBe(400);
@@ -29,7 +36,7 @@ describe("POST /feedback", () => {
     expect((await send(alice, { kind: "idea" })).statusCode).toBe(400);
     expect((await send(alice, { kind: "idea", body: "x", score: 5 })).statusCode).toBe(400);
     expect((await send(alice, { kind: "heard_from", body: "a billboard" })).statusCode).toBe(400);
-    expect((await send(alice, { kind: "love", body: "hi", platform: "web" })).statusCode).toBe(400);
+    expect((await send(alice, { kind: "love", body: "hi", platform: "windows" })).statusCode).toBe(400);
     expect((await send(alice, { kind: "love", body: "hi", user_id: alice })).statusCode).toBe(400);
   });
 
