@@ -15,6 +15,8 @@ final class FeedModel {
             return try await feed.page(app: app, cursor: cursor)
         }
         model = self
+        // The server can take a while to wake; the last feed shows meanwhile.
+        if let cache = app.feedCache { paged.seed(cache.load(userId: app.myId)) }
     }
 
     private func page(app: AppModel, cursor: String?) async throws -> ([Post], String?) {
@@ -24,6 +26,7 @@ final class FeedModel {
         }
         // A nil page means the ranked list behind the cursor is gone; pull to refresh starts a new one.
         guard let page = try await app.api.feed(lat: here?.0, lng: here?.1, cursor: cursor) else { return ([], nil) }
+        if cursor == nil { app.feedCache?.save(userId: app.myId, posts: page.posts) }
         return (page.posts, page.nextCursor)
     }
 }

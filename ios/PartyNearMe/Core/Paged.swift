@@ -13,6 +13,9 @@ final class Paged<Item: Identifiable> {
 
     @ObservationIgnored private var cursor: String?
     @ObservationIgnored private let load: (String?) async throws -> ([Item], String?)
+    /// The items are a saved copy, not a loaded page: no more pages follow them,
+    /// and the first real page replaces them.
+    @ObservationIgnored private var seeded = false
     /// Bumped on refresh, so a page from before the refresh is thrown away.
     @ObservationIgnored private var generation = 0
 
@@ -28,16 +31,24 @@ final class Paged<Item: Identifiable> {
         await fetch(replacing: true)
     }
 
+    /// Shows a saved copy (such as the last feed) until the first page loads. Only
+    /// before anything has loaded, so it never covers fresher items.
+    func seed(_ copy: [Item]) {
+        guard !loadedOnce, items.isEmpty, !copy.isEmpty else { return }
+        items = copy
+        seeded = true
+    }
+
     /// Loads the next page, unless one is already loading or there is none.
     func loadMore() async {
-        guard !loading, hasMore, loadedOnce, error == nil else { return }
+        guard !loading, hasMore, loadedOnce, !seeded, error == nil else { return }
         await fetch(replacing: false)
     }
 
     /// After an error at the end of the list.
     func retry() async {
         error = nil
-        await fetch(replacing: !loadedOnce)
+        await fetch(replacing: !loadedOnce || seeded)
     }
 
     /// Call from a row's onAppear: loads more when it's within a few rows of the end.
@@ -61,6 +72,7 @@ final class Paged<Item: Identifiable> {
             let (page, next) = try await load(cursor)
             guard started == generation else { return }
             items = replacing ? page : items + page.filter { new in !items.contains { $0.id == new.id } }
+            if replacing { seeded = false }
             cursor = next
             hasMore = next != nil
         } catch is CancellationError {
