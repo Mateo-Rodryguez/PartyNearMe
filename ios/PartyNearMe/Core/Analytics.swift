@@ -211,10 +211,10 @@ final class Analytics {
     /// "PUT /posts/:id/like" for "PUT" and "/posts/0b9e.../like?x=1": ids and
     /// tokens become ":id", so calls group by what they do, never by whom.
     nonisolated static func endpoint(method: String, path: String) -> String {
-        let bare = path.split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false).first.map(String.init) ?? path
-        let segments = bare.split(separator: "/", omittingEmptySubsequences: false).map { segment -> String in
-            let isNumber = !segment.isEmpty && segment.allSatisfy(\.isNumber)
-            return segment.count >= 16 || isNumber ? ":id" : String(segment)
+        let bare: String = path.components(separatedBy: "?").first ?? path
+        let segments: [String] = bare.components(separatedBy: "/").map { (segment: String) -> String in
+            let isNumber = !segment.isEmpty && segment.allSatisfy { $0.isNumber }
+            return segment.count >= 16 || isNumber ? ":id" : segment
         }
         return "\(method.uppercased()) \(segments.joined(separator: "/"))"
     }
