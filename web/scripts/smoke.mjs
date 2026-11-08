@@ -103,6 +103,7 @@ let newAccount = false;
 
 const browser = await chromium.launch();
 const errors = [];
+const events = [];
 for (const scheme of ['dark', 'light']) {
 	const context = await browser.newContext({
 		viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, colorScheme: scheme,
@@ -115,6 +116,9 @@ for (const scheme of ['dark', 'light']) {
 		const key = `${route.request().method()} ${new URL(url).pathname}`;
 		calls.set(key, (calls.get(key) ?? 0) + 1);
 		if (calls.get(key) === 8) errors.push(`${scheme}: ${key} was requested 8 times`);
+		if (url.includes('supabase.co/auth/v1/token')) {
+			return route.fulfill({ json: { access_token: 't', refresh_token: 'r', expires_in: 3600, user: { id: me.id, email: 'mateo@example.com' } } });
+		}
 		if (url.includes('supabase.co/auth/v1/settings')) return route.fulfill({ json: { external: { google: true, email: true } } });
 		if (route.request().method() === 'POST' && /\/messages$/.test(url)) {
 			const { body } = route.request().postDataJSON();
@@ -137,6 +141,12 @@ for (const scheme of ['dark', 'light']) {
 			setTimeout(() => ws.send(JSON.stringify({ topic: frame.topic, event: 'postgres_changes', payload: { data: { type: 'INSERT', record } } })), 200);
 		});
 	});
+	// Usage stats: kept to check what was sent, never forwarded.
+	await context.route(/eu\.i\.posthog\.com/, (route) => {
+		const body = JSON.parse(route.request().postData() ?? '{}');
+		events.push(...(body.batch ?? []));
+		return route.fulfill({ json: { status: 1 } });
+	});
 	// The map's style: a plain background, so no tiles are fetched.
 	await context.route(/tiles\.openfreemap\.org/, (route) =>
 		route.fulfill({ json: { version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#2a2633' } }] } })
@@ -145,8 +155,11 @@ for (const scheme of ['dark', 'light']) {
 	page.on('console', (m) => m.type() === 'error' && errors.push(`${scheme} ${page.url()}: ${m.text()}`));
 	page.on('pageerror', (e) => errors.push(`${scheme} ${page.url()}: ${e.message}`));
 
+	// Leaving a page sends its usage stats; Playwright's own navigation doesn't show that request.
+	const leave = () => page.evaluate(() => dispatchEvent(new Event('pagehide'))).catch(() => undefined);
 	const shot = async (name, path, waitFor) => {
 		calls.clear(); // Counts are per page load.
+		await leave();
 		await page.goto(site + path);
 		await page.getByText(waitFor).first().waitFor({ timeout: 10_000 });
 		await page.waitForTimeout(300);
@@ -155,11 +168,13 @@ for (const scheme of ['dark', 'light']) {
 	await shot('landing', '/', 'PartyNearMe');
 	await shot('signin', '/signin', 'Continue with Google');
 
-	// Signed in from here on.
-	await page.evaluate((userId) => localStorage.setItem('pnm.session', JSON.stringify({ accessToken: 't', refreshToken: 'r', expiresAt: Date.now() / 1000 + 3600, userId })), me.id);
-	// A new account goes through setup first.
+	// Signing in with email; a new account goes through setup first.
 	newAccount = true;
-	await shot('setup-username', '/feed', 'Pick a username');
+	await page.getByPlaceholder('Email').fill('mateo@example.com');
+	await page.getByPlaceholder('Password').fill('a-long-password');
+	await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+	await page.getByText('Pick a username').waitFor();
+	await page.screenshot({ path: `${out}/setup-username-${scheme}.png` });
 	await page.getByLabel('Username').fill('New Name!');
 	await page.getByRole('button', { name: 'Continue' }).click();
 	await page.getByText('What are you into?').waitFor();
@@ -181,7 +196,7 @@ for (const scheme of ['dark', 'light']) {
 	await page.screenshot({ path: `${out}/recommend-${scheme}.png` });
 	await page.getByRole('button', { name: 'Send', exact: true }).click();
 	await page.getByText('Thank you! Tell a friend tonight').waitFor();
-	await page.getByRole('button', { name: 'Like' }).first().click();
+	await Promise.all([page.waitForResponse(/\/like$/), page.getByRole('button', { name: 'Like' }).first().click()]);
 	await page.getByText('18 likes').waitFor();
 	await shot('nearby', '/nearby', 'Rooftop Sunset Session');
 	await shot('party', `/e/${party.id}`, 'House music on the roof');
@@ -258,6 +273,7 @@ for (const scheme of ['dark', 'light']) {
 	await page.getByRole('checkbox').uncheck();
 	await page.getByRole('button', { name: 'Share' }).click();
 	await page.waitForURL(/\/p\//);
+	await leave();
 	await page.goto(`${site}/search`);
 	await page.getByPlaceholder('Search people').fill('an');
 	await page.getByText('@ana').waitFor();
@@ -266,10 +282,22 @@ for (const scheme of ['dark', 'light']) {
 	// Desktop layout.
 	await page.setViewportSize({ width: 1280, height: 860 });
 	await shot('feed-desktop', '/feed', 'What a night');
+	await leave();
+	await page.waitForTimeout(200);
 	await context.close();
 }
 await browser.close();
 server.close();
+
+// Usage stats went out like the apps', and never with anything personal.
+const names = new Set(events.map((e) => e.event));
+for (const name of ['$screen', 'auth_succeeded', 'account_created', 'onboarding_completed', 'post_liked', 'rsvp_changed', 'feedback_sent', 'post_created']) {
+	if (!names.has(name)) errors.push(`Usage stats: no ${name} event was sent`);
+}
+for (const e of events) {
+	if (e.properties?.platform !== 'web') errors.push(`Usage stats: ${e.event} without platform web`);
+	if (JSON.stringify(e).includes('mateo@') || JSON.stringify(e).includes('Testing')) errors.push(`Usage stats: ${e.event} carries personal data`);
+}
 
 if (errors.length) {
 	console.error(`Console errors:\n${errors.join('\n')}`);

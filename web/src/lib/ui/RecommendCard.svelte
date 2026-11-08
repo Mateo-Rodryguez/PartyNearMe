@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { analytics } from '#lib/analytics.js';
 	import { api } from '#lib/api/client.js';
 	import { toast } from '#lib/toast.svelte.js';
 	import Icon from './Icon.svelte';
@@ -10,6 +11,7 @@
 	let score = $state<number | null>(null);
 	let reason = $state('');
 	let busy = $state(false);
+	analytics.capture('recommend_shown');
 
 	async function send() {
 		if (score === null) return;
@@ -29,7 +31,10 @@
 <section class="card" aria-label="Would you recommend PartyNearMe?">
 	<div class="top">
 		<h2>How likely are you to recommend PartyNearMe to a friend?</h2>
-		<button class="close" aria-label="Not now" onclick={ondone}><Icon name="close" size={18} /></button>
+		<button class="close" aria-label="Not now" onclick={() => {
+				analytics.capture('recommend_dismissed');
+				ondone();
+			}}><Icon name="close" size={18} /></button>
 	</div>
 	<div class="scale" role="radiogroup" aria-label="Score from 0 to 10">
 		{#each Array.from({ length: 11 }, (_, n) => n) as n (n)}

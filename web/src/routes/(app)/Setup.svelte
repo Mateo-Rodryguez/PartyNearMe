@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { analytics, screenOf } from '#lib/analytics.js';
 	import { api } from '#lib/api/client.js';
 	import type { Interest, OwnProfile } from '#lib/api/types.js';
 	import { currentLocation } from '#lib/location.js';
@@ -37,6 +38,8 @@
 	});
 
 	const valid = $derived(USERNAME.test(username));
+	// Each step is its own screen, so the funnel shows where people give up.
+	$effect(() => analytics.screenView(['profile_setup', 'onboarding_interests', 'onboarding_heard_from', 'onboarding_location'][step]));
 
 	async function saveName(e: SubmitEvent) {
 		e.preventDefault();
@@ -45,6 +48,7 @@
 		error = null;
 		try {
 			saved = await api.updateMe({ username, ...(displayName.trim() ? { display_name: displayName.trim() } : {}) });
+			analytics.capture('account_created');
 			step = 1;
 		} catch (err) {
 			error = err instanceof Error ? err.message : "Couldn't save that";
@@ -71,16 +75,20 @@
 
 	function saveSource() {
 		// Never holds up setup: sent in the background, and a failure is dropped.
+		if (source) analytics.capture('heard_about_us', { source });
 		if (source) void api.sendFeedback('heard_from', { body: source, screen: 'onboarding_heard_from' }).catch(() => undefined);
 		step = 3;
 	}
 
 	async function finish(askLocation: boolean) {
+		let allowed = false;
 		if (askLocation) {
 			busy = true;
-			await currentLocation();
+			allowed = (await currentLocation()) != null;
 			busy = false;
 		}
+		analytics.capture('onboarding_completed', { interests: picked.length, location: allowed });
+		analytics.screenView(screenOf(location.pathname, profile.id));
 		if (saved) ondone(saved);
 	}
 

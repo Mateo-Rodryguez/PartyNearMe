@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { analytics } from '#lib/analytics.js';
 	import { api } from '#lib/api/client.js';
 	import type { ListedPerson } from '#lib/api/types.js';
 	import { nameOf } from '#lib/format.js';
@@ -25,6 +26,7 @@
 			try {
 				const page = await api.searchUsers(q);
 				if (!stale) results = page.users;
+				if (!stale && !page.users.length && q.length >= 3) analytics.capture('search_no_results', { length: q.length });
 			} catch {
 				if (!stale) results = [];
 			} finally {

@@ -8,6 +8,8 @@ const supabase = 'https://vvkckzrhzgdrazhjitse.supabase.co';
 const realtime = 'wss://vvkckzrhzgdrazhjitse.supabase.co';
 // Map tiles for picking a party's spot (free, no key).
 const tiles = 'https://tiles.openfreemap.org';
+// Usage stats (see docs/analytics.md).
+const posthog = 'https://eu.i.posthog.com';
 const uploads = 'https://630c8ac9872f11e09ffed9fe3cb05b0c.r2.cloudflarestorage.com';
 
 // Node's environment, typed here so the config needs no @types/node.
@@ -34,7 +36,7 @@ export default defineConfig({
 					// Photos come from the media bucket; avatars and covers too.
 					'img-src': ['self', 'data:', 'blob:', 'https:'],
 					// wss: for live chat through Supabase Realtime.
-					'connect-src': ['self', api, supabase, realtime, uploads, tiles],
+					'connect-src': ['self', api, supabase, realtime, uploads, tiles, posthog],
 					// The map draws in a web worker it starts from a blob.
 					'worker-src': ['self', 'blob:'],
 					'base-uri': ['self'],

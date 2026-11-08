@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { analytics } from '#lib/analytics.js';
 	import { api } from '#lib/api/client.js';
 	import type { Event, Interest } from '#lib/api/types.js';
 	import { coverFor, dayLabel } from '#lib/format.js';
@@ -105,6 +106,7 @@
 					publish: true
 				});
 			}
+			if (!editing) analytics.capture('party_created', { has_cover: !!cover, has_kind: interestId != null });
 			if (cover) {
 				try {
 					await api.setCover(saved.id, await api.uploadPhoto(cover.blob));
