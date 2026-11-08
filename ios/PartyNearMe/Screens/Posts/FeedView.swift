@@ -32,6 +32,10 @@ final class FeedModel {
 struct FeedView: View {
     @Environment(AppModel.self) private var app
     @Bindable var paged: Paged<Post>
+    /// Parties near the user, for the row at the top.
+    var parties: [Event] = []
+    /// Opens the new party form.
+    var onStartParty: () -> Void = {}
 
     var body: some View {
         ScrollView {
@@ -42,6 +46,7 @@ struct FeedView: View {
                 }
                 .padding(.horizontal, 20)
                 .frame(height: 52)
+                PartyRail(parties: parties, onStart: onStartParty)
                 ForEach($paged.items) { $post in
                     PostCard(post: $post, onDeleted: { paged.remove { $0.id == post.id } }, onNotInterested: {
                         withAnimation { paged.remove { $0.id == post.id } }
@@ -92,6 +97,67 @@ struct FeedView: View {
         guard let index = items.firstIndex(where: { $0.id == post.id }) else { return }
         let next = items.dropFirst(index + 1).prefix(3)
         ImageCache.shared.prefetch(next.flatMap { $0.media.compactMap { $0.url(minWidth: 1080) } })
+    }
+}
+
+/// "Happening near you": round party covers, story style, with "Start one" first.
+private struct PartyRail: View {
+    let parties: [Event]
+    let onStart: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("HAPPENING NEAR YOU")
+                .font(.overline)
+                .tracking(1)
+                .foregroundStyle(Color.appSecondaryText)
+                .padding(.horizontal, 20)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 6) {
+                    Button(action: onStart) {
+                        RailItem(label: "Start one", ring: false) {
+                            ZStack {
+                                Color.appRaised
+                                Image(systemName: "plus").font(.title2.weight(.semibold)).foregroundStyle(Color.appText)
+                            }
+                        }
+                    }
+                    .buttonStyle(PressStyle())
+                    ForEach(parties) { event in
+                        NavigationLink(value: Route.event(event.id)) {
+                            RailItem(label: event.title, ring: true) {
+                                PartyCover(url: event.coverUrl, title: event.title, showsTitle: false)
+                            }
+                        }
+                        .buttonStyle(PressStyle())
+                    }
+                }
+                .padding(.horizontal, 14)
+            }
+        }
+        .padding(.bottom, 16)
+    }
+}
+
+private struct RailItem<Picture: View>: View {
+    let label: String
+    let ring: Bool
+    @ViewBuilder let picture: () -> Picture
+
+    var body: some View {
+        VStack(spacing: 6) {
+            picture()
+                .frame(width: 62, height: 62)
+                .clipShape(Circle())
+                .padding(4)
+                .overlay { if ring { Circle().strokeBorder(Brand.sunset, lineWidth: 2.5) } }
+            Text(label)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(Color.appText)
+                .lineLimit(1)
+                .frame(width: 74)
+        }
+        .frame(width: 78)
     }
 }
 

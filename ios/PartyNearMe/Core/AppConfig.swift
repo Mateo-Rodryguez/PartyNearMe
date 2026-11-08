@@ -18,6 +18,8 @@ enum AppConfig {
     /// The web page the password reset email leads to.
     static let resetPasswordPage = "\(apiBase)/reset-password"
 
+    /// The web page a shared party opens; it links back into the app.
+    static func partyLink(_ id: String) -> URL { URL(string: "\(apiBase)/e/\(id)")! }
     static let privacyURL = URL(string: "\(apiBase)/privacy")!
     static let termsURL = URL(string: "\(apiBase)/terms")!
 }
