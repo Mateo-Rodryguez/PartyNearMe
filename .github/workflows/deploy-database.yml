@@ -36,10 +36,10 @@ jobs:
           exit $missing
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 3.0.0 # pinned: 3.0 made commands target the local database unless given --remote
       - name: Link project
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
       - name: Show pending migrations
-        run: supabase migration list --password "$SUPABASE_DB_PASSWORD"
+        run: supabase migration list --remote --password "$SUPABASE_DB_PASSWORD"
       - name: Apply migrations
-        run: supabase db push --yes --password "$SUPABASE_DB_PASSWORD"
+        run: supabase db push --remote --yes --password "$SUPABASE_DB_PASSWORD"
