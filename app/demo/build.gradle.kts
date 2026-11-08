@@ -4,14 +4,10 @@ plugins {
     id("org.jetbrains.compose")
 }
 
-// Sample data for screenshots, linked only into debug builds (Android) and
-// switched on only in debug binaries (iOS).
+// Sample data for screenshots, linked only into debug builds.
 apply(from = "android.gradle")
 
 kotlin {
-    iosArm64()
-    iosSimulatorArm64()
-
     applyDefaultHierarchyTemplate()
 
     sourceSets {

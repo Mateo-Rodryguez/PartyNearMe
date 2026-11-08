@@ -5,7 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
-// Networking, models and session logic shared by Android and iOS. Also built
+// Networking, models and session logic for the Android app. Also built
 // for the plain JVM, so its tests run anywhere without the Android SDK.
 val noAndroid = providers.gradleProperty("pnm.noAndroid").isPresent
 if (!noAndroid) apply(from = "android.gradle")
@@ -14,8 +14,6 @@ kotlin {
     jvm {
         compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
     }
-    iosArm64()
-    iosSimulatorArm64()
 
     applyDefaultHierarchyTemplate()
 
@@ -32,7 +30,6 @@ kotlin {
         if (!noAndroid) {
             androidMain.dependencies { implementation(libs.ktor.client.okhttp) }
         }
-        iosMain.dependencies { implementation(libs.ktor.client.darwin) }
         commonTest.dependencies {
             implementation(kotlin("test"))
             implementation(libs.ktor.client.mock)

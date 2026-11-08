@@ -5,9 +5,10 @@ Supabase project as the Android app, with the same JSON, and shares its look:
 the colours, gradients and components in `PartyNearMe/Design` match the
 Android theme in `app/ui`.
 
-This replaces the shared Compose screens on iPhone (`app/iosApp` and
-`app/iosKit`), which stay until every screen here matches them. Android keeps
-using `app/`.
+It replaced the shared Compose screens the iPhone used to run (`app/iosApp`
+and `app/iosKit`, now removed). Android keeps using `app/`, so a new feature is
+built in both: follow the same API calls, and the event names in
+[docs/analytics.md](../docs/analytics.md).
 
 | Folder | What's in it |
 | --- | --- |
@@ -44,5 +45,5 @@ listed in `PartyNearMe/Demo/Demo.swift`.
 3. Parties: Apple Maps nearby, party page, RSVP, create and edit, guest lists (done)
 4. Chats, notifications, party invites, share links, search, saved, settings and safety (done)
 5. Usage stats and feedback, with the same events as Android so one PostHog
-   dashboard covers both ([docs/analytics.md](../docs/analytics.md)) (this)
-6. Remove the Compose iPhone app once everything matches
+   dashboard covers both ([docs/analytics.md](../docs/analytics.md)) (done)
+6. Remove the Compose iPhone app (done)
