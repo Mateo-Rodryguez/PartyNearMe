@@ -35,7 +35,7 @@ final class PartyTests: XCTestCase {
     }
 
     func testDistance() {
-        XCTAssertEqual(Formatting.distance(nil), "")
+        XCTAssertEqual(Formatting.distance(nil, miles: false), "")
         XCTAssertEqual(Formatting.distance(640, miles: false), "650 m away")
         XCTAssertEqual(Formatting.distance(10, miles: false), "50 m away")
         XCTAssertEqual(Formatting.distance(2300, miles: false), "2.3 km away")

@@ -131,11 +131,13 @@ struct PostCard: View {
                 .accessibilityLabel("Share")
             }
 
-            Text(likesText)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(post.likeCount == 0 ? Color.appSecondaryText : Color.appText)
-                .contentTransition(.numericText())
-                .padding(.leading, 4)
+            if !(AppPrefs.shared.hideLikeCounts && !isMine) {
+                Text(likesText)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(post.likeCount == 0 ? Color.appSecondaryText : Color.appText)
+                    .contentTransition(.numericText())
+                    .padding(.leading, 4)
+            }
             Spacer()
             Button { setSaved(!post.savedByMe) } label: {
                 Image(systemName: post.savedByMe ? "bookmark.fill" : "bookmark")

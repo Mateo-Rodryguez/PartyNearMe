@@ -71,6 +71,20 @@ protocol PartyAPI: AnyObject {
 
     /// People by username or name.
     func searchUsers(_ query: String) async throws -> [ListedPerson]
+    func savedPosts(cursor: String?) async throws -> PostPage
+    func savedEvents() async throws -> [Event]
+    func blockedUsers() async throws -> [ListedPerson]
+    /// Nil hides the heart.
+    func setRelationshipStatus(_ status: String?) async throws -> OwnProfile
+    func removeAvatar() async throws
+    func settings() async throws -> AccountSettings
+    func updateSettings(_ settings: AccountSettings) async throws -> AccountSettings
+    /// Deletes the signed-in account and everything it owns.
+    func deleteAccount() async throws
+    /// Open reports, one entry per reported thing. Moderators only.
+    func moderationQueue() async throws -> [ReportedItem]
+    /// Acts on a reported thing and closes its reports. Moderators only.
+    func moderate(_ targetType: String, id: String, action: ModerationAction, note: String?) async throws
 
     // Chat
     func inbox(cursor: String?) async throws -> ConversationPage
@@ -299,6 +313,44 @@ final class APIClient: PartyAPI {
         return page.users
     }
 
+    func savedPosts(cursor: String?) async throws -> PostPage {
+        try await call("GET", "/me/saved/posts", query: [.init(name: "cursor", value: cursor)])
+    }
+
+    func savedEvents() async throws -> [Event] {
+        let list: EventList = try await call("GET", "/me/saved/events")
+        return list.events
+    }
+
+    func blockedUsers() async throws -> [ListedPerson] {
+        let page: PeoplePage = try await call("GET", "/me/blocks")
+        return page.users
+    }
+
+    func setRelationshipStatus(_ status: String?) async throws -> OwnProfile {
+        try await call("PATCH", "/me", body: RelationshipBody(relationshipStatus: status))
+    }
+
+    func removeAvatar() async throws { try await callUnit("DELETE", "/me/avatar") }
+
+    func settings() async throws -> AccountSettings { try await call("GET", "/me/settings") }
+
+    func updateSettings(_ settings: AccountSettings) async throws -> AccountSettings {
+        try await call("PATCH", "/me/settings", body: settings)
+    }
+
+    func deleteAccount() async throws { try await callUnit("DELETE", "/me") }
+
+    func moderationQueue() async throws -> [ReportedItem] {
+        let queue: ModerationQueue = try await call("GET", "/moderation/queue")
+        return queue.items
+    }
+
+    func moderate(_ targetType: String, id: String, action: ModerationAction, note: String?) async throws {
+        try await callUnit("POST", "/moderation/actions",
+                           body: ModerationBody(targetType: targetType, targetId: id, action: action.rawValue, note: note))
+    }
+
     // MARK: Chat
 
     func inbox(cursor: String?) async throws -> ConversationPage {
@@ -399,6 +451,17 @@ final class APIClient: PartyAPI {
     private struct UserIdBody: Encodable { let userId: String }
     private struct UserIdsBody: Encodable { let userIds: [String] }
     private struct UnreadCount: Decodable { let unreadCount: Int }
+    private struct ModerationQueue: Decodable { let items: [ReportedItem] }
+    private struct ModerationBody: Encodable { let targetType: String; let targetId: String; let action: String; let note: String? }
+    /// Always sends the key, so a nil reaches the server as null and hides the heart.
+    private struct RelationshipBody: Encodable {
+        let relationshipStatus: String?
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encode(relationshipStatus, forKey: .relationshipStatus)
+        }
+        private enum CodingKeys: String, CodingKey { case relationshipStatus = "relationship_status" }
+    }
     /// Encodes as {"interest_id":null}: the one place a null has to reach the server.
     private struct ClearKind: Encodable {
         func encode(to encoder: Encoder) throws {

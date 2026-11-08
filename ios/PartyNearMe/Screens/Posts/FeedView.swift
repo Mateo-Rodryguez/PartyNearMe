@@ -43,6 +43,13 @@ struct FeedView: View {
                 HStack {
                     Wordmark(size: 26)
                     Spacer()
+                    NavigationLink(value: Route.search) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.title3.weight(.semibold))
+                            .foregroundStyle(Color.appText)
+                            .frame(width: 42, height: 42)
+                    }
+                    .accessibilityLabel("Search people")
                     NavigationLink(value: Route.notifications) {
                         Image(systemName: "bell")
                             .font(.title3.weight(.semibold))

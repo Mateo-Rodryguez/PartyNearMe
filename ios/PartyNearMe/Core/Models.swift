@@ -536,3 +536,76 @@ struct NotificationPage: Decodable {
 
     private enum CodingKeys: String, CodingKey { case notifications, unreadCount }
 }
+
+// MARK: Settings and safety
+
+/// Account settings kept on the server, so they apply on every phone.
+struct AccountSettings: Codable, Equatable {
+    /// "everyone" or "following".
+    var messagesFrom = "everyone"
+    var pushMessages = true
+    var pushRsvps = true
+    var pushReminders = true
+    var pushComments = true
+
+    init() {}
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        messagesFrom = try c.decodeIfPresent(String.self, forKey: .messagesFrom) ?? "everyone"
+        pushMessages = try c.decodeIfPresent(Bool.self, forKey: .pushMessages) ?? true
+        pushRsvps = try c.decodeIfPresent(Bool.self, forKey: .pushRsvps) ?? true
+        pushReminders = try c.decodeIfPresent(Bool.self, forKey: .pushReminders) ?? true
+        pushComments = try c.decodeIfPresent(Bool.self, forKey: .pushComments) ?? true
+    }
+}
+
+/// Something people reported, with all its open reports, for moderators.
+struct ReportedItem: Decodable, Equatable, Identifiable {
+    let targetType: String
+    let targetId: String
+    let reportCount: Int
+    var reasons: [String]
+    let firstReportedAt: String
+    /// Nil when it was deleted after being reported.
+    var preview: ReportedPreview?
+
+    var id: String { "\(targetType):\(targetId)" }
+
+    init(targetType: String, targetId: String, reportCount: Int, reasons: [String] = [], firstReportedAt: String,
+         preview: ReportedPreview? = nil) {
+        self.targetType = targetType
+        self.targetId = targetId
+        self.reportCount = reportCount
+        self.reasons = reasons
+        self.firstReportedAt = firstReportedAt
+        self.preview = preview
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        targetType = try c.decode(String.self, forKey: .targetType)
+        targetId = try c.decode(String.self, forKey: .targetId)
+        reportCount = try c.decode(Int.self, forKey: .reportCount)
+        reasons = try c.decodeIfPresent([String].self, forKey: .reasons) ?? []
+        firstReportedAt = try c.decode(String.self, forKey: .firstReportedAt)
+        preview = try c.decodeIfPresent(ReportedPreview.self, forKey: .preview)
+    }
+
+    private enum CodingKeys: String, CodingKey { case targetType, targetId, reportCount, reasons, firstReportedAt, preview }
+}
+
+struct ReportedPreview: Decodable, Equatable {
+    let title: String
+    var body: String?
+    var imageUrl: String?
+    var status: String?
+    var userId: String?
+}
+
+/// What a moderator does with a reported thing; it closes its reports.
+enum ModerationAction: String {
+    case remove, restore, dismiss
+    case removePicture = "remove_picture"
+    case deleteAccount = "delete_account"
+}

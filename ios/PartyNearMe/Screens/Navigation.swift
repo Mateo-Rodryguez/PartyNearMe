@@ -15,6 +15,11 @@ enum Route: Hashable {
     /// The one-to-one chat with someone, made if it's new.
     case chatWith(userId: String, title: String)
     case notifications
+    case search
+    case saved
+    case settings
+    case blocked
+    case moderation
 }
 
 /// Links that open a screen: partynearme://party/<id> and partynearme://post/<id>,
@@ -60,6 +65,11 @@ extension View {
             case let .chat(id, title): ChatView(start: .conversation(id), title: title)
             case let .chatWith(userId, title): ChatView(start: .person(userId), title: title)
             case .notifications: NotificationsView()
+            case .search: SearchView()
+            case .saved: SavedView()
+            case .settings: SettingsView()
+            case .blocked: BlockedView()
+            case .moderation: ModerationView()
             }
         }
     }

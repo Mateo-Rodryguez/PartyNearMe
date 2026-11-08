@@ -13,7 +13,8 @@ enum Demo {
     static let screens = ["sign_in", "sign_up", "forgot", "profile_setup", "onboarding", "location", "app",
                           "feed", "post", "comments", "new_post", "me", "user", "followers",
                           "nearby", "nearby_map", "event", "my_event", "new_event", "edit_event", "pick_spot", "guests",
-                          "inbox", "chat", "party_chat", "notifications", "invite"]
+                          "inbox", "chat", "party_chat", "notifications", "invite",
+                          "search", "saved", "settings", "blocked", "moderation"]
 
     static func model(for screen: String) -> AppModel {
         let signedOut = ["sign_in", "sign_up", "forgot"].contains(screen)
@@ -52,8 +53,26 @@ enum Demo {
         case "party_chat": NavigationStack { ChatView(start: .conversation("c2"), title: "Rooftop Sunset Party").routeDestinations() }
         case "notifications": NavigationStack { NotificationsView().routeDestinations() }
         case "invite": NavigationStack { InviteView(eventId: "e1", title: "Rooftop Sunset Party") }
+        case "search": NavigationStack { SearchView().routeDestinations() }
+        case "saved": NavigationStack { SavedView().routeDestinations() }
+        case "settings": NavigationStack { SettingsView().routeDestinations() }
+        case "blocked": NavigationStack { BlockedView().routeDestinations() }
+        case "moderation": NavigationStack { ModerationView().routeDestinations() }
         default: SignInView()
         }
+    }
+
+    static var reports: [ReportedItem] {
+        [
+            ReportedItem(targetType: "post", targetId: "p3", reportCount: 3, reasons: ["Spam", "Spam", "Something else"],
+                         firstReportedAt: ago(3 * 3600),
+                         preview: ReportedPreview(title: "Post by @sam", body: "Sunset session on the roof",
+                                                  imageUrl: "https://picsum.photos/seed/party3/200/200", status: "visible", userId: sam.id)),
+            ReportedItem(targetType: "comment", targetId: "c9", reportCount: 1, reasons: ["Harassment or hate"],
+                         firstReportedAt: ago(26 * 3600),
+                         preview: ReportedPreview(title: "Comment by @alex", body: "You won't get in looking like that", userId: alex.id)),
+            ReportedItem(targetType: "message", targetId: "m7", reportCount: 1, reasons: ["Spam"], firstReportedAt: ago(2 * 86400)),
+        ]
     }
 
     static let samira = Person(id: "p-samira", username: "samira.k", displayName: "Samira Khan",
@@ -383,6 +402,26 @@ final class DemoAPI: PartyAPI {
     func guests(_ eventId: String) async throws -> GuestList { Demo.guests }
     func approveGuest(_ eventId: String, userId: String) async throws {}
     func removeGuest(_ eventId: String, userId: String) async throws {}
+
+    func savedPosts(cursor: String?) async throws -> PostPage {
+        PostPage(posts: cursor == nil ? Demo.feed + Demo.myPosts.filter { $0.isVisible } : [], nextCursor: nil)
+    }
+    func savedEvents() async throws -> [Event] { Array(events.prefix(3)) }
+    func blockedUsers() async throws -> [ListedPerson] { Array(Demo.people.suffix(2)) }
+    func setRelationshipStatus(_ status: String?) async throws -> OwnProfile {
+        profile.relationshipStatus = status
+        return profile
+    }
+    func removeAvatar() async throws {}
+    private var account = AccountSettings()
+    func settings() async throws -> AccountSettings { account }
+    func updateSettings(_ settings: AccountSettings) async throws -> AccountSettings {
+        account = settings
+        return account
+    }
+    func deleteAccount() async throws {}
+    func moderationQueue() async throws -> [ReportedItem] { Demo.reports }
+    func moderate(_ targetType: String, id: String, action: ModerationAction, note: String?) async throws {}
 
     func invite(_ eventId: String, userIds: [String]) async throws -> InviteResult { InviteResult(sent: userIds.count, skipped: 0) }
     func searchUsers(_ query: String) async throws -> [ListedPerson] {
