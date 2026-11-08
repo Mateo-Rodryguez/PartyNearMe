@@ -48,6 +48,11 @@ final class SessionManager {
         return true
     }
 
+    /// Signs in with the identity token from Sign in with Apple.
+    func signInWithApple(idToken: String, nonce: String) async throws {
+        set(try await auth.signIn(provider: "apple", idToken: idToken, nonce: nonce))
+    }
+
     func signOut() async {
         guard let current = session else { return }
         set(nil)

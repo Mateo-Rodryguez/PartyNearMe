@@ -24,6 +24,11 @@ targets:
     dependencies:
       - package: Sentry
         product: Sentry
+    # Capabilities. The App ID on developer.apple.com needs the same ones (docs/store-release.md).
+    entitlements:
+      path: PartyNearMe/PartyNearMe.entitlements
+      properties:
+        com.apple.developer.applesignin: [Default]
     info:
       path: PartyNearMe/Info.plist
       properties:

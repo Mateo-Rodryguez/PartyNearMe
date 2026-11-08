@@ -70,6 +70,11 @@ final class AuthTests: XCTestCase {
         }
     }
 
+    func testAppleNonceIsLowercaseHexSha256() {
+        // SHA-256 of "abc" from FIPS 180-2.
+        XCTAssertEqual(AppleNonce.sha256("abc"), "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+    }
+
     private func message(_ result: Result<String, APIError>) -> String? {
         if case .failure(let error) = result { return error.message }
         return nil

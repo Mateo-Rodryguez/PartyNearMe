@@ -80,7 +80,7 @@ final class AppModel {
 
     /// The sign-in providers switched on in Supabase. Empty when offline.
     func providers() async -> Set<String> {
-        if demoScreen != nil { return ["google"] }
+        if demoScreen != nil { return ["apple", "google"] }
         return (try? await auth.providers()) ?? []
     }
 

@@ -1,4 +1,5 @@
 import AuthenticationServices
+import CryptoKit
 import SwiftUI
 
 /// Sign in, create an account, or ask for a password reset link: one screen, three modes.
@@ -7,6 +8,7 @@ struct SignInView: View {
 
     @Environment(AppModel.self) private var app
     @Environment(\.webAuthenticationSession) private var webAuthenticationSession
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var mode: Mode
     @State private var email = ""
@@ -18,6 +20,10 @@ struct SignInView: View {
     @State private var sentTo: (email: String, reset: Bool)?
     /// Google sign-in shows once it's switched on in Supabase.
     @State private var google = false
+    /// Sign in with Apple, likewise once the Apple provider is on in Supabase.
+    @State private var apple = false
+    /// The raw nonce of the Apple sign-in in progress; Apple gets its SHA-256.
+    @State private var appleNonce = ""
     @FocusState private var focus: Field?
 
     private enum Field { case email, password }
@@ -53,7 +59,11 @@ struct SignInView: View {
         }
         .animation(.snappy, value: mode)
         .animation(.snappy, value: error)
-        .task { google = await app.providers().contains("google") }
+        .task {
+            let providers = await app.providers()
+            google = providers.contains("google")
+            apple = providers.contains("apple")
+        }
     }
 
     @ViewBuilder private var form: some View {
@@ -98,6 +108,18 @@ struct SignInView: View {
         PrimaryButton(primaryTitle, busy: busy, action: submit)
             .disabled(!ready && !busy)
             .padding(.top, 4)
+
+        if apple && mode != .reset {
+            SignInWithAppleButton(.continue, onRequest: { request in
+                appleNonce = PKCE.randomVerifier()
+                request.requestedScopes = [.email]
+                request.nonce = AppleNonce.sha256(appleNonce)
+            }, onCompletion: finishAppleSignIn)
+            .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+            .frame(height: 48)
+            .clipShape(Capsule())
+            .disabled(busy)
+        }
 
         if google && mode != .reset {
             SecondaryButton("Continue with Google", systemImage: "globe", action: signInWithGoogle)
@@ -219,6 +241,39 @@ struct SignInView: View {
         }
     }
 
+    private func finishAppleSignIn(_ result: Result<ASAuthorization, Error>) {
+        switch result {
+        case .failure(let failure):
+            if (failure as? ASAuthorizationError)?.code == .canceled {
+                app.analytics.capture("auth_cancelled", ["method": "apple"])
+            } else {
+                error = "Sign in with Apple didn't work. Try again."
+                app.analytics.capture("auth_failed", ["method": "apple", "reason": String(failure.localizedDescription.prefix(80))])
+            }
+        case .success(let authorization):
+            guard let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                  let tokenData = credential.identityToken,
+                  let idToken = String(data: tokenData, encoding: .utf8) else {
+                error = "Sign in with Apple didn't work. Try again."
+                app.analytics.capture("auth_failed", ["method": "apple", "reason": "no identity token"])
+                return
+            }
+            let nonce = appleNonce
+            busy = true
+            error = nil
+            Task {
+                do {
+                    try await app.sessions.signInWithApple(idToken: idToken, nonce: nonce)
+                    app.analytics.capture("auth_succeeded", ["method": "apple"])
+                } catch {
+                    self.error = error.userMessage
+                    app.analytics.capture("auth_failed", ["method": "apple", "reason": String(error.userMessage.prefix(80))])
+                }
+                busy = false
+            }
+        }
+    }
+
     private func signInWithGoogle() {
         busy = true
         error = nil
@@ -238,6 +293,13 @@ struct SignInView: View {
             }
             busy = false
         }
+    }
+}
+
+enum AppleNonce {
+    /// Lowercase hex SHA-256, the form Apple puts back in the token and Supabase checks.
+    static func sha256(_ raw: String) -> String {
+        SHA256.hash(data: Data(raw.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 }
 
