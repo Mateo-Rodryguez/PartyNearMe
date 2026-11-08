@@ -23,7 +23,8 @@
 		"vitest": "^5.1.0"
 	},
 	"dependencies": {
-		"blurhash": "^2.0.5"
+		"blurhash": "^2.0.5",
+		"maplibre-gl": "^6.17.0"
 	},
 	"imports": {
 		"#lib/*": "./src/lib/*"

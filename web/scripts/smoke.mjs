@@ -15,7 +15,7 @@ mkdirSync(out, { recursive: true });
 
 // Serves build/ the way Cloudflare Pages does with static/_redirects: files as
 // they are, the landing page at /, and the app shell for everything else.
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
 const server = createServer((req, res) => {
 	const path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
 	let file = join(build, path === '/' ? 'index.html' : path);
@@ -47,6 +47,8 @@ const routes = [
 	[/\/events\/nearby/, { events: [party, { ...party, id: '66666666-6666-4666-8666-666666666666', title: 'Warehouse Techno', cover_url: null, my_rsvp: 'going', friends_going: [] }], next_cursor: null }],
 	[/\/events\/[^/]+\/posts/, { posts: [post], next_cursor: null }],
 	[/\/events\/[^/]+\/rsvp/, { ...party, my_rsvp: 'going', going_count: 43 }],
+	[/\/events\/[^/]+\/guests$/, { requested: [ana], going: [me] }],
+	[/^\/events$/, { ...party, organiser: me }],
 	[/\/events\/[^/]+$/, party],
 	[/\/posts\/[^/]+\/comments/, { comments: [{ id: 'c1', post_id: post.id, author: me, body: 'See you there!', can_delete: true, created_at: soon }], next_cursor: null }],
 	[/\/posts\/[^/]+$/, post],
@@ -82,7 +84,7 @@ const routes = [
 		{ id: 'chat2', party: { id: party.id, title: party.title, cover_url: party.cover_url }, members: [ana, me], unread_count: 0, last_message: { id: '9', conversation_id: 'chat2', sender_id: me.id, body: 'See you all there', created_at: soon }, last_message_at: soon }
 	] }],
 	[/\/interests/, [{ id: 1, slug: 'house', name: 'House' }, { id: 2, slug: 'techno', name: 'Techno' }]],
-	[/\/interactions|\/like|\/save|\/follow/, null]
+	[/\/interactions|\/like|\/save|\/follow|\/approve|\/cover/, null]
 ];
 
 const browser = await chromium.launch();
@@ -117,6 +119,10 @@ for (const scheme of ['dark', 'light']) {
 			setTimeout(() => ws.send(JSON.stringify({ topic: frame.topic, event: 'postgres_changes', payload: { data: { type: 'INSERT', record } } })), 200);
 		});
 	});
+	// The map's style: a plain background, so no tiles are fetched.
+	await context.route(/tiles\.openfreemap\.org/, (route) =>
+		route.fulfill({ json: { version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#2a2633' } }] } })
+	);
 	const page = await context.newPage();
 	page.on('console', (m) => m.type() === 'error' && errors.push(`${scheme} ${page.url()}: ${m.text()}`));
 	page.on('pageerror', (e) => errors.push(`${scheme} ${page.url()}: ${e.message}`));
@@ -148,6 +154,17 @@ for (const scheme of ['dark', 'light']) {
 	await page.getByPlaceholder('Message…').fill('Be there at 10');
 	await page.keyboard.press('Enter');
 	await page.getByText('Be there at 10').waitFor();
+	await shot('host', '/host', 'Publish party');
+	await page.getByLabel("What's the party?").fill('Garden Disco');
+	await page.getByRole('button', { name: 'Tap to pick the spot on the map' }).click();
+	await page.locator('.maplibregl-canvas').waitFor({ timeout: 15_000 });
+	await page.screenshot({ path: `${out}/host-map-${scheme}.png` });
+	await page.getByRole('button', { name: 'Done' }).click();
+	await page.getByRole('button', { name: 'Publish party' }).click();
+	await page.waitForURL(/\/e\/33333333/);
+	await shot('guests', `/e/${party.id}/guests`, 'Asked to come');
+	await page.getByRole('button', { name: 'Approve' }).click();
+	await page.getByText('Going (2)').waitFor();
 	await shot('notifications', '/notifications', 'Amazing!');
 	await shot('settings', '/settings', 'Who can message you');
 	await shot('saved', '/saved', 'Parties');

@@ -228,3 +228,37 @@ export interface MessagePage {
 	messages: Message[];
 	has_more: boolean;
 }
+
+export interface NewEvent {
+	title: string;
+	description?: string;
+	starts_at: string;
+	ends_at?: string;
+	venue_name?: string;
+	interest_id?: number;
+	is_private?: boolean;
+	ticket_url?: string;
+	lat: number;
+	lng: number;
+	publish?: boolean;
+}
+
+/** Changes to a party; empty strings clear description, venue and ticket link. */
+export interface EventUpdate {
+	title?: string;
+	description?: string;
+	starts_at?: string;
+	ends_at?: string;
+	venue_name?: string;
+	interest_id?: number | null;
+	is_private?: boolean;
+	ticket_url?: string;
+	lat?: number;
+	lng?: number;
+	status?: 'published' | 'cancelled';
+}
+
+export interface GuestList {
+	requested: Person[];
+	going: Person[];
+}

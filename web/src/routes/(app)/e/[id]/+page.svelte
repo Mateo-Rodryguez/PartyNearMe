@@ -166,7 +166,15 @@
 			{/if}
 
 			{#if isHost}
-				<p class="muted">You're hosting. Editing and guest lists are in the phone app for now.</p>
+				<div class="host-actions">
+					<a class="btn" href="/e/{event.id}/edit">Edit party</a>
+					{#if event.is_private}
+						<a class="btn" href="/e/{event.id}/guests">Guest list{event.requested_count ? ` (${event.requested_count} waiting)` : ''}</a>
+					{/if}
+				</div>
+			{/if}
+			{#if event.status === 'published' && (isHost || event.my_rsvp === 'going')}
+				<a class="btn outline block" href="/new?party={event.id}"><Icon name="photo" size={18} /> Post photos from the party</a>
 			{/if}
 
 			{#if event.ticket_url}
@@ -270,6 +278,12 @@
 		font-size: 13px;
 	}
 	.rsvp {
+		display: grid;
+		grid-auto-flow: column;
+		grid-auto-columns: 1fr;
+		gap: 10px;
+	}
+	.host-actions {
 		display: grid;
 		grid-auto-flow: column;
 		grid-auto-columns: 1fr;

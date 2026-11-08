@@ -27,6 +27,12 @@ class Prefs {
 		this.apply();
 	}
 
+	/** Whether the night theme is showing, for the few things beyond colours (the map style). */
+	get night(): boolean {
+		if (this.theme !== 'system') return this.theme === 'night';
+		return !matchMedia('(prefers-color-scheme: light)').matches;
+	}
+
 	/** tokens.css switches on data-theme; without it the system setting decides. */
 	private apply() {
 		if (this.theme === 'system') delete document.documentElement.dataset.theme;

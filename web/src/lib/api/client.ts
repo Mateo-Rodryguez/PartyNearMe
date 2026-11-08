@@ -10,6 +10,9 @@ import type {
 	MessagePage,
 	Event,
 	EventPage,
+	EventUpdate,
+	GuestList,
+	NewEvent,
 	Interaction,
 	Interest,
 	NewPost,
@@ -128,6 +131,21 @@ export const api = {
 		await call<void>('DELETE', `/events/${id(eventId)}/rsvp`);
 		return api.event(eventId);
 	},
+	createEvent: (event: NewEvent) => call<Event>('POST', '/events', { body: event }),
+	/** Host only. Cancelling tells guests with a push. A null interest_id takes the kind off. */
+	updateEvent: (eventId: string, update: EventUpdate) => call<Event>('PATCH', `/events/${id(eventId)}`, { body: update }),
+	deleteEvent: (eventId: string) => call<void>('DELETE', `/events/${id(eventId)}`),
+	/** The cover shows once the server has checked the photo. */
+	setCover: (eventId: string, uploadId: string) => call<void>('PUT', `/events/${id(eventId)}/cover`, { body: { upload_id: uploadId } }),
+	removeCover: (eventId: string) => call<void>('DELETE', `/events/${id(eventId)}/cover`),
+	/** Who asked to come and who's going, for the host of a private party. */
+	guests: (eventId: string) => call<GuestList>('GET', `/events/${id(eventId)}/guests`),
+	approveGuest: (eventId: string, userId: string) => call<void>('POST', `/events/${id(eventId)}/guests/${id(userId)}/approve`),
+	/** Declines a request, or takes someone off the guest list. */
+	removeGuest: (eventId: string, userId: string) => call<void>('DELETE', `/events/${id(eventId)}/guests/${id(userId)}`),
+	/** Sends a party invite to each person as a chat message. */
+	invite: (eventId: string, userIds: string[]) =>
+		call<{ sent: number; skipped: number }>('POST', `/events/${id(eventId)}/invites`, { body: { user_ids: userIds } }),
 	saveEvent: (eventId: string, saved: boolean) => call<void>(saved ? 'PUT' : 'DELETE', `/events/${id(eventId)}/save`),
 	savedEvents: async () => (await call<{ events: Event[] }>('GET', '/me/saved/events')).events,
 

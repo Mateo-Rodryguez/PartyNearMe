@@ -8,6 +8,7 @@
 	import Empty from '#lib/ui/Empty.svelte';
 	import EventCard from '#lib/ui/EventCard.svelte';
 	import LoadMore from '#lib/ui/LoadMore.svelte';
+	import Icon from '#lib/ui/Icon.svelte';
 	import Spinner from '#lib/ui/Spinner.svelte';
 	import PageHeader from '../PageHeader.svelte';
 
@@ -66,7 +67,11 @@
 
 <svelte:head><title>Parties near you · PartyNearMe</title></svelte:head>
 
-<PageHeader title="Parties near you" />
+<PageHeader title="Parties near you">
+	{#snippet actions()}
+		<a class="btn primary host" href="/host"><Icon name="add" size={18} /> Host</a>
+	{/snippet}
+</PageHeader>
 
 {#if !here}
 	<div class="ask">
@@ -118,6 +123,11 @@
 {/if}
 
 <style>
+	.host {
+		min-height: 36px;
+		padding: 0 14px 0 10px;
+		gap: 4px;
+	}
 	.ask {
 		display: grid;
 		justify-items: center;
