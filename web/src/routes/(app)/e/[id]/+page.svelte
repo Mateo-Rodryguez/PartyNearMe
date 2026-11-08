@@ -161,8 +161,15 @@
 				</div>
 			{/if}
 
-			{#if event.chat_id}
-				<a class="btn outline block" href="/chat/{event.chat_id}"><Icon name="comment" size={18} /> Party chat</a>
+			{#if event.status === 'published' || event.chat_id}
+				<div class="host-actions">
+					{#if event.status === 'published'}
+						<a class="btn outline" href="/e/{event.id}/invite"><Icon name="send" size={18} /> Invite friends</a>
+					{/if}
+					{#if event.chat_id}
+						<a class="btn outline" href="/chat/{event.chat_id}"><Icon name="comment" size={18} /> Party chat</a>
+					{/if}
+				</div>
 			{/if}
 
 			{#if isHost}

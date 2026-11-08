@@ -1,12 +1,13 @@
 <script lang="ts">
 	import { api } from '#lib/api/client.js';
-	import type { Post } from '#lib/api/types.js';
+	import type { Person, Post } from '#lib/api/types.js';
 	import { count, nameOf, timeAgo } from '#lib/format.js';
 	import { interactions } from '#lib/interactions.js';
 	import { postLink, share } from '#lib/share.js';
 	import { toast } from '#lib/toast.svelte.js';
 	import Avatar from './Avatar.svelte';
 	import Icon from './Icon.svelte';
+	import PeoplePicker from './PeoplePicker.svelte';
 	import Photo from './Photo.svelte';
 	import ReportSheet from './ReportSheet.svelte';
 	import Sheet from './Sheet.svelte';
@@ -25,6 +26,8 @@
 	let reporting = $state(false);
 	let editing = $state(false);
 	let caption = $state('');
+	let tagging = $state(false);
+	let savingTags = $state(false);
 
 	let card = $state<HTMLElement>();
 	let index = $state(0);
@@ -122,6 +125,18 @@
 		}
 	}
 
+	async function saveTags(people: Person[]) {
+		savingTags = true;
+		try {
+			post = await api.setTags(post.id, people.map((p) => p.id));
+			tagging = false;
+		} catch (e) {
+			toast.show(e instanceof Error ? e.message : "Couldn't save that");
+		} finally {
+			savingTags = false;
+		}
+	}
+
 	function onScroll() {
 		if (strip) index = Math.round(strip.scrollLeft / strip.clientWidth);
 	}
@@ -209,6 +224,7 @@
 	<div class="menu">
 		{#if own}
 			<button class="btn block" onclick={() => { menu = false; caption = post.caption ?? ''; editing = true; }}>Edit caption</button>
+			<button class="btn block" onclick={() => { menu = false; tagging = true; }}>Tag people</button>
 			<button class="btn block danger" onclick={() => act('delete')}>Delete post</button>
 		{:else}
 			<button class="btn block" onclick={() => { menu = false; reporting = true; }}>Report post</button>
@@ -219,6 +235,11 @@
 	</div>
 </Sheet>
 <ReportSheet bind:open={reporting} target="post" targetId={post.id} />
+{#if own}
+	<Sheet bind:open={tagging} title="Tag people">
+		<PeoplePicker button="Save" initial={post.tags} busy={savingTags} ondone={saveTags} />
+	</Sheet>
+{/if}
 
 <style>
 	.post {

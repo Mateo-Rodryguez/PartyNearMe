@@ -43,6 +43,7 @@ const post = {
 	media: [{ position: 0, url: photo('#ff3d7f'), thumbnails: { '640': photo('#ff3d7f') }, width: 640, height: 800, blurhash: 'LEHV6nWB2yk8pyo0adR*.7kCMdnj' }, { position: 1, url: photo('#ff8a3d'), thumbnails: {}, width: 640, height: 800 }]
 };
 const routes = [
+	[/\/posts\/77777777-7777-4777-8777-777777777777$/, { ...post, id: '77777777-7777-4777-8777-777777777777', author: me, tags: [] }],
 	[/\/feed/, { posts: [post, { ...post, id: '55555555-5555-4555-8555-555555555555', caption: 'Second one', media: [post.media[1]] }], next_cursor: null }],
 	[/\/events\/nearby/, { events: [party, { ...party, id: '66666666-6666-4666-8666-666666666666', title: 'Warehouse Techno', cover_url: null, my_rsvp: 'going', friends_going: [] }], next_cursor: null }],
 	[/\/events\/[^/]+\/posts/, { posts: [post], next_cursor: null }],
@@ -52,6 +53,9 @@ const routes = [
 	[/\/events\/[^/]+$/, party],
 	[/\/posts\/[^/]+\/comments/, { comments: [{ id: 'c1', post_id: post.id, author: me, body: 'See you there!', can_delete: true, created_at: soon }], next_cursor: null }],
 	[/\/posts\/[^/]+$/, post],
+	[/\/users\/[^/]+\/(followers|following)$/, { users: [{ ...ana, is_following: true }, { ...me, is_following: false }], next_cursor: null }],
+	[/\/events\/[^/]+\/invites$/, { sent: 1, skipped: 0 }],
+	[/\/posts\/[^/]+\/tags$/, { ...post, author: me, tags: [ana] }],
 	[/\/users\/search/, { users: [{ ...ana, is_following: true }] }],
 	[/\/users\/[^/]+\/posts/, { posts: [post, post].map((p, i) => ({ ...p, id: `${p.id.slice(0, -1)}${i}` })), next_cursor: null }],
 	[/\/users\/[^/]+$/, { ...ana, bio: 'Out every weekend', relationship_status: 'single', parties: 9, followers: 120, following: 80, is_following: false }],
@@ -178,8 +182,28 @@ for (const scheme of ['dark', 'light']) {
 	await shot('party', `/e/${party.id}`, 'House music on the roof');
 	await page.getByRole('button', { name: 'Going' }).click();
 	await page.getByText('43 people going').waitFor();
+	await page.getByRole('link', { name: 'Invite friends' }).click();
+	await page.getByRole('button', { name: /Ana/ }).click();
+	await page.getByRole('button', { name: 'Send invites (1)' }).waitFor();
+	await page.waitForTimeout(300); // The button fades in as it's enabled.
+	await page.screenshot({ path: `${out}/invite-${scheme}.png` });
+	await page.getByRole('button', { name: 'Send invites (1)' }).click();
+	await page.getByText('Invite sent').waitFor();
 	await shot('post', `/p/${post.id}`, 'See you there!');
+	// Tagging people on your own post.
+	await shot('own-post', '/p/77777777-7777-4777-8777-777777777777', 'What a night');
+	await page.getByRole('button', { name: 'More options' }).click();
+	await page.getByRole('button', { name: 'Tag people' }).click();
+	await page.getByRole('button', { name: /Ana/ }).click();
+	await page.getByRole('button', { name: 'Save (1)' }).click();
+	await page.getByRole('dialog', { name: 'Tag people' }).waitFor({ state: 'hidden' });
 	await shot('profile', `/u/${ana.id}`, 'Out every weekend');
+	await page.getByRole('link', { name: /Followers/ }).first().click();
+	await page.waitForURL(/\/followers$/);
+	await page.getByRole('button', { name: 'Following' }).first().waitFor();
+	await page.screenshot({ path: `${out}/followers-${scheme}.png` });
+	await page.getByRole('link', { name: /^Following/ }).click();
+	await page.waitForURL(/\/following$/);
 	await shot('me', '/me', 'Your parties');
 	await shot('inbox', '/chat', 'See you all there');
 	await shot('chat', '/chat/chat1', 'Live message arrived');

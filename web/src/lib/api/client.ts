@@ -114,6 +114,8 @@ export const api = {
 	deletePost: (postId: string) => call<void>('DELETE', `/posts/${id(postId)}`),
 	/** An empty caption removes it. The server checks the new words. */
 	updateCaption: (postId: string, caption: string) => call<Post>('PATCH', `/posts/${id(postId)}`, { body: { caption } }),
+	/** Sets everyone tagged on your post; people left out are untagged. */
+	setTags: (postId: string, userIds: string[]) => call<Post>('PUT', `/posts/${id(postId)}/tags`, { body: { user_ids: userIds } }),
 	untagMe: (postId: string) => call<void>('DELETE', `/posts/${id(postId)}/tags/me`),
 	savedPosts: (cursor?: string | null) => call<PostPage>('GET', '/me/saved/posts', { query: { cursor } }),
 

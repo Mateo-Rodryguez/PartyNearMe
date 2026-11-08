@@ -128,8 +128,8 @@
 		<div class="stats">
 			<div><strong>{profile.parties}</strong><span>Parties</span></div>
 			<div><strong>{posts?.items.length ?? 0}{posts && !posts.ended ? '+' : ''}</strong><span>Photos</span></div>
-			<div><strong>{profile.followers}</strong><span>Followers</span></div>
-			<div><strong>{profile.following}</strong><span>Following</span></div>
+			<a href="/u/{profile.id}/followers"><strong>{profile.followers}</strong><span>Followers</span></a>
+			<a href="/u/{profile.id}/following"><strong>{profile.following}</strong><span>Following</span></a>
 		</div>
 	</section>
 	<section class="about">
@@ -210,7 +210,8 @@
 		grid-template-columns: repeat(4, 1fr);
 		text-align: center;
 	}
-	.stats div {
+	.stats div,
+	.stats a {
 		display: grid;
 	}
 	.stats strong {
