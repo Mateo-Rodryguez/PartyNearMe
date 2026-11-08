@@ -78,7 +78,7 @@
 {:else if !post}
 	<Spinner />
 {:else}
-	<PostCard bind:post eager detail />
+	<PostCard bind:post eager detail ongone={() => history.back()} />
 
 	<section id="comments" aria-label="Comments">
 		<form class="compose" onsubmit={send}>

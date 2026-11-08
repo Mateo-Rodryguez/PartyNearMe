@@ -140,7 +140,8 @@ button {
 	font-size: 14px;
 	white-space: nowrap;
 }
-.chip[aria-pressed='true'] {
+.chip[aria-pressed='true'],
+.chip[aria-checked='true'] {
 	background: var(--gradient);
 	border-color: transparent;
 	color: var(--on-primary);
@@ -155,4 +156,12 @@ button {
 		transition: none !important;
 		animation: none !important;
 	}
+}
+
+.btn.danger {
+	color: var(--error);
+}
+textarea.field {
+	resize: vertical;
+	min-height: 80px;
 }

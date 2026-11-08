@@ -1,12 +1,16 @@
 <script lang="ts">
 	import '../app.css';
 	import { browser } from '$app/env';
+	import { prefs } from '#lib/prefs.svelte.js';
 	import { session } from '#lib/session.svelte.js';
 	import { toast } from '#lib/toast.svelte.js';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
-	if (browser) session.start();
+	if (browser) {
+		session.start();
+		prefs.start();
+	}
 </script>
 
 {@render children()}

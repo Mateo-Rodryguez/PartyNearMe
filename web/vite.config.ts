@@ -4,6 +4,9 @@ import { defineConfig } from 'vite';
 
 const api = 'https://partynearme-api.onrender.com';
 const supabase = 'https://vvkckzrhzgdrazhjitse.supabase.co';
+// Photo uploads go straight to the R2 bucket with a signed address.
+const realtime = 'wss://vvkckzrhzgdrazhjitse.supabase.co';
+const uploads = 'https://630c8ac9872f11e09ffed9fe3cb05b0c.r2.cloudflarestorage.com';
 
 export default defineConfig({
 	plugins: [
@@ -23,7 +26,8 @@ export default defineConfig({
 					'style-src': ['self', 'unsafe-inline'],
 					// Photos come from the media bucket; avatars and covers too.
 					'img-src': ['self', 'data:', 'blob:', 'https:'],
-					'connect-src': ['self', api, supabase],
+					// wss: for live chat through Supabase Realtime.
+					'connect-src': ['self', api, supabase, realtime, uploads],
 					'base-uri': ['self'],
 					'form-action': ['self'],
 					'object-src': ['none']

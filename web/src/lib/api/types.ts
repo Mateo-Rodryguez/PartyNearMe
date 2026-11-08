@@ -141,3 +141,50 @@ export interface Interaction {
 	event_id?: string;
 	dwell_ms?: number;
 }
+
+export interface UploadTicket {
+	upload_id: string;
+	upload_url: string;
+	headers: Record<string, string>;
+}
+
+export interface NewPost {
+	upload_ids: string[];
+	caption?: string;
+	event_id?: string;
+	lat?: number;
+	lng?: number;
+	place_name?: string;
+	tag_ids?: string[];
+}
+
+/** Settings kept on the server: who can message the user and which pushes they get. */
+export interface AccountSettings {
+	messages_from: 'everyone' | 'following';
+	push_messages: boolean;
+	push_rsvps: boolean;
+	push_reminders: boolean;
+	push_comments: boolean;
+}
+
+export interface Notification {
+	id: string;
+	/** "like", "comment", "tag", "follow", "rsvp", "request" or "reminder"; others are skipped. */
+	type: string;
+	actor?: Person | null;
+	comment_text?: string | null;
+	post_id?: string | null;
+	post_thumbnail_url?: string | null;
+	event_id?: string | null;
+	event_title?: string | null;
+	event_cover_url?: string | null;
+	created_at: string;
+	unread?: boolean;
+}
+
+export interface NotificationPage {
+	notifications: Notification[];
+	unread_count: number;
+}
+
+export type ReportTarget = 'post' | 'event' | 'user' | 'message' | 'comment';

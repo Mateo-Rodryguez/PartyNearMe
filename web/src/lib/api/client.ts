@@ -1,18 +1,23 @@
 import { config } from '#lib/config.js';
 import { session } from '#lib/session.svelte.js';
 import type {
+	AccountSettings,
 	Comment,
 	CommentPage,
 	Event,
 	EventPage,
 	Interaction,
 	Interest,
+	NewPost,
+	NotificationPage,
 	OwnProfile,
 	PeoplePage,
 	Post,
 	PostPage,
 	PublicProfile,
-	Rsvp
+	ReportTarget,
+	Rsvp,
+	UploadTicket
 } from './types';
 
 export class ApiError extends Error {
@@ -89,6 +94,21 @@ export const api = {
 	userPosts: (userId: string, cursor?: string | null) =>
 		call<PostPage>('GET', `/users/${id(userId)}/posts`, { query: { cursor } }),
 
+	/** Uploads one photo straight to storage with a signed address; the API never sees the bytes. */
+	uploadPhoto: async (photo: Blob): Promise<string> => {
+		const ticket = await call<UploadTicket>('POST', '/uploads', { body: { content_type: photo.type, size_bytes: photo.size } });
+		const headers = Object.fromEntries(Object.entries(ticket.headers).filter(([name]) => name.toLowerCase() !== 'content-length'));
+		const response = await fetch(ticket.upload_url, { method: 'PUT', headers, body: photo });
+		if (!response.ok) throw new ApiError(response.status, "The photo didn't upload. Try again.");
+		return ticket.upload_id;
+	},
+	createPost: (post: NewPost) => call<Post>('POST', '/posts', { body: post }),
+	deletePost: (postId: string) => call<void>('DELETE', `/posts/${id(postId)}`),
+	/** An empty caption removes it. The server checks the new words. */
+	updateCaption: (postId: string, caption: string) => call<Post>('PATCH', `/posts/${id(postId)}`, { body: { caption } }),
+	untagMe: (postId: string) => call<void>('DELETE', `/posts/${id(postId)}/tags/me`),
+	savedPosts: (cursor?: string | null) => call<PostPage>('GET', '/me/saved/posts', { query: { cursor } }),
+
 	// Parties
 	nearbyEvents: (q: { lat: number; lng: number; radiusKm?: number; cursor?: string | null; from?: string; to?: string; interestId?: number | null }) =>
 		call<EventPage>('GET', '/events/nearby', {
@@ -105,11 +125,36 @@ export const api = {
 		return api.event(eventId);
 	},
 	saveEvent: (eventId: string, saved: boolean) => call<void>(saved ? 'PUT' : 'DELETE', `/events/${id(eventId)}/save`),
+	savedEvents: async () => (await call<{ events: Event[] }>('GET', '/me/saved/events')).events,
 
 	// People
 	me: () => call<OwnProfile>('GET', '/me'),
 	interests: () => call<Interest[]>('GET', '/interests'),
 	user: (userId: string) => call<PublicProfile>('GET', `/users/${id(userId)}`),
 	follow: (userId: string, following: boolean) => call<void>(following ? 'PUT' : 'DELETE', `/users/${id(userId)}/follow`),
-	searchUsers: (q: string) => call<PeoplePage>('GET', '/users/search', { query: { q } })
+	searchUsers: (q: string) => call<PeoplePage>('GET', '/users/search', { query: { q } }),
+	followers: (userId: string, cursor?: string | null) =>
+		call<PeoplePage>('GET', `/users/${id(userId)}/followers`, { query: { cursor } }),
+	following: (userId: string, cursor?: string | null) =>
+		call<PeoplePage>('GET', `/users/${id(userId)}/following`, { query: { cursor } }),
+	updateMe: (fields: { username?: string; display_name?: string; bio?: string; relationship_status?: string | null }) =>
+		call<OwnProfile>('PATCH', '/me', { body: fields }),
+	setAvatar: (uploadId: string) => call<void>('PUT', '/me/avatar', { body: { upload_id: uploadId } }),
+	removeAvatar: () => call<void>('DELETE', '/me/avatar'),
+	setInterests: (ids: number[]) => call<OwnProfile>('PUT', '/me/interests', { body: { interest_ids: ids } }),
+	settings: () => call<AccountSettings>('GET', '/me/settings'),
+	updateSettings: (settings: Partial<AccountSettings>) => call<AccountSettings>('PATCH', '/me/settings', { body: settings }),
+	/** Deletes the signed-in account and everything it owns. */
+	deleteAccount: () => call<void>('DELETE', '/me'),
+
+	// Safety
+	report: (target: ReportTarget, targetId: string, reason: string) =>
+		call<void>('POST', '/reports', { body: { target_type: target, target_id: targetId, reason } }),
+	block: (userId: string, blocked: boolean) => call<void>(blocked ? 'PUT' : 'DELETE', `/users/${id(userId)}/block`),
+	blockedUsers: async () => (await call<PeoplePage>('GET', '/me/blocks')).users,
+
+	// Notifications
+	notifications: () => call<NotificationPage>('GET', '/notifications'),
+	unreadNotifications: async () => (await call<{ unread_count: number }>('GET', '/notifications/unread')).unread_count,
+	markNotificationsSeen: () => call<void>('POST', '/notifications/seen')
 };

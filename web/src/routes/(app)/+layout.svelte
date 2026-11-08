@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import { flush } from '#lib/interactions.js';
 	import { session } from '#lib/session.svelte.js';
+	import { unread } from '#lib/unread.svelte.js';
 	import Icon, { type IconName } from '#lib/ui/Icon.svelte';
 	import type { LayoutProps } from './$types';
 
@@ -18,8 +19,10 @@
 
 	// Send what the user looked at when they leave or switch tabs.
 	$effect(() => {
+		void unread.check();
 		const onHide = () => {
 			if (document.visibilityState === 'hidden') void flush();
+			else void unread.check();
 		};
 		document.addEventListener('visibilitychange', onHide);
 		return () => document.removeEventListener('visibilitychange', onHide);
@@ -28,6 +31,7 @@
 	const tabs: { href: string; label: string; icon: IconName }[] = [
 		{ href: '/feed', label: 'Home', icon: 'home' },
 		{ href: '/nearby', label: 'Parties', icon: 'place' },
+		{ href: '/new', label: 'Post', icon: 'add' },
 		{ href: '/search', label: 'Search', icon: 'search' },
 		{ href: '/me', label: 'Profile', icon: 'person' }
 	];
@@ -84,7 +88,7 @@
 		display: grid;
 		justify-items: center;
 		gap: 2px;
-		min-width: 64px;
+		min-width: 56px;
 		padding: 4px 8px;
 		font-size: 11px;
 		font-weight: 600;

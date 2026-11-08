@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
 	import { api } from '#lib/api/client.js';
 	import type { Event, Post, PublicProfile } from '#lib/api/types.js';
 	import { nameOf } from '#lib/format.js';
@@ -13,6 +12,8 @@
 	import LoadMore from '#lib/ui/LoadMore.svelte';
 	import Photo from '#lib/ui/Photo.svelte';
 	import Spinner from '#lib/ui/Spinner.svelte';
+	import ReportSheet from '#lib/ui/ReportSheet.svelte';
+	import Sheet from '#lib/ui/Sheet.svelte';
 	import PageHeader from './PageHeader.svelte';
 
 	let { userId }: { userId: string } = $props();
@@ -65,9 +66,21 @@
 		}
 	}
 
-	async function signOut() {
-		await session.signOut();
-		await goto('/', { replaceState: true });
+	let menu = $state(false);
+	let reporting = $state(false);
+
+	async function toggleBlock() {
+		if (!profile) return;
+		menu = false;
+		const on = !profile.is_blocked;
+		if (on && !confirm(`Block ${nameOf(profile)}? You won't see each other's posts or parties, and they can't message you.`)) return;
+		try {
+			await api.block(profile.id, on);
+			profile = { ...profile, is_blocked: on, is_following: on ? false : profile.is_following };
+			toast.show(on ? 'Blocked' : 'Unblocked');
+		} catch {
+			toast.show("Couldn't do that");
+		}
 	}
 </script>
 
@@ -76,10 +89,23 @@
 <PageHeader title={profile?.username ? `@${profile.username}` : (profile ? nameOf(profile) : 'Profile')} back={!own}>
 	{#snippet actions()}
 		{#if own}
-			<button class="icon" aria-label="Sign out" title="Sign out" onclick={signOut}><Icon name="logout" /></button>
+			<a class="icon" href="/settings" aria-label="Settings" title="Settings"><Icon name="settings" /></a>
+		{:else if profile}
+			<button class="icon" aria-label="More options" onclick={() => (menu = true)}><Icon name="more" /></button>
 		{/if}
 	{/snippet}
 </PageHeader>
+
+{#if profile && !own}
+	<Sheet bind:open={menu} title={nameOf(profile)}>
+		<div class="menu">
+			<button class="btn block" onclick={() => { menu = false; reporting = true; }}>Report</button>
+			<button class="btn block danger" onclick={toggleBlock}>{profile.is_blocked ? 'Unblock' : 'Block'}</button>
+			<button class="btn block outline" onclick={() => (menu = false)}>Cancel</button>
+		</div>
+	</Sheet>
+	<ReportSheet bind:open={reporting} target="user" targetId={profile.id} />
+{/if}
 
 {#if error}
 	<Empty title="Couldn't open this profile">{error}</Empty>
@@ -101,7 +127,9 @@
 			<p class="muted">{hearts[profile.relationship_status]}</p>
 		{/if}
 		{#if profile.bio}<p class="bio">{profile.bio}</p>{/if}
-		{#if !own}
+		{#if !own && profile.is_blocked}
+			<button class="btn block outline" onclick={toggleBlock}>Unblock</button>
+		{:else if !own}
 			<button class="btn block" class:primary={!profile.is_following} onclick={toggleFollow}>
 				{profile.is_following ? 'Following' : 'Follow'}
 			</button>
@@ -150,6 +178,11 @@
 		border: 0;
 		border-radius: 50%;
 		background: none;
+		color: inherit;
+	}
+	.menu {
+		display: grid;
+		gap: 8px;
 	}
 	.top {
 		display: flex;
