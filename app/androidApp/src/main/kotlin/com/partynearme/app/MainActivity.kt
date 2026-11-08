@@ -62,13 +62,25 @@ class MainActivity : ComponentActivity() {
     /** partynearme:// links: Google sign-in coming back, or a shared party or post to open. */
     private fun openLink(intent: Intent) {
         val url = intent.dataString ?: return
-        if (url.startsWith("partynearme://auth-callback")) AuthRedirect.arrived(url) else app.navigator.openLink(url)
+        if (url.startsWith("partynearme://auth-callback")) {
+            AuthRedirect.arrived(url)
+        } else {
+            // A shared party or post bringing someone into the app: word of mouth at work.
+            val kind = when (Regex("/(party|post|e|p)/").find(url.replace("://", ":///"))?.groupValues?.get(1)) {
+                "party", "e" -> "party"
+                "post", "p" -> "post"
+                else -> "other"
+            }
+            app.core.analytics.track("link_opened", mapOf("kind" to kind))
+            app.navigator.openLink(url)
+        }
         intent.data = null
     }
 
     /** A tapped notification carries what it was about; open that screen. */
     private fun openFromNotification(intent: Intent) {
         val nav = app.navigator
+        intent.getStringExtra("type")?.let { app.core.analytics.track("notification_opened", mapOf("type" to it)) }
         when (intent.getStringExtra("type")) {
             "message" -> intent.getStringExtra("conversation_id")?.let {
                 nav.select(Tab.Chat)
@@ -90,9 +102,15 @@ class MainActivity : ComponentActivity() {
         intent.removeExtra("type")
     }
 
+    override fun onStart() {
+        super.onStart()
+        app.scope.launch { app.core.analytics.foreground() }
+    }
+
     override fun onStop() {
         super.onStop()
-        // Send what the user looked at before the app goes to the background.
-        app.scope.launch { app.core.interactions.flush(); app.core.analytics.flush() }
+        // Send what the user looked at before the app goes to the background; analytics
+        // also records how long the app was open and the screen it was left on.
+        app.scope.launch { app.core.interactions.flush(); app.core.analytics.background() }
     }
 }

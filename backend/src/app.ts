@@ -11,6 +11,7 @@ import { chatRoutes } from "./modules/chat/routes.js";
 import { commentsRoutes } from "./modules/comments/routes.js";
 import { eventsRoutes } from "./modules/events/routes.js";
 import { feedRoutes } from "./modules/feed/routes.js";
+import { feedbackRoutes } from "./modules/feedback/routes.js";
 import { legalRoutes } from "./modules/legal/routes.js";
 import { moderationRoutes } from "./modules/moderation/routes.js";
 import { notificationsRoutes } from "./modules/notifications/routes.js";
@@ -66,6 +67,7 @@ export async function buildApp({ config, db, verifyToken, storage, reportError }
     await authed.register(chatRoutes, { db, mediaBaseUrl: config.MEDIA_BASE_URL });
     await authed.register(moderationRoutes, { db, mediaBaseUrl: config.MEDIA_BASE_URL });
     await authed.register(notificationsRoutes, { db, mediaBaseUrl: config.MEDIA_BASE_URL });
+    await authed.register(feedbackRoutes, { db });
   });
 
   return app;

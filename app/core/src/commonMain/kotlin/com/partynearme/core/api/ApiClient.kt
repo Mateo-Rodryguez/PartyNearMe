@@ -60,6 +60,11 @@ class ApiClient(
     private val http: HttpClient,
     private val config: AppConfig,
     private val sessions: SessionManager,
+    /**
+     * Hears every call's outcome (status 0 when the network failed), with the
+     * path as called; analytics turns these into actions and struggles.
+     */
+    private val onResult: suspend (method: String, path: String, status: Int) -> Unit = { _, _, _ -> },
 ) {
     // Feed
 
@@ -81,10 +86,13 @@ class ApiClient(
 
     /** Sends the photo straight to storage with the signed URL; the API never sees the bytes. */
     suspend fun upload(ticket: UploadTicket, bytes: ByteArray) {
-        val response = http.put(ticket.uploadUrl) {
-            ticket.headers.forEach { (name, value) -> header(name, value) }
-            setBody(bytes)
+        val response = reporting("PUT", "/photo-upload") {
+            http.put(ticket.uploadUrl) {
+                ticket.headers.forEach { (name, value) -> header(name, value) }
+                setBody(bytes)
+            }
         }
+        if (!response.status.isSuccess()) onResult("PUT", "/photo-upload", response.status.value)
         if (!response.status.isSuccess()) throw ApiException(response.status.value, "The photo didn't upload. Try again.")
     }
 
@@ -269,6 +277,14 @@ class ApiClient(
         callUnit(HttpMethod.Put, "/devices/${token.path()}") { json(DeviceBody(platform)) }
     suspend fun unregisterDevice(token: String) = callUnit(HttpMethod.Delete, "/devices/${token.path()}")
 
+    // Feedback
+
+    suspend fun sendFeedback(
+        kind: String, body: String?, score: Int?, screen: String?, platform: String, appVersion: String?,
+    ) = callUnit(HttpMethod.Post, "/feedback") {
+        json(FeedbackBody(kind, score, body, screen?.take(40), platform, appVersion?.take(20)))
+    }
+
     // Plumbing
 
     private suspend inline fun <reified T> call(
@@ -294,13 +310,25 @@ class ApiClient(
             configure()
         }
         val token = sessions.accessToken()
-        var response = attempt(token)
-        if (response.status == HttpStatusCode.Unauthorized) response = attempt(sessions.refresh(token))
+        val response = reporting(method.value, path) {
+            val first = attempt(token)
+            if (first.status == HttpStatusCode.Unauthorized) attempt(sessions.refresh(token)) else first
+        }
+        onResult(method.value, path, response.status.value)
         expect(response.status)
         val text = response.bodyAsText()
         if (!response.status.isSuccess()) throw ApiException(response.status.value, errorMessage(response.status, text))
         return text
     }
+
+    /** Runs a request, telling [onResult] about one that never got an answer (offline, timed out). */
+    private suspend fun reporting(method: String, path: String, request: suspend () -> HttpResponse): HttpResponse =
+        try {
+            request()
+        } catch (e: Exception) {
+            if (e !is kotlinx.coroutines.CancellationException) onResult(method, path, 0)
+            throw e
+        }
 
     private inline fun <reified B> HttpRequestBuilder.json(body: B) {
         contentType(ContentType.Application.Json)
@@ -313,6 +341,14 @@ class ApiClient(
     @Serializable private data class UploadRequest(
         @SerialName("content_type") val contentType: String,
         @SerialName("size_bytes") val sizeBytes: Long,
+    )
+    @Serializable private data class FeedbackBody(
+        val kind: String,
+        val score: Int? = null,
+        val body: String? = null,
+        val screen: String? = null,
+        val platform: String,
+        @SerialName("app_version") val appVersion: String? = null,
     )
     @Serializable private data class RsvpBody(val status: String)
     @Serializable private data class CaptionBody(val caption: String)

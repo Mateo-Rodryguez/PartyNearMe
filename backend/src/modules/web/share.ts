@@ -136,3 +136,15 @@ export const notFoundPage = (what: string) =>
 /** Images come only from the photo bucket; no scripts at all. */
 export const shareCsp = (mediaBaseUrl: string | undefined) =>
   `default-src 'none'; img-src ${mediaBaseUrl ?? "'none'"}; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`;
+
+/**
+ * Apps that fetch a link to draw its preview card (WhatsApp, iMessage,
+ * Instagram, Telegram...). Their visits are not people opening the link, so
+ * they are left out of share_link_views.
+ */
+const PREVIEW_BOTS =
+  /\bbot\b|bot\/|crawler|spider|facebookexternalhit|facebookcatalog|whatsapp|telegram|slack|discord|skypeuripreview|linkedin|pinterest|embedly|iframely|vkshare|redditbot|google-pagerenderer|bitlybot|headless|preview/i;
+
+export function isPreviewBot(userAgent: string | undefined): boolean {
+  return !userAgent || PREVIEW_BOTS.test(userAgent);
+}

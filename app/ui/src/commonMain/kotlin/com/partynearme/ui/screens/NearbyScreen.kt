@@ -87,7 +87,7 @@ class NearbyState(private val ui: Ui, scope: CoroutineScope) {
         if (kinds.isEmpty()) attempt { ui.api.interests() }.onSuccess { kinds = it }
         val here: LatLng? = ui.location.current()
         noLocation = here == null
-        if (here == null) {
+        val page = if (here == null) {
             emptyList<Event>() to null
         } else {
             val window = when (time) {
@@ -100,6 +100,12 @@ class NearbyState(private val ui: Ui, scope: CoroutineScope) {
                 from = window?.first?.toString(), to = window?.second?.toString(), interestId = kind,
             ).let { it.events to it.nextCursor }
         }
+        // Nothing on near someone is the biggest reason a party app disappoints; count it.
+        if (cursor == null && page.first.isEmpty()) {
+            if (here == null) ui.track("nearby_no_location")
+            else ui.track("nearby_empty", "radius_km" to radiusKm, "time" to time.name.lowercase(), "kind_filter" to (kind != null))
+        }
+        page
     }
 
     /** True while a filter is on. */

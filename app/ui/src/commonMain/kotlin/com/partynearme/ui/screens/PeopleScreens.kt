@@ -70,7 +70,10 @@ fun SearchScreen(ui: Ui, initialQuery: String = "") {
         }
         delay(250) // Waits for a pause in typing instead of searching on every letter.
         attempt { ui.api.searchUsers(text) }
-            .onSuccess { results.clear(); results.addAll(it); error = null }
+            .onSuccess {
+                results.clear(); results.addAll(it); error = null
+                if (it.isEmpty() && text.length >= 3) ui.track("search_no_results", "length" to text.length)
+            }
             .onFailure { error = it.userMessage }
         searched = text
     }

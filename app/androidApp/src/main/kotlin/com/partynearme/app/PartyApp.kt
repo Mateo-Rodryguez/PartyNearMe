@@ -33,6 +33,7 @@ class PartyApp : Application() {
         core = PartyNearMe(
             CONFIG, SettingsSessionStore(settings), OkHttp.create(),
             feedCache = SettingsFeedCache(settings), preferences = Preferences(settings), platform = "android",
+            appVersion = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull(),
         )
         createPushChannel(this)
     }

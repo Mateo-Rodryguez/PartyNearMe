@@ -18,7 +18,33 @@ data class LocalPrefs(
     val hideLikeCounts: Boolean = false,
     /** Sends anonymous usage counts (see Analytics); people can turn it off in settings. */
     val shareUsage: Boolean = true,
+    /** Days (since 1970) for the "would you recommend us?" card: first and latest day the app was used. */
+    val firstActiveDay: Long = 0,
+    val lastActiveDay: Long = 0,
+    /** How many different days the app has been used on. */
+    val activeDays: Int = 0,
+    /** When the recommend card was last answered or closed; 0 for never. */
+    val recommendAskedDay: Long = 0,
 ) {
+    /** Counts [today] as a day the app was used. */
+    fun activeOn(today: Long): LocalPrefs = when {
+        today == lastActiveDay -> this
+        else -> copy(
+            firstActiveDay = if (firstActiveDay == 0L) today else firstActiveDay,
+            lastActiveDay = today,
+            activeDays = activeDays + 1,
+        )
+    }
+
+    /**
+     * True when it's time to ask "would you recommend PartyNearMe to a friend?":
+     * only once someone knows the app (used on 3+ days over at least a week), and
+     * then at most every 90 days, so it never nags.
+     */
+    fun recommendDue(today: Long): Boolean =
+        activeDays >= 3 && firstActiveDay > 0 && today - firstActiveDay >= 7 &&
+            (recommendAskedDay == 0L || today - recommendAskedDay >= 90)
+
     companion object {
         val RADIUS_CHOICES = listOf(5, 10, 25, 50)
     }
@@ -39,6 +65,10 @@ class Preferences(private val settings: Settings? = null) {
             putInt(RADIUS, next.radiusKm)
             putBoolean(HIDE_LIKES, next.hideLikeCounts)
             putBoolean(SHARE_USAGE, next.shareUsage)
+            putLong(FIRST_ACTIVE, next.firstActiveDay)
+            putLong(LAST_ACTIVE, next.lastActiveDay)
+            putInt(ACTIVE_DAYS, next.activeDays)
+            putLong(RECOMMEND_ASKED, next.recommendAskedDay)
         }
     }
 
@@ -51,6 +81,10 @@ class Preferences(private val settings: Settings? = null) {
             radiusKm = s.getInt(RADIUS, defaults.radiusKm).takeIf { it in LocalPrefs.RADIUS_CHOICES } ?: defaults.radiusKm,
             hideLikeCounts = s.getBoolean(HIDE_LIKES, defaults.hideLikeCounts),
             shareUsage = s.getBoolean(SHARE_USAGE, defaults.shareUsage),
+            firstActiveDay = s.getLong(FIRST_ACTIVE, 0),
+            lastActiveDay = s.getLong(LAST_ACTIVE, 0),
+            activeDays = s.getInt(ACTIVE_DAYS, 0),
+            recommendAskedDay = s.getLong(RECOMMEND_ASKED, 0),
         )
     }
 
@@ -60,5 +94,9 @@ class Preferences(private val settings: Settings? = null) {
         const val RADIUS = "pref_radius_km"
         const val HIDE_LIKES = "pref_hide_like_counts"
         const val SHARE_USAGE = "pref_share_usage"
+        const val FIRST_ACTIVE = "pref_first_active_day"
+        const val LAST_ACTIVE = "pref_last_active_day"
+        const val ACTIVE_DAYS = "pref_active_days"
+        const val RECOMMEND_ASKED = "pref_recommend_asked_day"
     }
 }
