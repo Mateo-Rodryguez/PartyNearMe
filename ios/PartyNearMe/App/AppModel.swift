@@ -1,5 +1,7 @@
 import Foundation
 import Observation
+import UIKit
+import UserNotifications
 
 /// Wires the app's pieces together once, and is handed to every screen through the
 /// SwiftUI environment. Screens talk to the server through `api` only, so the
@@ -80,13 +82,43 @@ final class AppModel {
 
     /// The sign-in providers switched on in Supabase. Empty when offline.
     func providers() async -> Set<String> {
-        if demoScreen != nil { return ["google"] }
+        if demoScreen != nil { return ["apple", "google"] }
         return (try? await auth.providers()) ?? []
     }
 
     /// Emails a link to choose a new password; the link opens a page on our server.
     func sendPasswordReset(email: String) async throws {
         try await auth.recover(email: email, redirectTo: AppConfig.resetPasswordPage)
+    }
+
+    /// Asks to show notifications, once the account is set up (like Android), and
+    /// registers this phone with the server when allowed. iOS only shows the question
+    /// the first time; later calls just re-register, which keeps a rotated token current.
+    func enablePush() async {
+        guard demoScreen == nil else { return }
+        PushDelegate.shared?.onToken = { [weak self] token in
+            Task { await self?.registerPush(token: token) }
+        }
+        let center = UNUserNotificationCenter.current()
+        let before = await center.notificationSettings().authorizationStatus
+        let allowed: Bool
+        if before == .notDetermined {
+            allowed = (try? await center.requestAuthorization(options: [.alert, .badge, .sound])) ?? false
+            analytics.capture("push_permission", ["granted": allowed])
+        } else {
+            allowed = before == .authorized || before == .provisional || before == .ephemeral
+        }
+        if allowed { UIApplication.shared.registerForRemoteNotifications() }
+    }
+
+    private func registerPush(token: String) async {
+        guard sessions.session != nil else { return }
+        do {
+            try await api.registerDevice(token: token, platform: "ios")
+            pushToken = token
+        } catch {
+            // Tried again on the next launch.
+        }
     }
 
     /// Fetches the badge counts: unread chats and new notifications. Keeps the old ones when offline.

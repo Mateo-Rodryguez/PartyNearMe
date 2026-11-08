@@ -56,6 +56,15 @@ struct AuthClient {
         return try session(from: data)
     }
 
+    /// Signs in with an ID token from a native sign-in, such as Sign in with Apple. `nonce` is
+    /// the raw value whose SHA-256 went into the request, so Supabase can check the token
+    /// was made for this sign-in.
+    func signIn(provider: String, idToken: String, nonce: String) async throws -> Session {
+        let data = try await post("token", query: [URLQueryItem(name: "grant_type", value: "id_token")],
+                                  body: IdTokenGrant(provider: provider, idToken: idToken, nonce: nonce))
+        return try session(from: data)
+    }
+
     /// Returns nil when the refresh token is no longer valid.
     func refresh(_ refreshToken: String) async throws -> Session? {
         do {
@@ -112,6 +121,7 @@ struct AuthClient {
 
     private struct Credentials: Encodable { let email: String; let password: String }
     private struct CodeExchange: Encodable { let authCode: String; let codeVerifier: String }
+    private struct IdTokenGrant: Encodable { let provider: String; let idToken: String; let nonce: String }
     private struct TokenResponse: Decodable {
         let accessToken: String
         let refreshToken: String

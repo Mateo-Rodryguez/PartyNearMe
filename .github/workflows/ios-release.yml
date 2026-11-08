@@ -1,0 +1,106 @@
+name: iOS release
+
+# Builds the iPhone app for the App Store on a cloud Mac and uploads it to App Store
+# Connect, where it shows up in TestFlight. No Mac needed: Xcode signs with
+# cloud-managed certificates through an App Store Connect API key.
+# - Pull requests: an unsigned Release build, to prove it still builds.
+# - Pushes to PartyApp and runs by hand: signed and uploaded, once the secrets exist.
+# Setup steps: docs/store-release.md.
+
+on:
+  push:
+    branches: [PartyApp]
+    paths: ["ios/**", ".github/workflows/ios-release.yml"]
+  pull_request:
+    paths: ["ios/**", ".github/workflows/ios-release.yml"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version shown in the App Store, for example 1.0.0"
+        type: string
+        default: "1.0.0"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  testflight:
+    runs-on: macos-26
+    defaults:
+      run:
+        working-directory: ios
+    env:
+      # App Store Connect needs a higher build number on every upload.
+      BUILD_NUMBER: ${{ github.run_number }}
+      VERSION: ${{ inputs.version || '1.0.0' }}
+      HAS_SECRETS: ${{ secrets.APP_STORE_CONNECT_KEY_P8 != '' && secrets.APPLE_TEAM_ID != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate the Xcode project
+        run: |
+          xcodebuild -version
+          brew list xcodegen > /dev/null 2>&1 || brew install xcodegen
+          xcodegen generate
+
+      - name: Check the Release build (no signing)
+        if: github.event_name == 'pull_request' || env.HAS_SECRETS != 'true'
+        run: |
+          [ "$HAS_SECRETS" = "true" ] || [ "${{ github.event_name }}" = "pull_request" ] \
+            || echo "::warning::The App Store Connect secrets are not set, so this only checks the build."
+          set -o pipefail
+          xcodebuild -project PartyNearMe.xcodeproj -scheme PartyNearMe -configuration Release \
+            -destination "generic/platform=iOS" -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" build \
+            | tee build.log | grep -E "error:|\*\* BUILD" || true
+          grep -q "\*\* BUILD SUCCEEDED \*\*" build.log
+
+      - name: Add the App Store Connect key
+        if: github.event_name != 'pull_request' && env.HAS_SECRETS == 'true'
+        env:
+          KEY_P8: ${{ secrets.APP_STORE_CONNECT_KEY_P8 }}
+        run: printf '%s\n' "$KEY_P8" > "$RUNNER_TEMP/asc.p8"
+
+      - name: Archive, sign and upload to App Store Connect
+        if: github.event_name != 'pull_request' && env.HAS_SECRETS == 'true'
+        env:
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -o pipefail
+          auth=(-allowProvisioningUpdates -authenticationKeyPath "$RUNNER_TEMP/asc.p8"
+                -authenticationKeyID "$KEY_ID" -authenticationKeyIssuerID "$ISSUER_ID")
+          xcodebuild -project PartyNearMe.xcodeproj -scheme PartyNearMe -configuration Release \
+            -destination "generic/platform=iOS" -archivePath build/PartyNearMe.xcarchive \
+            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            "${auth[@]}" archive | tee archive.log | grep -E "error:|\*\* ARCHIVE" || true
+          grep -q "\*\* ARCHIVE SUCCEEDED \*\*" archive.log
+          cat > "$RUNNER_TEMP/export.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$TEAM_ID</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath build/PartyNearMe.xcarchive \
+            -exportOptionsPlist "$RUNNER_TEMP/export.plist" -exportPath build/export "${auth[@]}" \
+            | tee export.log | grep -E "error:|Upload succeeded|\*\* EXPORT" || true
+          grep -q "\*\* EXPORT SUCCEEDED \*\*" export.log
+          echo "Uploaded $VERSION ($BUILD_NUMBER). It appears in TestFlight after Apple's processing, usually 5 to 30 minutes."
+
+      - name: Show errors
+        if: failure()
+        run: grep -h -E "error:" -A3 build.log archive.log export.log 2>/dev/null | head -100 || true
+
+      - name: Remove the key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/asc.p8"

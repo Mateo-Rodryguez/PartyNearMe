@@ -48,6 +48,14 @@ const configSchema = z.object({
   // Push notifications: the Firebase service account JSON (Project settings >
   // Service accounts > Generate new private key). Push is off until it's set.
   FIREBASE_SERVICE_ACCOUNT: z.string().trim().min(1).optional(),
+  // iPhone push, sent straight to Apple: the APNs key (.p8 file contents) from
+  // developer.apple.com > Keys, its 10-character Key ID, and the Team ID.
+  APNS_KEY: z.string().trim().min(1).optional(),
+  APNS_KEY_ID: z.string().trim().regex(/^[A-Z0-9]{10}$/).optional(),
+  APNS_TEAM_ID: z.string().trim().regex(/^[A-Z0-9]{10}$/).optional(),
+  APNS_BUNDLE_ID: z.string().trim().min(1).default("com.partynearme.app"),
+  // Only for builds installed from Xcode; TestFlight and App Store builds use production.
+  APNS_SANDBOX: z.stringbool().default(false),
   // Also run the photo worker inside the API process. Saves a second paid
   // service while traffic is low; turn off once the worker runs on its own.
   RUN_WORKER: z.stringbool().default(false),

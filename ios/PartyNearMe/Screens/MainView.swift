@@ -15,6 +15,7 @@ struct MainView: View {
     @State private var nearby: NearbyModel?
     @State private var nearbyPath: [Route] = []
     @State private var homePath: [Route] = []
+    @State private var messagesPath: [Route] = []
     /// The first time in the app, straight after onboarding.
     private let firstRun: Bool
     /// The demo shows the recommend card without waiting a week.
@@ -65,7 +66,7 @@ struct MainView: View {
             }
             .tag(Tab.post)
 
-            NavigationStack { InboxView().analyticsScreen("inbox").routeDestinations() }
+            NavigationStack(path: $messagesPath) { InboxView().analyticsScreen("inbox").routeDestinations() }
                 .tabItem { Label("Messages", systemImage: tab == .messages ? "bubble.left.and.bubble.right.fill" : "bubble.left.and.bubble.right") }
                 .badge(app.unreadChats)
                 .tag(Tab.messages)
@@ -113,6 +114,10 @@ struct MainView: View {
             }
         }
         .onOpenURL { openLink($0) }
+        .task {
+            PushDelegate.shared?.onOpen = { openNotification($0) }
+            await app.enablePush()
+        }
     }
 }
 
@@ -134,6 +139,29 @@ extension MainView {
         case .post(let id):
             tab = .home
             homePath.append(.post(id))
+        case nil:
+            break
+        }
+    }
+}
+
+extension MainView {
+    /// A tapped notification opens what it was about, as on Android.
+    func openNotification(_ data: [String: String]) {
+        if let type = data["type"] { app.analytics.capture("notification_opened", ["type": type]) }
+        switch PushTarget(data) {
+        case .chat(let id):
+            tab = .messages
+            messagesPath.append(.chat(id: id, title: "Chat"))
+        case .comments(let id):
+            tab = .home
+            homePath.append(.comments(postId: id))
+        case .post(let id):
+            tab = .home
+            homePath.append(.post(id))
+        case .party(let id):
+            tab = .nearby
+            nearbyPath.append(.event(id))
         case nil:
             break
         }

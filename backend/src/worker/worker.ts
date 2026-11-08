@@ -262,18 +262,18 @@ async function pushTo(
 ): Promise<void> {
   if (userIds.length === 0) return;
   if (!pusher) {
-    log.info({ users: userIds.length, type: message.data.type }, "push skipped: Firebase not configured");
+    log.info({ users: userIds.length, type: message.data.type }, "push skipped: neither Firebase nor APNs is configured");
     return;
   }
   // No settings row means the defaults, which have every kind on.
-  const devices = await db<{ token: string }[]>`
-    select d.token from public.device_tokens d
+  const devices = await db<{ token: string; platform: "android" | "ios" }[]>`
+    select d.token, d.platform from public.device_tokens d
     left join public.user_settings s on s.user_id = d.user_id
     where d.user_id = any (${userIds}::uuid[]) and coalesce(s.${db(setting)}, true)
   `;
-  for (const { token } of devices) {
+  for (const { token, platform } of devices) {
     try {
-      if (!(await pusher.send(token, message))) {
+      if (!(await pusher.send(token, message, platform))) {
         await db`delete from public.device_tokens where token = ${token}`;
       }
     } catch (err) {

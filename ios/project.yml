@@ -24,6 +24,13 @@ targets:
     dependencies:
       - package: Sentry
         product: Sentry
+    # Capabilities. The App ID on developer.apple.com needs the same ones (docs/store-release.md).
+    entitlements:
+      path: PartyNearMe/PartyNearMe.entitlements
+      properties:
+        com.apple.developer.applesignin: [Default]
+        # Xcode switches this to production when the build is exported for TestFlight.
+        aps-environment: development
     info:
       path: PartyNearMe/Info.plist
       properties:
@@ -35,6 +42,8 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: com.partynearme.app
             CFBundleURLSchemes: [partynearme]
+        # Only HTTPS, which is exempt, so TestFlight doesn't ask about export compliance each upload.
+        ITSAppUsesNonExemptEncryption: false
         NSCameraUsageDescription: PartyNearMe uses the camera so you can take photos to post.
         NSLocationWhenInUseUsageDescription: PartyNearMe uses your location to show parties near you and to place the parties you create.
     settings:
