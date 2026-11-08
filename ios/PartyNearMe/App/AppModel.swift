@@ -10,6 +10,12 @@ final class AppModel {
     let sessions: SessionManager
     let api: any PartyAPI
     let location: any LocationProvider
+    /// New chat messages as they arrive.
+    let live: any LiveMessages
+    /// Chats with unread messages, for the Messages tab's badge.
+    var unreadChats = 0
+    /// New notifications, for the bell on Home.
+    var unreadNotifications = 0
     private let auth: AuthClient
     /// Debug builds only: the sample-data screen CI asked for, if any.
     let demoScreen: String?
@@ -43,11 +49,12 @@ final class AppModel {
         }
     }
 
-    init(sessions: SessionManager, api: any PartyAPI, location: any LocationProvider,
+    init(sessions: SessionManager, api: any PartyAPI, location: any LocationProvider, live: any LiveMessages,
          auth: AuthClient = AuthClient(), demoScreen: String? = nil) {
         self.sessions = sessions
         self.api = api
         self.location = location
+        self.live = live
         self.auth = auth
         self.demoScreen = demoScreen
     }
@@ -55,7 +62,8 @@ final class AppModel {
     /// The real app: the session in the Keychain, the live API.
     static func live() -> AppModel {
         let sessions = SessionManager(store: KeychainSessionStore())
-        return AppModel(sessions: sessions, api: APIClient(sessions: sessions), location: DeviceLocation())
+        return AppModel(sessions: sessions, api: APIClient(sessions: sessions), location: DeviceLocation(),
+                        live: Realtime(sessions: sessions))
     }
 
     /// The sign-in providers switched on in Supabase. Empty when offline.
@@ -67,6 +75,12 @@ final class AppModel {
     /// Emails a link to choose a new password; the link opens a page on our server.
     func sendPasswordReset(email: String) async throws {
         try await auth.recover(email: email, redirectTo: AppConfig.resetPasswordPage)
+    }
+
+    /// Fetches the badge counts: unread chats and new notifications. Keeps the old ones when offline.
+    func refreshBadges() async {
+        if let chats = try? await api.unreadChats() { unreadChats = chats }
+        if let notifications = try? await api.unreadNotifications() { unreadNotifications = notifications }
     }
 
     /// Signs out, first stopping this phone getting the user's notifications.

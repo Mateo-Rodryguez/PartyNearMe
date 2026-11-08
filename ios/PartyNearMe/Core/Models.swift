@@ -385,3 +385,154 @@ struct GuestList: Decodable, Equatable {
     var requested: [Person]
     var going: [Person]
 }
+
+// MARK: Chat
+
+/// One chat message. Ids grow over time, so they also give the order.
+struct ChatMessage: Codable, Equatable, Identifiable {
+    let id: String
+    let conversationId: String
+    let senderId: String
+    let body: String
+    let createdAt: String
+    /// Set on a party invite: the party the message is about.
+    var eventId: String?
+
+    /// The id as a number, for ordering; ids are Postgres bigints sent as text.
+    var order: Int64 { Int64(id) ?? 0 }
+}
+
+/// The party a group chat belongs to.
+struct ChatParty: Codable, Equatable, Hashable {
+    let id: String
+    let title: String
+    var coverUrl: String?
+}
+
+struct Conversation: Codable, Equatable, Identifiable {
+    let id: String
+    /// The other person in a one-to-one chat; nil in a party's group chat.
+    var other: Person?
+    /// Set for a party's group chat.
+    var party: ChatParty?
+    /// Everyone in a party chat, for names on messages; empty in one-to-one chats.
+    var members: [Person]
+    /// People you blocked in this party chat: their messages stay hidden.
+    var hiddenSenderIds: [String]
+    var lastMessage: ChatMessage?
+    var unreadCount: Int
+    var lastMessageAt: String?
+
+    var title: String { party?.title ?? other?.name ?? "Deleted account" }
+
+    init(id: String, other: Person? = nil, party: ChatParty? = nil, members: [Person] = [], hiddenSenderIds: [String] = [],
+         lastMessage: ChatMessage? = nil, unreadCount: Int = 0, lastMessageAt: String? = nil) {
+        self.id = id
+        self.other = other
+        self.party = party
+        self.members = members
+        self.hiddenSenderIds = hiddenSenderIds
+        self.lastMessage = lastMessage
+        self.unreadCount = unreadCount
+        self.lastMessageAt = lastMessageAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        other = try c.decodeIfPresent(Person.self, forKey: .other)
+        party = try c.decodeIfPresent(ChatParty.self, forKey: .party)
+        members = try c.decodeIfPresent([Person].self, forKey: .members) ?? []
+        hiddenSenderIds = try c.decodeIfPresent([String].self, forKey: .hiddenSenderIds) ?? []
+        lastMessage = try c.decodeIfPresent(ChatMessage.self, forKey: .lastMessage)
+        unreadCount = try c.decodeIfPresent(Int.self, forKey: .unreadCount) ?? 0
+        lastMessageAt = try c.decodeIfPresent(String.self, forKey: .lastMessageAt)
+    }
+}
+
+struct ConversationPage: Decodable {
+    let conversations: [Conversation]
+    let nextCursor: String?
+}
+
+struct MessagePage: Decodable {
+    let messages: [ChatMessage]
+    let hasMore: Bool
+}
+
+/// How a batch of party invites went: people who can't be messaged are skipped.
+struct InviteResult: Decodable, Equatable {
+    let sent: Int
+    let skipped: Int
+}
+
+// MARK: Notifications
+
+/// Something that happened to the user: a like, a comment, a tag, a new follower,
+/// an RSVP, a request to join, or a party reminder.
+struct AppNotification: Codable, Equatable, Identifiable {
+    /// The kinds this version of the app knows how to show; others are skipped.
+    static let known: Set<String> = ["like", "comment", "tag", "follow", "rsvp", "request", "reminder"]
+
+    let id: String
+    let type: String
+    var actor: Person?
+    /// What they wrote, for comments.
+    var commentText: String?
+    var postId: String?
+    var postThumbnailUrl: String?
+    var eventId: String?
+    var eventTitle: String?
+    var eventCoverUrl: String?
+    let createdAt: String
+    var unread = false
+
+    init(id: String, type: String, actor: Person? = nil, commentText: String? = nil, postId: String? = nil,
+         postThumbnailUrl: String? = nil, eventId: String? = nil, eventTitle: String? = nil, eventCoverUrl: String? = nil,
+         createdAt: String, unread: Bool = false) {
+        self.id = id
+        self.type = type
+        self.actor = actor
+        self.commentText = commentText
+        self.postId = postId
+        self.postThumbnailUrl = postThumbnailUrl
+        self.eventId = eventId
+        self.eventTitle = eventTitle
+        self.eventCoverUrl = eventCoverUrl
+        self.createdAt = createdAt
+        self.unread = unread
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        type = try c.decode(String.self, forKey: .type)
+        actor = try c.decodeIfPresent(Person.self, forKey: .actor)
+        commentText = try c.decodeIfPresent(String.self, forKey: .commentText)
+        postId = try c.decodeIfPresent(String.self, forKey: .postId)
+        postThumbnailUrl = try c.decodeIfPresent(String.self, forKey: .postThumbnailUrl)
+        eventId = try c.decodeIfPresent(String.self, forKey: .eventId)
+        eventTitle = try c.decodeIfPresent(String.self, forKey: .eventTitle)
+        eventCoverUrl = try c.decodeIfPresent(String.self, forKey: .eventCoverUrl)
+        createdAt = try c.decode(String.self, forKey: .createdAt)
+        unread = try c.decodeIfPresent(Bool.self, forKey: .unread) ?? false
+    }
+}
+
+struct NotificationPage: Decodable {
+    let notifications: [AppNotification]
+    let unreadCount: Int
+
+    init(notifications: [AppNotification], unreadCount: Int) {
+        self.notifications = notifications
+        self.unreadCount = unreadCount
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        notifications = try c.decode([AppNotification].self, forKey: .notifications)
+        unreadCount = try c.decodeIfPresent(Int.self, forKey: .unreadCount) ?? 0
+    }
+
+    private enum CodingKeys: String, CodingKey { case notifications, unreadCount }
+}

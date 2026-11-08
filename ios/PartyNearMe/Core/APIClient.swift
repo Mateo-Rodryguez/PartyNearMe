@@ -66,6 +66,30 @@ protocol PartyAPI: AnyObject {
     func approveGuest(_ eventId: String, userId: String) async throws
     /// Declines a request, or takes someone off the guest list.
     func removeGuest(_ eventId: String, userId: String) async throws
+    /// Sends a party invite to each person as a chat message.
+    func invite(_ eventId: String, userIds: [String]) async throws -> InviteResult
+
+    /// People by username or name.
+    func searchUsers(_ query: String) async throws -> [ListedPerson]
+
+    // Chat
+    func inbox(cursor: String?) async throws -> ConversationPage
+    /// Opens the one-to-one chat with someone, making it if it's new.
+    func startConversation(with userId: String) async throws -> Conversation
+    func conversation(_ id: String) async throws -> Conversation
+    /// Chats with unread messages, for the tab's badge.
+    func unreadChats() async throws -> Int
+    /// Newest first; pass the oldest id you have as `before` to page back.
+    func messages(_ conversationId: String, before: String?) async throws -> MessagePage
+    func send(_ conversationId: String, body: String) async throws -> ChatMessage
+    func markRead(_ conversationId: String) async throws
+
+    // Notifications
+    /// Likes, comments, follows, RSVPs and party reminders, newest first.
+    func notifications() async throws -> NotificationPage
+    func unreadNotifications() async throws -> Int
+    /// Called when the user opens their notifications, so the bell's count clears.
+    func markNotificationsSeen() async throws
 }
 
 /// The PartyNearMe API. Every call is signed in; a 401 triggers one token refresh and a retry.
@@ -266,6 +290,55 @@ final class APIClient: PartyAPI {
         try await callUnit("DELETE", "/events/\(eventId.pathEscaped)/guests/\(userId.pathEscaped)")
     }
 
+    func invite(_ eventId: String, userIds: [String]) async throws -> InviteResult {
+        try await call("POST", "/events/\(eventId.pathEscaped)/invites", body: UserIdsBody(userIds: userIds))
+    }
+
+    func searchUsers(_ query: String) async throws -> [ListedPerson] {
+        let page: PeoplePage = try await call("GET", "/users/search", query: [.init(name: "q", value: query)])
+        return page.users
+    }
+
+    // MARK: Chat
+
+    func inbox(cursor: String?) async throws -> ConversationPage {
+        try await call("GET", "/conversations", query: [.init(name: "cursor", value: cursor)])
+    }
+
+    func startConversation(with userId: String) async throws -> Conversation {
+        try await call("POST", "/conversations", body: UserIdBody(userId: userId))
+    }
+
+    func conversation(_ id: String) async throws -> Conversation { try await call("GET", "/conversations/\(id.pathEscaped)") }
+
+    func unreadChats() async throws -> Int {
+        let count: UnreadCount = try await call("GET", "/conversations/unread")
+        return count.unreadCount
+    }
+
+    func messages(_ conversationId: String, before: String?) async throws -> MessagePage {
+        try await call("GET", "/conversations/\(conversationId.pathEscaped)/messages", query: [.init(name: "before", value: before)])
+    }
+
+    func send(_ conversationId: String, body: String) async throws -> ChatMessage {
+        try await call("POST", "/conversations/\(conversationId.pathEscaped)/messages", body: SendBody(body: body))
+    }
+
+    func markRead(_ conversationId: String) async throws {
+        try await callUnit("POST", "/conversations/\(conversationId.pathEscaped)/read")
+    }
+
+    // MARK: Notifications
+
+    func notifications() async throws -> NotificationPage { try await call("GET", "/notifications") }
+
+    func unreadNotifications() async throws -> Int {
+        let count: UnreadCount = try await call("GET", "/notifications/unread")
+        return count.unreadCount
+    }
+
+    func markNotificationsSeen() async throws { try await callUnit("POST", "/notifications/seen") }
+
     // MARK: Plumbing
 
     private func call<T: Decodable>(_ method: String, _ path: String, query: [URLQueryItem] = []) async throws -> T {
@@ -323,6 +396,9 @@ final class APIClient: PartyAPI {
     private struct UploadRequest: Encodable { let contentType: String; let sizeBytes: Int }
     private struct UploadIdBody: Encodable { let uploadId: String }
     private struct RsvpBody: Encodable { let status: String }
+    private struct UserIdBody: Encodable { let userId: String }
+    private struct UserIdsBody: Encodable { let userIds: [String] }
+    private struct UnreadCount: Decodable { let unreadCount: Int }
     /// Encodes as {"interest_id":null}: the one place a null has to reach the server.
     private struct ClearKind: Encodable {
         func encode(to encoder: Encoder) throws {

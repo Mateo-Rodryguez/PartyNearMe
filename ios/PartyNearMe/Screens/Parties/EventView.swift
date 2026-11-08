@@ -166,39 +166,61 @@ struct EventView: View {
     @ViewBuilder private func actions(_ event: Event) -> some View {
         let tickets = event.ticketUrl.flatMap { URL(string: $0) }
         let guestList = isHost && event.isPrivate
-        if tickets != nil || guestList {
-            VStack(spacing: 10) {
-                if let tickets {
-                    Link(destination: tickets) {
-                        Label("Get tickets", systemImage: "ticket.fill")
-                            .font(.body.weight(.bold))
-                            .foregroundStyle(Color.appText)
-                            .frame(maxWidth: .infinity, minHeight: 50)
-                            .background(Capsule().fill(Color.appRaised))
+        VStack(spacing: 10) {
+            HStack(spacing: 10) {
+                if event.isPublished {
+                    NavigationLink(value: Route.invite(eventId: event.id, title: event.title)) {
+                        pill("Invite friends", systemImage: "paperplane.fill")
                     }
+                    .buttonStyle(PressStyle())
                 }
-                if guestList {
-                    NavigationLink(value: Route.guests(eventId: event.id, title: event.title)) {
-                        HStack {
-                            Label("Guest list", systemImage: "person.2.fill")
-                            if event.requestedCount > 0 {
-                                Text("\(event.requestedCount) waiting")
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 3)
-                                    .background(Capsule().fill(Color.appAccent))
-                            }
-                        }
+                // The host and everyone going share a group chat.
+                if let chat = event.chatId {
+                    NavigationLink(value: Route.chat(id: chat, title: event.title)) {
+                        pill("Party chat", systemImage: "bubble.left.and.bubble.right.fill")
+                    }
+                    .buttonStyle(PressStyle())
+                }
+            }
+            if let tickets {
+                Link(destination: tickets) {
+                    Label("Get tickets", systemImage: "ticket.fill")
                         .font(.body.weight(.bold))
                         .foregroundStyle(Color.appText)
                         .frame(maxWidth: .infinity, minHeight: 50)
                         .background(Capsule().fill(Color.appRaised))
-                    }
-                    .buttonStyle(.plain)
                 }
             }
+            if guestList {
+                NavigationLink(value: Route.guests(eventId: event.id, title: event.title)) {
+                    HStack {
+                        Label("Guest list", systemImage: "person.2.fill")
+                        if event.requestedCount > 0 {
+                            Text("\(event.requestedCount) waiting")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(Capsule().fill(Color.appAccent))
+                        }
+                    }
+                    .font(.body.weight(.bold))
+                    .foregroundStyle(Color.appText)
+                    .frame(maxWidth: .infinity, minHeight: 50)
+                    .background(Capsule().fill(Color.appRaised))
+                }
+                .buttonStyle(.plain)
+            }
         }
+    }
+
+    private func pill(_ title: String, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .font(.subheadline.weight(.bold))
+            .foregroundStyle(Color.appText)
+            .lineLimit(1)
+            .frame(maxWidth: .infinity, minHeight: 50)
+            .background(Capsule().fill(Color.appRaised))
     }
 
     private func map(_ event: Event) -> some View {

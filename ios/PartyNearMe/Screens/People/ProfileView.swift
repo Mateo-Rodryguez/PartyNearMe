@@ -150,10 +150,22 @@ struct ProfileView: View {
                 .disabled(me == nil)
         } else if profile.isBlocked == true {
             SecondaryButton("Unblock", systemImage: "hand.raised.slash") { setBlocked(false) }
-        } else if profile.isFollowing {
-            SecondaryButton("Following", systemImage: "checkmark", action: toggleFollow)
         } else {
-            PrimaryButton("Follow", systemImage: "plus", action: toggleFollow)
+            HStack(spacing: 10) {
+                if profile.isFollowing {
+                    SecondaryButton("Following", systemImage: "checkmark", action: toggleFollow)
+                } else {
+                    PrimaryButton("Follow", systemImage: "plus", action: toggleFollow)
+                }
+                NavigationLink(value: Route.chatWith(userId: userId, title: profile.displayName ?? profile.username ?? "Chat")) {
+                    Label("Message", systemImage: "paperplane")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(Color.appText)
+                        .frame(maxWidth: .infinity, minHeight: 48)
+                        .background(Capsule().fill(Color.appRaised))
+                }
+                .buttonStyle(PressStyle())
+            }
         }
     }
 

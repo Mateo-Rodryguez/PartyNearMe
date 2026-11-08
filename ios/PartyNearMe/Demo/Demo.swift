@@ -12,14 +12,15 @@ enum Demo {
     /// Every screen the demo can show, in the order CI screenshots them.
     static let screens = ["sign_in", "sign_up", "forgot", "profile_setup", "onboarding", "location", "app",
                           "feed", "post", "comments", "new_post", "me", "user", "followers",
-                          "nearby", "nearby_map", "event", "my_event", "new_event", "edit_event", "pick_spot", "guests"]
+                          "nearby", "nearby_map", "event", "my_event", "new_event", "edit_event", "pick_spot", "guests",
+                          "inbox", "chat", "party_chat", "notifications", "invite"]
 
     static func model(for screen: String) -> AppModel {
         let signedOut = ["sign_in", "sign_up", "forgot"].contains(screen)
         let session = Session(accessToken: "demo", refreshToken: "demo", expiresAt: .greatestFiniteMagnitude,
                               userId: me.id, email: "maya@example.com")
         let sessions = SessionManager(store: MemorySessionStore(signedOut ? nil : session))
-        return AppModel(sessions: sessions, api: DemoAPI(), location: DemoLocation(), demoScreen: screen)
+        return AppModel(sessions: sessions, api: DemoAPI(), location: DemoLocation(), live: DemoLive(), demoScreen: screen)
     }
 
     @MainActor @ViewBuilder
@@ -46,8 +47,74 @@ enum Demo {
         case "edit_event": NavigationStack { EventFormView(editing: events[1]) { _ in } }
         case "pick_spot": NavigationStack { MapPinPicker(start: here, chosen: .constant(nil)) }
         case "guests": NavigationStack { GuestListView(eventId: "e2", title: events[1].title).routeDestinations() }
+        case "inbox": MainView(me: me, tab: .messages)
+        case "chat": NavigationStack { ChatView(start: .conversation("c1"), title: "Sam Rivera").routeDestinations() }
+        case "party_chat": NavigationStack { ChatView(start: .conversation("c2"), title: "Rooftop Sunset Party").routeDestinations() }
+        case "notifications": NavigationStack { NotificationsView().routeDestinations() }
+        case "invite": NavigationStack { InviteView(eventId: "e1", title: "Rooftop Sunset Party") }
         default: SignInView()
         }
+    }
+
+    static let samira = Person(id: "p-samira", username: "samira.k", displayName: "Samira Khan",
+                               avatarUrl: "https://picsum.photos/seed/samira/200/200")
+
+    static func message(_ id: Int, in conversation: String, from sender: Person, _ body: String, minutesAgo: Double,
+                        eventId: String? = nil) -> ChatMessage {
+        ChatMessage(id: String(id), conversationId: conversation, senderId: sender.id, body: body,
+                    createdAt: ago(minutesAgo * 60), eventId: eventId)
+    }
+
+    static var chats: [String: [ChatMessage]] {
+        [
+            "c1": [
+                message(10, in: "c1", from: sam, "Are you coming to the roof tonight?", minutesAgo: 95),
+                message(11, in: "c1", from: maya, "Obviously 🙌", minutesAgo: 93),
+                message(12, in: "c1", from: maya, "What time are you getting there?", minutesAgo: 93),
+                message(13, in: "c1", from: sam, "Rooftop Sunset Party, tonight at 22:00", minutesAgo: 60, eventId: "e1"),
+                message(14, in: "c1", from: sam, "Around 10. Bring a jacket, it gets cold after midnight", minutesAgo: 12),
+                message(15, in: "c1", from: maya, "See you there!", minutesAgo: 3),
+            ].reversed(),
+            "c2": [
+                message(20, in: "c2", from: alex, "Who's here already?", minutesAgo: 40),
+                message(21, in: "c2", from: samira, "Just arrived, the view is unreal", minutesAgo: 38),
+                message(22, in: "c2", from: samira, "Queue is short right now", minutesAgo: 37),
+                message(23, in: "c2", from: maya, "On my way 🏃‍♀️", minutesAgo: 30),
+                message(24, in: "c2", from: sam, "DJ starts at 11, don't miss it", minutesAgo: 5),
+            ].reversed(),
+        ]
+    }
+
+    static var conversations: [Conversation] {
+        [
+            Conversation(id: "c1", other: sam, lastMessage: chats["c1"]?.first, unreadCount: 0, lastMessageAt: ago(3 * 60)),
+            Conversation(id: "c2", party: ChatParty(id: "e1", title: "Rooftop Sunset Party", coverUrl: events[0].coverUrl),
+                         members: [sam, alex, samira, maya], lastMessage: chats["c2"]?.first, unreadCount: 2, lastMessageAt: ago(5 * 60)),
+            Conversation(id: "c3", other: alex,
+                         lastMessage: message(30, in: "c3", from: alex, "Techno in the Tunnels tomorrow?", minutesAgo: 180),
+                         unreadCount: 1, lastMessageAt: ago(3 * 3600)),
+            Conversation(id: "c4", other: samira,
+                         lastMessage: message(40, in: "c4", from: maya, "Thanks for the photos!", minutesAgo: 2 * 24 * 60),
+                         lastMessageAt: ago(2 * 86400)),
+        ]
+    }
+
+    static var notifications: [AppNotification] {
+        [
+            AppNotification(id: "n1", type: "like", actor: sam, postId: "p4",
+                            postThumbnailUrl: "https://picsum.photos/seed/mine1/200/200", createdAt: ago(4 * 60), unread: true),
+            AppNotification(id: "n2", type: "comment", actor: alex, commentText: "Wish I'd been there!", postId: "p4",
+                            postThumbnailUrl: "https://picsum.photos/seed/mine1/200/200", createdAt: ago(25 * 60), unread: true),
+            AppNotification(id: "n3", type: "request", actor: Person(id: "p-sasha", username: "sasha_dj", displayName: "Sasha Novak",
+                                                                     avatarUrl: "https://picsum.photos/seed/sasha/200/200"),
+                            eventId: "e2", eventTitle: "Maya's Birthday", eventCoverUrl: "https://picsum.photos/seed/birthday/400/400",
+                            createdAt: ago(2 * 3600)),
+            AppNotification(id: "n4", type: "follow", actor: samira, createdAt: ago(5 * 3600)),
+            AppNotification(id: "n5", type: "rsvp", actor: alex, eventId: "e2", eventTitle: "Maya's Birthday",
+                            eventCoverUrl: "https://picsum.photos/seed/birthday/400/400", createdAt: ago(86400)),
+            AppNotification(id: "n6", type: "reminder", eventId: "e1", eventTitle: "Rooftop Sunset Party",
+                            eventCoverUrl: "https://picsum.photos/seed/rooftop/400/400", createdAt: ago(2 * 86400)),
+        ]
     }
 
     static let here = CLLocationCoordinate2D(latitude: 51.5136, longitude: -0.1340)
@@ -72,7 +139,7 @@ enum Demo {
                   goingCount: 128, interestedCount: 40, myRsvp: "going", ticketUrl: "https://example.com/tickets",
                   friendsGoing: [alex, Person(id: "p-samira", username: "samira.k", displayName: "Samira Khan",
                                               avatarUrl: "https://picsum.photos/seed/samira/200/200")],
-                  friendsGoingCount: 4, createdAt: ago(3 * 86400), distanceM: 640),
+                  friendsGoingCount: 4, chatId: "c2", createdAt: ago(3 * 86400), distanceM: 640),
             Event(id: "e2", organiser: maya, title: "Maya's Birthday", description: "Drinks, then dancing. Plus ones welcome.",
                   startsAt: at(day: 0, hour: 21), endsAt: at(day: 1, hour: 1), venueName: "The Vaults, Waterloo",
                   lat: 51.5010, lng: -0.1160, coverUrl: "https://picsum.photos/seed/birthday/1080/1350", goingCount: 18,
@@ -317,9 +384,50 @@ final class DemoAPI: PartyAPI {
     func approveGuest(_ eventId: String, userId: String) async throws {}
     func removeGuest(_ eventId: String, userId: String) async throws {}
 
+    func invite(_ eventId: String, userIds: [String]) async throws -> InviteResult { InviteResult(sent: userIds.count, skipped: 0) }
+    func searchUsers(_ query: String) async throws -> [ListedPerson] {
+        Demo.people.filter { ($0.displayName ?? "").localizedCaseInsensitiveContains(query) || ($0.username ?? "").contains(query.lowercased()) }
+    }
+
+    private var sent: [ChatMessage] = []
+    func inbox(cursor: String?) async throws -> ConversationPage {
+        ConversationPage(conversations: cursor == nil ? Demo.conversations : [], nextCursor: nil)
+    }
+    func startConversation(with userId: String) async throws -> Conversation {
+        Demo.conversations.first { $0.other?.id == userId } ?? Conversation(id: "c-\(userId)", other: Demo.sam)
+    }
+    func conversation(_ id: String) async throws -> Conversation {
+        guard let conversation = Demo.conversations.first(where: { $0.id == id }) else { throw APIError(status: 404, message: "Chat not found") }
+        return conversation
+    }
+    func unreadChats() async throws -> Int { Demo.conversations.filter { $0.unreadCount > 0 }.count }
+    func messages(_ conversationId: String, before: String?) async throws -> MessagePage {
+        let all = Array(sent.filter { $0.conversationId == conversationId }.reversed()) + (Demo.chats[conversationId] ?? [])
+        return MessagePage(messages: before == nil ? Array(all) : [], hasMore: false)
+    }
+    func send(_ conversationId: String, body: String) async throws -> ChatMessage {
+        let message = ChatMessage(id: String(1000 + sent.count), conversationId: conversationId, senderId: Demo.me.id, body: body,
+                                  createdAt: Demo.ago(0))
+        sent.append(message)
+        return message
+    }
+    func markRead(_ conversationId: String) async throws {}
+
+    func notifications() async throws -> NotificationPage {
+        NotificationPage(notifications: Demo.notifications, unreadCount: 2)
+    }
+    func unreadNotifications() async throws -> Int { 2 }
+    func markNotificationsSeen() async throws {}
+
     private func replace(_ event: Event) {
         if let index = events.firstIndex(where: { $0.id == event.id }) { events[index] = event }
     }
+}
+
+/// No live updates in the demo: the stream stays open and quiet.
+@MainActor
+final class DemoLive: LiveMessages {
+    func messages(in conversationId: String?) -> AsyncStream<ChatMessage> { AsyncStream { _ in } }
 }
 
 /// The Nearby tab on its own, on the map or the list.
