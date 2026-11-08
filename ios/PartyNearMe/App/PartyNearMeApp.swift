@@ -7,6 +7,10 @@ struct PartyNearMeApp: App {
 
     init() {
         // Crash reports only: no tracing, screenshots or personal data.
+        // Simulators are skipped. The only ones that run this app are CI's, and their
+        // screenshot runs kill the app on purpose and render maps on a virtual GPU,
+        // which Sentry reported as app hangs that no real phone would hit.
+        #if !targetEnvironment(simulator)
         SentrySDK.start { options in
             options.dsn = AppConfig.sentryDSN
             #if DEBUG
@@ -16,6 +20,7 @@ struct PartyNearMeApp: App {
             #endif
             options.sendDefaultPii = false
         }
+        #endif
         #if DEBUG
         if let screen = Demo.requestedScreen {
             _app = State(initialValue: Demo.model(for: screen))
