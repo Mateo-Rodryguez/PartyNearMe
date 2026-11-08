@@ -4,13 +4,11 @@ plugins {
     id("org.jetbrains.compose")
 }
 
-// The app's screens, written once in Compose Multiplatform for Android and iOS.
+// The Android app's screens, in Compose Multiplatform. The iPhone app is native
+// SwiftUI in ios/.
 apply(from = "android.gradle")
 
 kotlin {
-    iosArm64()
-    iosSimulatorArm64()
-
     applyDefaultHierarchyTemplate()
 
     sourceSets {

@@ -1,11 +1,12 @@
 # The app
 
-`app/` is the phone app, written once in Kotlin Multiplatform:
+`app/` is the Android app, in Kotlin with Compose Multiplatform. The iPhone app
+is native Swift and SwiftUI in `ios/` (see [ios/README.md](../ios/README.md));
+both talk to the same API and follow the same analytics contract.
 
-- `core`: talking to the API and Supabase sign-in, shared by Android and iOS.
-- `ui`: every screen, in Compose Multiplatform.
+- `core`: talking to the API and Supabase sign-in.
+- `ui`: every screen, in Compose.
 - `androidApp`: the Android wrapper (photo picker, camera, location, app icon).
-- `iosKit` and `iosApp`: the iPhone wrapper (photo picker, camera, location) and its Xcode project.
 - `demo`: sample data for screenshots, only in debug builds.
 
 ## Trying it on an Android phone
@@ -30,17 +31,14 @@ opens the feed. The other screens are `sign_in`, `nearby`, `event`, `new_event`,
 
 ## iPhone
 
-There is no Mac needed: CI builds the iPhone app on a cloud Mac (free for public
-repositories), opens every screen on an iPhone simulator and puts the screenshots
-on the `ios-screenshots` branch. On a simulator,
+The iPhone app lives in `ios/` and is native SwiftUI; [ios/README.md](../ios/README.md)
+says how it's built. There is no Mac needed: CI (`.github/workflows/ios.yml`) builds
+it on a cloud Mac, runs its tests, opens every screen on an iPhone simulator and puts
+the screenshots on the `ios-native-screenshots` branch. On a simulator,
 `xcrun simctl launch booted com.partynearme.app -demo feed` opens a sample screen.
 
 Installing on a real iPhone without a Mac goes through TestFlight, which needs the
 Apple Developer Program ($99 a year); that comes with the store milestone.
-
-With a Mac: install XcodeGen (`brew install xcodegen`), run `xcodegen generate` in
-`app/iosApp`, open `PartyNearMe.xcodeproj` and press Run. The Xcode build runs Gradle
-to compile the Kotlin code first.
 
 ## Building
 
@@ -123,8 +121,8 @@ store builds as `production`. Screenshots, tracing and personal data are off.
 ## Settings in the app
 
 The API address, Supabase URL and Supabase publishable key are in
-`androidApp/src/main/kotlin/com/partynearme/app/PartyApp.kt` and
-`iosKit/src/iosMain/kotlin/com/partynearme/ios/MainViewController.kt`. All three are public;
+`androidApp/src/main/kotlin/com/partynearme/app/PartyApp.kt` and, for iPhone,
+`ios/PartyNearMe/Core/AppConfig.swift`. All three are public;
 no secret keys belong in the app.
 
 ## Profile

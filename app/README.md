@@ -1,9 +1,9 @@
-# Mobile app (Kotlin Multiplatform)
+# Android app (Kotlin + Compose)
 
-Not started yet. This folder will hold the Kotlin Multiplatform + Compose Multiplatform project (milestone 6 and 7 of [docs/plan.md](../docs/plan.md)):
+The Android app. The iPhone app is native SwiftUI in [`ios/`](../ios/README.md).
+[docs/app.md](../docs/app.md) explains how it's built and tried out.
 
-- `shared/`: networking, models, cache and UI shared by both platforms
-- `androidApp/`: Android entry point
-- `iosApp/`: iOS entry point, built on cloud macOS CI until there is a Mac
-
-The old Android app is on the `main` branch (`PartyNearMeAndroid/`) and will be ported screen by screen.
+- `core/`: networking, Supabase sign-in, models and analytics
+- `ui/`: every screen, in Compose
+- `androidApp/`: Android entry point (photo picker, camera, location, push, app icon)
+- `demo/`: sample data for screenshots, debug builds only

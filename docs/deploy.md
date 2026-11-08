@@ -78,7 +78,7 @@ in the app. To set it up again from scratch:
 2. Project settings: turn on **Discard client IP data**, so no addresses are kept.
 3. Copy the **Project API key** (starts with `phc_`; it is public and write-only)
    into `posthogKey` in `app/androidApp/.../PartyApp.kt` and
-   `app/iosKit/.../MainViewController.kt`.
+   `ios/PartyNearMe/Core/AppConfig.swift`.
 
 Events carry the account id, the platform and plain counts only, and no person
 profiles are made. Feedback, the recommend score and "how did you hear about
