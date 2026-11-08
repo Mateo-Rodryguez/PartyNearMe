@@ -109,3 +109,10 @@ export function photoUrl(media: Media, minWidth: number): string | null {
 export function count(n: number, one: string, many = `${one}s`) {
 	return `${n.toLocaleString()} ${n === 1 ? one : many}`;
 }
+
+/** What happened to a batch of party invites; the same words as the apps. */
+export function inviteResultText(sent: number, skipped: number): string {
+	const done = sent === 0 ? 'No invites sent' : sent === 1 ? 'Invite sent' : `${sent} invites sent`;
+	if (skipped === 0) return done;
+	return skipped === 1 ? `${done}. 1 person can't get messages from you.` : `${done}. ${skipped} people can't get messages from you.`;
+}

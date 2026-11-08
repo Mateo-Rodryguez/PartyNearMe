@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { coverFor, distance, nameOf, photoUrl, srcset, timeAgo, tonightWindow, weekendWindow } from './format.js';
+import { coverFor, distance, inviteResultText, nameOf, photoUrl, srcset, timeAgo, tonightWindow, weekendWindow } from './format.js';
 
 describe('timeAgo', () => {
 	const now = new Date('2026-11-08T20:00:00Z');
@@ -55,4 +55,13 @@ describe('windows', () => {
 
 describe('coverFor', () => {
 	it('is stable per name', () => expect(coverFor('Warehouse rave')).toBe(coverFor('Warehouse rave')));
+});
+
+describe('inviteResultText', () => {
+	it('says how many went and how many could not get messages', () => {
+		expect(inviteResultText(0, 0)).toBe('No invites sent');
+		expect(inviteResultText(1, 0)).toBe('Invite sent');
+		expect(inviteResultText(3, 1)).toBe("3 invites sent. 1 person can't get messages from you.");
+		expect(inviteResultText(2, 2)).toBe("2 invites sent. 2 people can't get messages from you.");
+	});
 });
