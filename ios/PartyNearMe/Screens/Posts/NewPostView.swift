@@ -31,6 +31,8 @@ struct NewPostView: View {
     @State private var place = ""
     @State private var addLocation = true
     @State private var showCamera = false
+    @State private var tagged: [ListedPerson] = []
+    @State private var pickingTags = false
     @State private var loadingPhotos = false
     @State private var progress: Double?
     @State private var error: String?
@@ -55,6 +57,7 @@ struct NewPostView: View {
                     .textInputAutocapitalization(.sentences)
                     .onChange(of: caption) { _, new in if new.count > 2200 { caption = String(new.prefix(2200)) } }
                 partyPicker
+                tagRow
                 PartyField("Place (optional)", text: $place, prompt: "e.g. Fabric, London")
                     .textInputAutocapitalization(.words)
                     .onChange(of: place) { _, new in if new.count > 120 { place = String(new.prefix(120)) } }
@@ -78,6 +81,15 @@ struct NewPostView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task { if preset == nil { await loadParties() } }
         .onChange(of: picked) { _, items in Task { await load(items) } }
+        .sheet(isPresented: $pickingTags) {
+            NavigationStack {
+                PeoplePicker(title: "Tag people", button: "Done", initial: tagged) { people in
+                    tagged = people
+                    return true
+                }
+                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { pickingTags = false } } }
+            }
+        }
         .fullScreenCover(isPresented: $showCamera) {
             CameraPicker { image in
                 if photos.count < Self.maxPhotos, let photo = PickedPhoto.make(from: image) { photos.append(photo) }
@@ -107,6 +119,33 @@ struct NewPostView: View {
                 }
             }
         }
+    }
+
+    /// Who is in the photos: opens the picker, and lists the people picked so far.
+    private var tagRow: some View {
+        Button { if !sharing { pickingTags = true } } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "person.fill")
+                    .foregroundStyle(Color.appAccent)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Tag people").font(.subheadline.weight(.semibold)).foregroundStyle(Color.appText)
+                    if !tagged.isEmpty {
+                        Text(Formatting.tagged(tagged.map(\.name)))
+                            .font(.caption)
+                            .foregroundStyle(Color.appSecondaryText)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer()
+                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(Color.appSecondaryText)
+            }
+            .padding(.horizontal, 14)
+            .frame(minHeight: 52)
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.appField))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     /// The parties you're going to or hosting, recent or coming up, soonest first.
@@ -248,11 +287,12 @@ struct NewPostView: View {
                     eventId: party?.id,
                     lat: here?.latitude,
                     lng: here?.longitude,
-                    placeName: trimmedPlace.isEmpty ? nil : trimmedPlace
+                    placeName: trimmedPlace.isEmpty ? nil : trimmedPlace,
+                    tagIds: tagged.isEmpty ? nil : tagged.map(\.id)
                 ))
-                // Tagging people comes later on iPhone; the property is there so both apps send the same shape.
-                app.analytics.capture("post_created", ["photos": ids.count, "tagged": 0, "at_party": party != nil])
+                app.analytics.capture("post_created", ["photos": ids.count, "tagged": tagged.count, "at_party": party != nil])
                 photos = []
+                tagged = []
                 caption = ""
                 place = ""
                 app.show("Posted. It shows up for everyone once the photo is checked.")

@@ -1,13 +1,15 @@
 import SwiftUI
 
 /// Picks people: the ones you follow first, or anyone by searching. Used to
-/// invite people to a party.
+/// invite people to a party and to tag them in photos. With `initial` people
+/// already picked, the button also works with nobody picked, to clear them all.
 struct PeoplePicker: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     let title: String
     let button: String
     var max = 20
+    let initial: [ListedPerson]
     /// Sends to the picked people; returns true to close the picker.
     let onDone: ([ListedPerson]) async -> Bool
 
@@ -18,11 +20,14 @@ struct PeoplePicker: View {
     @State private var picked: [ListedPerson] = []
     @State private var busy = false
 
-    init(title: String, button: String, max: Int = 20, onDone: @escaping ([ListedPerson]) async -> Bool) {
+    init(title: String, button: String, max: Int = 20, initial: [ListedPerson] = [],
+         onDone: @escaping ([ListedPerson]) async -> Bool) {
         self.title = title
         self.button = button
         self.max = max
+        self.initial = initial
         self.onDone = onDone
+        _picked = State(initialValue: initial)
     }
 
     private var shown: [ListedPerson] { query.trimmingCharacters(in: .whitespaces).isEmpty ? following : results }
@@ -80,7 +85,7 @@ struct PeoplePicker: View {
                     busy = false
                 }
             }
-            .disabled(picked.isEmpty && !busy)
+            .disabled(picked.isEmpty && initial.isEmpty && !busy)
             .padding(.horizontal, 20)
             .padding(.top, 12)
             .padding(.bottom, 8)
@@ -128,6 +133,29 @@ struct PeoplePicker: View {
             picked.append(person)
         } else {
             app.show("You can pick up to \(max) people at once")
+        }
+    }
+}
+
+/// Changes who is tagged on your post; `onSaved` gets the post back from the server.
+struct TagPeopleView: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.dismiss) private var dismiss
+    let post: Post
+    let onSaved: (Post) -> Void
+
+    var body: some View {
+        NavigationStack {
+            PeoplePicker(title: "Tag people", button: "Save", initial: post.tags.map(\.listed)) { people in
+                do {
+                    onSaved(try await app.api.setTags(post.id, userIds: people.map(\.id)))
+                    return true
+                } catch {
+                    app.show(error.userMessage)
+                    return false
+                }
+            }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
         }
     }
 }

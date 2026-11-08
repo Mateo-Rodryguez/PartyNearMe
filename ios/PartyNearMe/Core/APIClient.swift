@@ -22,6 +22,8 @@ protocol PartyAPI: AnyObject {
     func setLiked(_ id: String, liked: Bool) async throws
     func setSaved(_ id: String, saved: Bool) async throws
     func untagMe(_ postId: String) async throws
+    /// Sets everyone tagged on your post; people left out are untagged.
+    func setTags(_ postId: String, userIds: [String]) async throws -> Post
     func userPosts(_ userId: String, cursor: String?) async throws -> PostPage
     /// Uploads one JPEG straight to storage and returns its upload id.
     func uploadPhoto(_ jpeg: Data) async throws -> String
@@ -185,6 +187,10 @@ final class APIClient: PartyAPI {
     }
 
     func untagMe(_ postId: String) async throws { try await callUnit("DELETE", "/posts/\(postId.pathEscaped)/tags/me") }
+
+    func setTags(_ postId: String, userIds: [String]) async throws -> Post {
+        try await call("PUT", "/posts/\(postId.pathEscaped)/tags", body: TagsBody(userIds: userIds))
+    }
 
     func userPosts(_ userId: String, cursor: String?) async throws -> PostPage {
         try await call("GET", "/users/\(userId.pathEscaped)/posts", query: [.init(name: "cursor", value: cursor)])
@@ -472,6 +478,7 @@ final class APIClient: PartyAPI {
     private struct DeviceBody: Encodable { let platform: String }
     private struct InteractionBatch: Encodable { let events: [Interaction] }
     private struct CaptionBody: Encodable { let caption: String }
+    private struct TagsBody: Encodable { let userIds: [String] }
     private struct SendBody: Encodable { let body: String }
     private struct UploadRequest: Encodable { let contentType: String; let sizeBytes: Int }
     private struct UploadIdBody: Encodable { let uploadId: String }

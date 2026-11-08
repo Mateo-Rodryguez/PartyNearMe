@@ -14,6 +14,7 @@ struct PostCard: View {
     @State private var confirmDelete = false
     @State private var editingCaption = false
     @State private var showTags = false
+    @State private var editingTags = false
     @State private var reporting: (ReportTarget, String)?
 
     private var isMine: Bool { post.author.id == app.myId }
@@ -55,6 +56,12 @@ struct PostCard: View {
         .sheet(isPresented: $showTags) {
             TaggedPeopleSheet(post: $post)
         }
+        .sheet(isPresented: $editingTags) {
+            TagPeopleView(post: post) { updated in
+                post = updated
+                app.show(updated.tags.isEmpty ? "Tags removed" : "Tags saved")
+            }
+        }
         .reportDialog($reporting, app: app)
     }
 
@@ -79,6 +86,9 @@ struct PostCard: View {
                 if isMine {
                     Button(post.caption?.isEmpty == false ? "Edit caption" : "Add caption", systemImage: "pencil") {
                         editingCaption = true
+                    }
+                    Button(post.tags.isEmpty ? "Tag people" : "Edit tags", systemImage: "person.crop.circle.badge.plus") {
+                        editingTags = true
                     }
                     Button("Delete post", systemImage: "trash", role: .destructive) { confirmDelete = true }
                 } else {
