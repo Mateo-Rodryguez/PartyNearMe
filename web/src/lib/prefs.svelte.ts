@@ -2,18 +2,44 @@
 export type Theme = 'system' | 'day' | 'night';
 
 const KEY = 'pnm.theme';
+const DISPLAY_KEY = 'pnm.display';
+
+/** The same display choices as the apps' LocalPrefs, kept in this browser. */
+export interface Display {
+	/** Distances in miles instead of kilometres. */
+	miles: boolean;
+	/** How far Parties and the row on Home look. */
+	radiusKm: number;
+	/** Hides like counts on other people's posts, as Instagram allows. */
+	hideLikeCounts: boolean;
+}
+
+export const RADIUS_CHOICES = [5, 10, 25, 50];
 
 class Prefs {
 	theme = $state<Theme>('system');
+	display = $state<Display>({ miles: false, radiusKm: 25, hideLikeCounts: false });
 
 	start() {
 		try {
 			const saved = localStorage.getItem(KEY);
 			if (saved === 'day' || saved === 'night') this.theme = saved;
+			const display = JSON.parse(localStorage.getItem(DISPLAY_KEY) ?? '{}') as Partial<Display>;
+			this.display = { ...this.display, ...display };
+			if (!RADIUS_CHOICES.includes(this.display.radiusKm)) this.display.radiusKm = 25;
 		} catch {
 			// Default.
 		}
 		this.apply();
+	}
+
+	setDisplay(change: Partial<Display>) {
+		this.display = { ...this.display, ...change };
+		try {
+			localStorage.setItem(DISPLAY_KEY, JSON.stringify(this.display));
+		} catch {
+			// Lasts for this visit.
+		}
 	}
 
 	setTheme(theme: Theme) {

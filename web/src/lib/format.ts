@@ -53,10 +53,16 @@ export function calendarTile(iso: string): [string, string] {
 }
 
 /** "650 m away" or "2.3 km away". */
-export function distance(meters: number | null | undefined): string {
+export function distance(meters: number | null | undefined, miles = false): string {
 	if (meters == null) return '';
+	if (miles) return `${(Math.max(1, Math.round(meters / 160.934)) / 10).toString()} mi away`;
 	if (meters < 1000) return `${(Math.floor(meters / 50) + 1) * 50} m away`;
 	return `${(Math.round(meters / 100) / 10).toString()} km away`;
+}
+
+/** A search radius as people say it: "25 km", or "16 mi" in miles. */
+export function radiusLabel(km: number, miles: boolean): string {
+	return miles ? `${Math.round(km / 1.609)} mi` : `${km} km`;
 }
 
 /** From now until 6 the next morning: what people mean by "tonight". */

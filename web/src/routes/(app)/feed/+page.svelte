@@ -8,6 +8,7 @@
 	import Icon from '#lib/ui/Icon.svelte';
 	import Empty from '#lib/ui/Empty.svelte';
 	import LoadMore from '#lib/ui/LoadMore.svelte';
+	import PartyRail from '#lib/ui/PartyRail.svelte';
 	import PostCard from '#lib/ui/PostCard.svelte';
 	import RecommendCard from '#lib/ui/RecommendCard.svelte';
 	import { visitAndCheck } from '#lib/recommend.js';
@@ -78,6 +79,8 @@
 {#if askRecommend}
 	<RecommendCard ondone={() => (askRecommend = false)} />
 {/if}
+
+<PartyRail />
 
 <div class="feed">
 	{#each feed.items as post, i (post.id)}

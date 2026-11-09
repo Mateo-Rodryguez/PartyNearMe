@@ -2,6 +2,7 @@
 	import type { Event, Placement } from '#lib/api/types.js';
 	import { calendarTile, clockTime, count, coverFor, dayLabel, distance, nameOf } from '#lib/format.js';
 	import { interactions } from '#lib/interactions.js';
+	import { prefs } from '#lib/prefs.svelte.js';
 	import Avatar from './Avatar.svelte';
 
 	let {
@@ -49,7 +50,7 @@
 		<h3>{event.title}</h3>
 		<p class="muted line">
 			{#if event.details_hidden}Venue shared with guests{:else}{event.venue_name ?? 'Venue on the map'}{/if}
-			{#if event.distance_m != null}· {distance(event.distance_m)}{/if}
+			{#if event.distance_m != null}· {distance(event.distance_m, prefs.display.miles)}{/if}
 		</p>
 		<div class="foot">
 			{#if friends.length}

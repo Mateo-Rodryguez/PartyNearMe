@@ -206,6 +206,7 @@ for (const scheme of ['dark', 'light']) {
 	// Someone who knows the app gets asked if they'd recommend it.
 	await page.evaluate(() => localStorage.setItem('pnm.activity', JSON.stringify({ firstDay: 1, lastDay: 1, days: 5, askedDay: 0 })));
 	await shot('feed', '/feed', 'What a night');
+	await page.getByText('Happening near you').waitFor();
 	await page.getByRole('radio', { name: '9' }).click();
 	await page.getByPlaceholder('What do you love most? (optional)').fill('The party map');
 	await page.screenshot({ path: `${out}/recommend-${scheme}.png` });
@@ -262,6 +263,15 @@ for (const scheme of ['dark', 'light']) {
 	await page.getByText('Why are you leaving?').waitFor();
 	await page.screenshot({ path: `${out}/delete-account-${scheme}.png` });
 	await page.getByRole('button', { name: 'Keep my account' }).click();
+	await page.getByRole('radio', { name: 'Miles' }).click();
+	await page.getByRole('switch', { name: /Hide like counts/ }).check();
+	await shot('nearby-miles', '/nearby', 'mi away');
+	await page.getByText('Within 16 mi').waitFor({ state: 'attached' });
+	await shot('feed-hidden-likes', '/feed', 'What a night');
+	if (await page.getByText('17 likes').count()) errors.push(`${scheme}: like counts still show with "Hide like counts" on`);
+	await page.goto(`${site}/settings`);
+	await page.getByRole('radio', { name: 'Kilometres' }).click();
+	await page.getByRole('switch', { name: /Hide like counts/ }).uncheck();
 	await page.getByRole('link', { name: 'Reports to review' }).click();
 	await page.getByText('Post by @ana').waitFor();
 	await page.screenshot({ path: `${out}/moderation-${scheme}.png` });
