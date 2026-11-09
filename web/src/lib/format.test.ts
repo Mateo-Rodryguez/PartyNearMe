@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { coverFor, distance, inviteResultText, nameOf, photoUrl, srcset, timeAgo, tonightWindow, weekendWindow } from './format.js';
+import { coverFor, distance, inviteResultText, nameOf, radiusLabel, photoUrl, srcset, timeAgo, tonightWindow, weekendWindow } from './format.js';
 
 describe('timeAgo', () => {
 	const now = new Date('2026-11-08T20:00:00Z');
@@ -23,6 +23,11 @@ describe('names and distances', () => {
 		expect(distance(2340)).toBe('2.3 km away');
 		expect(distance(5000)).toBe('5 km away');
 		expect(distance(null)).toBe('');
+		expect(distance(620, true)).toBe('0.4 mi away');
+		expect(distance(5000, true)).toBe('3.1 mi away');
+		expect(distance(10, true)).toBe('0.1 mi away');
+		expect(radiusLabel(25, true)).toBe('16 mi');
+		expect(radiusLabel(25, false)).toBe('25 km');
 	});
 });
 

@@ -12,6 +12,7 @@
 	import Photo from './Photo.svelte';
 	import ReportSheet from './ReportSheet.svelte';
 	import Sheet from './Sheet.svelte';
+	import { prefs } from '#lib/prefs.svelte.js';
 	import { session } from '#lib/session.svelte.js';
 
 	let {
@@ -203,7 +204,7 @@
 	</div>
 
 	<div class="text">
-		{#if post.like_count > 0}<strong>{count(post.like_count, 'like')}</strong>{/if}
+		{#if post.like_count > 0 && (own || !prefs.display.hideLikeCounts)}<strong>{count(post.like_count, 'like')}</strong>{/if}
 		{#if post.caption}
 			<p><a href="/u/{post.author.id}"><strong>{nameOf(post.author)}</strong></a> {post.caption}</p>
 		{/if}

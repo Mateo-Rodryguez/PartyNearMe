@@ -193,6 +193,18 @@
 					<button class="chip" role="radio" aria-checked={prefs.theme === t.id} onclick={() => prefs.setTheme(t.id)}>{t.label}</button>
 				{/each}
 			</div>
+			<h3 class="overline">Distances in</h3>
+			<div class="chips" role="radiogroup" aria-label="Distances in">
+				<button class="chip" role="radio" aria-checked={!prefs.display.miles} onclick={() => prefs.setDisplay({ miles: false })}>Kilometres</button>
+				<button class="chip" role="radio" aria-checked={prefs.display.miles} onclick={() => prefs.setDisplay({ miles: true })}>Miles</button>
+			</div>
+			<label class="toggle">
+				<span>
+					<strong>Hide like counts</strong>
+					<span class="muted">On other people's posts</span>
+				</span>
+				<input type="checkbox" role="switch" checked={prefs.display.hideLikeCounts} onchange={(e) => prefs.setDisplay({ hideLikeCounts: e.currentTarget.checked })} />
+			</label>
 		</section>
 
 		{#if settings}

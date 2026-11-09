@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 	import { analytics } from '#lib/analytics.js';
 	import { api } from '#lib/api/client.js';
 	import type { Event, Interest } from '#lib/api/types.js';
-	import { tonightWindow, weekendWindow } from '#lib/format.js';
+	import { radiusLabel, tonightWindow, weekendWindow } from '#lib/format.js';
 	import { currentLocation, lastLocation, locationAllowed, type LatLng } from '#lib/location.js';
 	import { Paged } from '#lib/paged.svelte.js';
+	import { prefs, RADIUS_CHOICES } from '#lib/prefs.svelte.js';
 	import Empty from '#lib/ui/Empty.svelte';
 	import EventCard from '#lib/ui/EventCard.svelte';
 	import LoadMore from '#lib/ui/LoadMore.svelte';
@@ -19,13 +20,17 @@
 		{ id: 'weekend', label: 'This weekend' },
 		{ id: 'soon', label: 'Next 2 weeks' }
 	];
-	const radii = [5, 10, 25, 50];
+
 
 	let here = $state<LatLng | null>(lastLocation());
 	let asking = $state(false);
 	let denied = $state(false);
 	let when = $state<When>('soon');
-	let radiusKm = $state(10);
+	// Remembered in this browser, like the apps remember it on the phone.
+	let radiusKm = $state(prefs.display.radiusKm);
+	$effect(() => {
+		if (radiusKm !== untrack(() => prefs.display.radiusKm)) prefs.setDisplay({ radiusKm });
+	});
 	let interestId = $state<number | null>(null);
 	let interests = $state<Interest[]>([]);
 	// For you ranks parties by what this person likes; Soonest is by date. Remembered in this browser.
@@ -139,7 +144,7 @@
 		<label class="chip radius">
 			<span class="visually-hidden">Distance</span>
 			<select bind:value={radiusKm}>
-				{#each radii as r (r)}<option value={r}>Within {r} km</option>{/each}
+				{#each RADIUS_CHOICES as r (r)}<option value={r}>Within {radiusLabel(r, prefs.display.miles)}</option>{/each}
 			</select>
 		</label>
 	</div>
