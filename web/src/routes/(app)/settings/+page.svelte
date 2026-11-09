@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { analytics, isSharingUsage, setShareUsage } from '#lib/analytics.js';
 	import { api } from '#lib/api/client.js';
 	import type { AccountSettings, Interest, ListedPerson, OwnProfile } from '#lib/api/types.js';
 	import { config } from '#lib/config.js';
@@ -24,6 +25,7 @@
 	let saving = $state(false);
 	let avatarInput = $state<HTMLInputElement>();
 	let deleting = $state(false);
+	let sharing = $state(isSharingUsage());
 	let leavingReason = $state('');
 	let confirmText = $state('');
 	let deleteBusy = $state(false);
@@ -113,6 +115,8 @@
 	}
 
 	async function signOut() {
+		analytics.capture('signed_out');
+		analytics.flush();
 		await session.signOut();
 		await goto('/', { replaceState: true });
 	}
@@ -124,6 +128,7 @@
 			// Why people leave is the strongest signal there is; it's optional and never blocks deleting.
 			if (leavingReason.trim()) await api.sendFeedback('leaving', { body: leavingReason, screen: 'settings' }).catch(() => undefined);
 			await api.deleteAccount();
+			analytics.flush(); // Sends account_deleted, the strongest "didn't like it" there is.
 			session.set(null);
 			await goto('/', { replaceState: true });
 		} catch (err) {
@@ -197,6 +202,19 @@
 					<button class="chip" role="radio" aria-checked={settings.messages_from === 'everyone'} onclick={() => setMessagesFrom('everyone')}>Everyone</button>
 					<button class="chip" role="radio" aria-checked={settings.messages_from === 'following'} onclick={() => setMessagesFrom('following')}>People I follow</button>
 				</div>
+			</section>
+		{/if}
+
+		{#if config.posthogKey}
+			<section>
+				<h2>Privacy</h2>
+				<label class="toggle">
+					<span>
+						<strong>Share usage stats</strong>
+						<span class="muted">Which pages and features get used, never what you post or say</span>
+					</span>
+					<input type="checkbox" role="switch" checked={sharing} onchange={(e) => setShareUsage((sharing = e.currentTarget.checked))} />
+				</label>
 			</section>
 		{/if}
 
@@ -299,6 +317,21 @@
 	}
 	.account {
 		gap: 10px;
+	}
+	.toggle {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+	}
+	.toggle > span {
+		flex: 1;
+		display: grid;
+		gap: 2px;
+	}
+	.toggle input {
+		width: 22px;
+		height: 22px;
+		accent-color: var(--primary);
 	}
 	.delete {
 		display: grid;

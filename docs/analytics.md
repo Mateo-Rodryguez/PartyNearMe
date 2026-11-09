@@ -3,9 +3,12 @@
 PartyNearMe is meant to grow by word of mouth, so the product has to be good
 enough that people tell their friends. This document says how the app learns
 what people like, dislike, struggle with and never use, and is the **contract
-both apps follow**: Android (Compose, `app/`) and the native iPhone app
-(SwiftUI, `ios/`) send the same events with the same names and properties, so
-one PostHog dashboard covers both.
+every version follows**: Android (Compose, `app/`), the native iPhone app
+(SwiftUI, `ios/`) and the website (SvelteKit, `web/`, `src/lib/analytics.ts`)
+send the same events with the same names and properties, so one PostHog
+dashboard covers all three. On the web a "screen" is a page, "backgrounded" is
+the tab being hidden or closed, and there are no cookies: the session id lives
+in memory and the share-usage choice in local storage.
 
 ## Three sources, three questions
 
@@ -38,8 +41,8 @@ Crashes and server errors stay in Sentry. The feed's own impression log
 
 | Property | Example | Notes |
 | --- | --- | --- |
-| `platform` | `android` / `ios` | |
-| `$app_version` | `1.4.0` | so a release that made things worse shows up |
+| `platform` | `android` / `ios` / `web` | |
+| `$app_version` | `1.4.0` (web: the short commit, e.g. `6365aeb`) | so a release that made things worse shows up |
 | `$session_id` | UUID v7 | new after 30 minutes without events |
 | `$screen_name` | `party` | the screen on show when it happened |
 | `signed_in` | `true` | |

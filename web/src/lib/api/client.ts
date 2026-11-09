@@ -1,5 +1,6 @@
+import { analytics } from '#lib/analytics.js';
 import { config } from '#lib/config.js';
-import { session } from '#lib/session.svelte.js';
+import { session, SignedOutError } from '#lib/session.svelte.js';
 import type {
 	AccountSettings,
 	Comment,
@@ -70,8 +71,15 @@ async function call<T>(method: string, path: string, { query, body }: { query?: 
 			body: body !== undefined ? JSON.stringify(body) : undefined
 		});
 	const token = await session.accessToken();
-	let response = await attempt(token);
-	if (response.status === 401) response = await attempt(await session.refresh(token));
+	let response: Response;
+	try {
+		response = await attempt(token);
+		if (response.status === 401) response = await attempt(await session.refresh(token));
+	} catch (e) {
+		if (!(e instanceof SignedOutError)) analytics.apiResult(method, path, 0); // No connection.
+		throw e;
+	}
+	analytics.apiResult(method, path, response.status);
 	if (response.status === 410 && path === '/feed') throw new FeedExpiredError();
 	const text = await response.text();
 	if (!response.ok) throw new ApiError(response.status, errorMessage(response.status, text));
@@ -110,7 +118,11 @@ export const api = {
 	uploadPhoto: async (photo: Blob): Promise<string> => {
 		const ticket = await call<UploadTicket>('POST', '/uploads', { body: { content_type: photo.type, size_bytes: photo.size } });
 		const headers = Object.fromEntries(Object.entries(ticket.headers).filter(([name]) => name.toLowerCase() !== 'content-length'));
-		const response = await fetch(ticket.upload_url, { method: 'PUT', headers, body: photo });
+		const response = await fetch(ticket.upload_url, { method: 'PUT', headers, body: photo }).catch((e: unknown) => {
+			analytics.apiResult('PUT', '/photo-upload', 0);
+			throw e;
+		});
+		if (!response.ok) analytics.apiResult('PUT', '/photo-upload', response.status);
 		if (!response.ok) throw new ApiError(response.status, "The photo didn't upload. Try again.");
 		return ticket.upload_id;
 	},
@@ -211,8 +223,8 @@ export const api = {
 	markNotificationsSeen: () => call<void>('POST', '/notifications/seen'),
 
 	// Feedback (see docs/analytics.md): what people tell us themselves.
-	sendFeedback: (kind: FeedbackKind, fields: { body?: string; score?: number; screen?: string } = {}) =>
-		call<void>('POST', '/feedback', {
+	sendFeedback: async (kind: FeedbackKind, fields: { body?: string; score?: number; screen?: string } = {}) => {
+		await call<void>('POST', '/feedback', {
 			body: {
 				kind,
 				body: fields.body?.trim() || undefined,
@@ -221,5 +233,7 @@ export const api = {
 				platform: 'web',
 				app_version: config.version
 			}
-		})
+		});
+		analytics.capture('feedback_sent', { kind, score: fields.score, has_text: !!fields.body?.trim() });
+	}
 };

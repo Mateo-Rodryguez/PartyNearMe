@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { flush } from '#lib/interactions.js';
+	import { analytics } from '#lib/analytics.js';
 	import { me } from '#lib/me.svelte.js';
 	import { session } from '#lib/session.svelte.js';
 	import { unread } from '#lib/unread.svelte.js';
@@ -23,6 +24,19 @@
 	$effect(() => {
 		const userId = session.userId;
 		if (userId) void me.load(userId);
+	});
+
+	// Counted once per visit, once the account is set up; first_run right after setup.
+	let opened = false;
+	let firstRun = false;
+	$effect(() => {
+		const profile = me.current;
+		if (!profile || opened) return;
+		if (!profile.username) firstRun = true;
+		else {
+			opened = true;
+			analytics.capture('app_opened', { first_run: firstRun });
+		}
 	});
 
 	// Send what the user looked at when they leave or switch tabs.

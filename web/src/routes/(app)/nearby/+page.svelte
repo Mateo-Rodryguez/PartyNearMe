@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { analytics } from '#lib/analytics.js';
 	import { api } from '#lib/api/client.js';
 	import type { Event, Interest } from '#lib/api/types.js';
 	import { tonightWindow, weekendWindow } from '#lib/format.js';
@@ -76,6 +77,7 @@
 			to: window?.[1].toISOString(),
 			interestId
 		});
+		if (!cursor && !page.events.length) analytics.capture('nearby_empty', { radius_km: radiusKm, time: when, kind_filter: interestId != null });
 		return { items: page.events, next: page.next_cursor ?? null };
 	});
 
@@ -83,6 +85,7 @@
 		asking = true;
 		here = await currentLocation();
 		denied = !here;
+		if (denied) analytics.capture('nearby_no_location');
 		asking = false;
 	}
 

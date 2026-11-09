@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { analytics } from '#lib/analytics.js';
 	import { api } from '#lib/api/client.js';
 	import type { Event, Person } from '#lib/api/types.js';
 	import { inviteResultText } from '#lib/format.js';
@@ -21,6 +22,7 @@
 		sending = true;
 		try {
 			const { sent, skipped } = await api.invite(id, people.map((p) => p.id));
+			analytics.capture('invites_sent', { sent, skipped });
 			toast.show(inviteResultText(sent, skipped));
 			if (sent > 0) await goto(`/e/${id}`, { replaceState: true });
 		} catch (e) {

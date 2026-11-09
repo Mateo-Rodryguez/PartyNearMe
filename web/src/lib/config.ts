@@ -3,6 +3,9 @@ export const config = {
 	apiBaseUrl: 'https://partynearme-api.onrender.com',
 	supabaseUrl: 'https://vvkckzrhzgdrazhjitse.supabase.co',
 	supabaseKey: 'sb_publishable_lU8CqYjRgUy5kr9Y8QbBNQ_NiPtoCil',
+	/** PostHog's project key (public, write-only), the same project as the apps; null turns analytics off. */
+	posthogKey: 'phc_B4hyjqciBxdUAianpS5sdiwKvHqwccTDQpu6wLTdGcyw' as string | null,
+	posthogHost: 'https://eu.i.posthog.com',
 	/**
 	 * Shows "Continue with Apple" once Apple sign-in for the web is set up in
 	 * Supabase (a Services ID and key; see docs/web.md). The iPhone's native

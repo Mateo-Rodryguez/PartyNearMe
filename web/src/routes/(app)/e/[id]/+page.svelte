@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { analytics } from '#lib/analytics.js';
 	import { api } from '#lib/api/client.js';
 	import type { Event, Post } from '#lib/api/types.js';
 	import { count, coverFor, eventTime, nameOf } from '#lib/format.js';
@@ -42,6 +43,7 @@
 		busy = true;
 		try {
 			event = await api.rsvp(event.id, status);
+			analytics.capture('rsvp_changed', { status: event.my_rsvp ?? 'none' });
 			if (event.my_rsvp === 'requested') toast.show('Asked the host');
 		} catch (e) {
 			toast.show(e instanceof Error ? e.message : "Couldn't save that");
@@ -64,7 +66,9 @@
 
 	async function shareParty() {
 		if (!event) return;
-		if ((await share(`${event.title} on PartyNearMe`, partyLink(event.id), { eventId: event.id })) === 'copied') toast.show('Link copied');
+		const result = await share(`${event.title} on PartyNearMe`, partyLink(event.id), { eventId: event.id });
+		if (result) analytics.capture('link_shared', { kind: 'party' });
+		if (result === 'copied') toast.show('Link copied');
 	}
 
 	const directions = $derived(event ? `https://www.google.com/maps/dir/?api=1&destination=${event.lat},${event.lng}` : '');

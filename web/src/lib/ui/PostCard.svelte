@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { analytics } from '#lib/analytics.js';
 	import { api } from '#lib/api/client.js';
 	import type { Person, Placement, Post } from '#lib/api/types.js';
 	import { count, nameOf, timeAgo } from '#lib/format.js';
@@ -97,6 +98,7 @@
 
 	async function sharePost() {
 		const result = await share(`${nameOf(post.author)} on PartyNearMe`, postLink(post.id), { postId: post.id });
+		if (result) analytics.capture('link_shared', { kind: 'post' });
 		if (result === 'copied') toast.show('Link copied');
 	}
 

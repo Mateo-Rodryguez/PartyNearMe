@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { analytics } from '#lib/analytics.js';
 	import { api } from '#lib/api/client.js';
 	import type { Comment, Post } from '#lib/api/types.js';
 	import { nameOf, timeAgo } from '#lib/format.js';
@@ -48,6 +49,7 @@
 		try {
 			const added = await api.addComment(post.id, body);
 			comments.items = [added, ...comments.items];
+			analytics.capture('comment_posted');
 			post = { ...post, comment_count: post.comment_count + 1 };
 			draft = '';
 		} catch (e) {

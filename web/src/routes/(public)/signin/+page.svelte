@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { analytics } from '#lib/analytics.js';
 	import * as auth from '#lib/api/auth.js';
 	import { config } from '#lib/config.js';
 	import { session } from '#lib/session.svelte.js';
@@ -39,19 +40,26 @@
 		e.preventDefault();
 		busy = true;
 		error = notice = null;
+		const action = mode === 'reset' ? 'reset_password' : mode === 'signup' ? 'sign_up' : 'sign_in';
 		try {
 			if (mode === 'reset') {
 				await auth.recover(email.trim());
 				notice = 'If that email has an account, a link to choose a new password is on its way.';
+				analytics.capture('auth_succeeded', { method: 'email', action, check_email: true });
 			} else if (mode === 'signup') {
 				const created = await auth.signUp(email.trim(), password);
+				analytics.capture('auth_succeeded', { method: 'email', action, check_email: !created });
 				if (created) session.set(created);
 				else notice = 'Check your email and tap the link to finish signing up.';
 			} else {
-				session.set(await auth.signIn(email.trim(), password));
+				const signedIn = await auth.signIn(email.trim(), password);
+				analytics.capture('auth_succeeded', { method: 'email', action });
+				session.set(signedIn);
 			}
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Something went wrong';
+			// The message shown, never what was typed.
+			analytics.capture('auth_failed', { method: 'email', action, reason: error });
 		} finally {
 			busy = false;
 		}
@@ -60,9 +68,11 @@
 	async function withProvider(provider: 'google' | 'apple') {
 		try {
 			sessionStorage.setItem('pnm.next', next);
+			sessionStorage.setItem('pnm.method', provider);
 		} catch {
 			// The callback falls back to the feed.
 		}
+		analytics.flush(); // The page is about to go to the provider.
 		location.href = await auth.authorizeUrl(provider, `${location.origin}/auth/callback`);
 	}
 

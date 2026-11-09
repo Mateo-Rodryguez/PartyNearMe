@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { analytics } from '#lib/analytics.js';
 	import { api } from '#lib/api/client.js';
 	import type { Event, ListedPerson } from '#lib/api/types.js';
 	import { nameOf } from '#lib/format.js';
@@ -95,6 +96,7 @@
 				place_name: place.trim() || undefined,
 				tag_ids: tagged.length ? tagged.map((t) => t.id) : undefined
 			});
+			analytics.capture('post_created', { photos: ids.length, tagged: tagged.length, at_party: !!partyId });
 			toast.show('Posted. It shows to others once we check it.');
 			await goto(`/p/${post.id}`, { replaceState: true });
 		} catch (e) {
