@@ -13,7 +13,7 @@
 	const inbox = new Paged<Conversation>(async (cursor) => {
 		const page = await api.inbox(cursor);
 		return { items: page.conversations, next: page.next_cursor ?? null };
-	});
+	}, () => 'inbox');
 
 	// Fresh when opened, and again whenever a message arrives in any chat.
 	$effect(() => {

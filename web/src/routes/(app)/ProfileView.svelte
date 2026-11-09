@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { readSaved, writeSaved } from '#lib/saved.js';
 	import RelationshipHeart from '#lib/ui/RelationshipHeart.svelte';
 	import { goto } from '$app/navigation';
 	import { api } from '#lib/api/client.js';
@@ -29,18 +30,22 @@
 
 	$effect(() => {
 		const uid = userId;
-		profile = null;
+		// Last visit's copy shows at once while the fresh one loads.
+		profile = readSaved<PublicProfile>(`profile.${uid}`);
 		error = null;
 		parties = null;
 		tab = 'photos';
 		api.user(uid).then(
-			(p) => (profile = p),
+			(p) => {
+				profile = p;
+				writeSaved(`profile.${uid}`, p);
+			},
 			(e: unknown) => (error = e instanceof Error ? e.message : 'Something went wrong')
 		);
 		const list = new Paged<Post>(async (cursor) => {
 			const p = await api.userPosts(uid, cursor);
 			return { items: p.posts, next: p.next_cursor ?? null };
-		});
+		}, () => `posts.${uid}`);
 		posts = list;
 		void list.refresh();
 	});

@@ -175,7 +175,7 @@ export async function rankParties(db: Db, me: string, q: PartyQuery): Promise<Sc
        or exists (select 1 from public.saved_events s where s.user_id = ${me} and s.event_id = e.id)) as engaged
     from public.events e
     left join public.interests it on it.id = e.interest_id
-    where e.status = 'published' and not e.is_private and e.organiser_id <> ${me}
+    where e.status = 'published' and not e.is_private
       and extensions.st_dwithin(e.location, ${here}, ${q.radiusKm * 1000})
       and coalesce(e.ends_at, e.starts_at + interval '6 hours') >= ${q.from}::timestamptz
       and e.starts_at < ${q.to}::timestamptz
@@ -192,6 +192,10 @@ export async function rankParties(db: Db, me: string, q: PartyQuery): Promise<Sc
     .map((r) => scoreParty({ ...r, distance_m: Number(r.distance_m), starts_in_h: Number(r.starts_in_h),
                              interest_affinity: Number(r.interest_affinity), host_affinity: Number(r.host_affinity) }))
     .sort((a, b) => b.score - a.score || (a.id < b.id ? -1 : 1));
+  // Your own parties first, like your own story on Instagram: a host checks theirs
+  // is up, and it isn't a recommendation, so it isn't ranked or given a reason.
+  const own = scored.filter((p) => p.organiser_id === me).map((p) => ({ ...p, reason: null }));
+  const others = scored.filter((p) => p.organiser_id !== me);
   // Not three parties from one host in a row, nor four of one kind.
-  return diversify(diversify(scored, (p) => p.interest_id, 3), (p) => p.organiser_id, 2);
+  return [...own, ...diversify(diversify(others, (p) => p.interest_id, 3), (p) => p.organiser_id, 2)];
 }
