@@ -7,6 +7,7 @@
 	import Sheet from '#lib/ui/Sheet.svelte';
 	import Spinner from '#lib/ui/Spinner.svelte';
 	import PageHeader from '../PageHeader.svelte';
+	import RecommendationStats from './RecommendationStats.svelte';
 
 	// Open reports for moderators, oldest first, as in the apps; each decision
 	// closes the thing's reports. The server checks who's a moderator.
@@ -100,6 +101,8 @@
 		{/each}
 	</div>
 {/if}
+
+<RecommendationStats />
 
 <Sheet bind:open title={confirming ? `${confirming.choice.label}?` : ''}>
 	<form class="confirm" onsubmit={act}>

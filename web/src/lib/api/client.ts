@@ -13,6 +13,7 @@ import type {
 	EventPage,
 	EventUpdate,
 	FeedbackKind,
+	ForYouPage,
 	GuestList,
 	NewEvent,
 	Interaction,
@@ -24,6 +25,7 @@ import type {
 	Post,
 	PostPage,
 	PublicProfile,
+	RecommendationStats,
 	ReportedItem,
 	ReportTarget,
 	Rsvp,
@@ -126,6 +128,11 @@ export const api = {
 		call<EventPage>('GET', '/events/nearby', {
 			query: { lat: q.lat, lng: q.lng, radius_km: q.radiusKm ?? 10, cursor: q.cursor, from: q.from, to: q.to, interest_id: q.interestId }
 		}),
+	/** Parties around the user ranked by what they like, each with a reason. */
+	forYouEvents: (q: { lat: number; lng: number; radiusKm?: number; from?: string; to?: string; interestId?: number | null }) =>
+		call<ForYouPage>('GET', '/events/for-you', {
+			query: { lat: q.lat, lng: q.lng, radius_km: q.radiusKm ?? 25, from: q.from, to: q.to, interest_id: q.interestId }
+		}),
 	event: (eventId: string) => call<Event>('GET', `/events/${id(eventId)}`),
 	eventPosts: (eventId: string, cursor?: string | null) =>
 		call<PostPage>('GET', `/events/${id(eventId)}/posts`, { query: { cursor } }),
@@ -180,6 +187,8 @@ export const api = {
 	block: (userId: string, blocked: boolean) => call<void>(blocked ? 'PUT' : 'DELETE', `/users/${id(userId)}/block`),
 	/** Open reports, one entry per reported thing. Moderators only. */
 	moderationQueue: async () => (await call<{ items: ReportedItem[] }>('GET', '/moderation/queue')).items,
+	/** How well recommendations work: impressions and what came of them. Moderators only. */
+	recommendationStats: (days = 14) => call<RecommendationStats>('GET', '/moderation/recommendation-stats', { query: { days } }),
 	/** Acts on a reported thing and closes its reports. Moderators only. */
 	moderate: (targetType: string, targetId: string, action: ModerationAction, note?: string) =>
 		call<void>('POST', '/moderation/actions', { body: { target_type: targetType, target_id: targetId, action, note: note || undefined } }),

@@ -45,6 +45,13 @@ const post = {
 const routes = [
 	[/\/posts\/77777777-7777-4777-8777-777777777777$/, { ...post, id: '77777777-7777-4777-8777-777777777777', author: me, tags: [] }],
 	[/\/feed/, { posts: [post, { ...post, id: '55555555-5555-4555-8555-555555555555', caption: 'Second one', media: [post.media[1]] }], next_cursor: null }],
+	[/\/events\/for-you/, {
+		events: [
+			{ ...party, reason: { kind: 'friends_going', text: '2 people you follow are going' } },
+			{ ...party, id: '66666666-6666-4666-8666-666666666666', title: 'Warehouse Techno', cover_url: null, friends_going: [], reason: { kind: 'interest', text: 'Because you like Music' } }
+		],
+		serve_id: '77777777-7777-4777-8777-777777777777'
+	}],
 	[/\/events\/nearby/, { events: [party, { ...party, id: '66666666-6666-4666-8666-666666666666', title: 'Warehouse Techno', cover_url: null, my_rsvp: 'going', friends_going: [] }], next_cursor: null }],
 	[/\/events\/[^/]+\/posts/, { posts: [post], next_cursor: null }],
 	[/\/events\/[^/]+\/rsvp/, { ...party, my_rsvp: 'going', going_count: 43 }],
@@ -61,6 +68,14 @@ const routes = [
 		{ target_type: 'comment', target_id: 'c9', report_count: 1, reasons: ['harassment'], first_reported_at: soon, preview: null }
 	] }],
 	[/\/moderation\/actions$/, null],
+	[/\/moderation\/recommendation-stats/, {
+		by_day: [
+			{ day: '2026-11-08', surface: 'for_you_parties', users: 12, impressions: 180, opens: 31, rsvps: 9, likes: 0 },
+			{ day: '2026-11-08', surface: 'nearby', users: 5, impressions: 70, opens: 8, rsvps: 2, likes: 0 }
+		],
+		by_reason: [{ reason: 'friends_going', impressions: 60, opens: 15, rsvps: 6, likes: 0 }],
+		by_position: [{ positions: '1-3', impressions: 90, opens: 22, rsvps: 7, likes: 0 }]
+	}],
 	[/\/users\/search/, { users: [{ ...ana, is_following: true }] }],
 	[/\/users\/[^/]+\/posts/, { posts: [post, post].map((p, i) => ({ ...p, id: `${p.id.slice(0, -1)}${i}` })), next_cursor: null }],
 	[/\/users\/[^/]+$/, { ...ana, bio: 'Out every weekend', relationship_status: 'single', parties: 9, followers: 120, following: 80, is_following: false }],

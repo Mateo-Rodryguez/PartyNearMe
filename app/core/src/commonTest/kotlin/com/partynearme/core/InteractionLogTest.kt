@@ -23,6 +23,21 @@ class InteractionLogTest {
     }
 
     @Test
+    fun countsAnImpressionOncePerListAndKeepsWhereItWas() = runTest {
+        val sent = mutableListOf<Interaction>()
+        val log = InteractionLog({ sent += it })
+        log.impression(eventId = "e1", surface = "for_you_parties", serveId = "s1", position = 0)
+        log.impression(eventId = "e1", surface = "for_you_parties", serveId = "s1", position = 0)
+        log.impression(eventId = "e1", surface = "nearby", position = 3)
+        log.open(eventId = "e1", surface = "for_you_parties", serveId = "s1", position = 0)
+        log.flush()
+        assertEquals(listOf("impression", "impression", "open"), sent.map { it.kind })
+        assertEquals(listOf("for_you_parties", "nearby", "for_you_parties"), sent.map { it.surface })
+        assertEquals(listOf("s1", null, "s1"), sent.map { it.serveId })
+        assertEquals(listOf(0, 3, 0), sent.map { it.position })
+    }
+
+    @Test
     fun notInterestedIsSentRightAwayAndFailuresAreDropped() = runTest {
         var calls = 0
         val log = InteractionLog({ calls++; error("offline") })

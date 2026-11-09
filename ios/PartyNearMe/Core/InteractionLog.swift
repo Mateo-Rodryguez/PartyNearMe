@@ -18,18 +18,28 @@ final class InteractionLog {
         self.send = send
     }
 
-    func impression(_ postId: String) {
-        guard seen.insert(postId).inserted else { return }
-        add(Interaction(kind: "impression", postId: postId))
+    /// Something was on screen in a list. `surface` says which list (feed,
+    /// for_you_parties, nearby...), `serveId` and `position` where in a ranked one.
+    /// Counted once per item and list per session.
+    func impression(_ postId: String? = nil, eventId: String? = nil, surface: String? = nil,
+                    serveId: String? = nil, position: Int? = nil) {
+        guard seen.insert("\(surface ?? ""):\(postId ?? eventId ?? "")").inserted else { return }
+        add(Interaction(kind: "impression", postId: postId, eventId: eventId, surface: surface,
+                        serveId: serveId, position: position))
     }
 
     /// Time spent on a post; very short glances are not worth sending.
-    func dwell(_ postId: String, milliseconds: Int) {
+    func dwell(_ postId: String, milliseconds: Int, surface: String? = nil, serveId: String? = nil) {
         guard milliseconds >= Self.minDwellMs else { return }
-        add(Interaction(kind: "dwell", postId: postId, dwellMs: min(milliseconds, Self.maxDwellMs)))
+        add(Interaction(kind: "dwell", postId: postId, dwellMs: min(milliseconds, Self.maxDwellMs),
+                        surface: surface, serveId: serveId))
     }
 
-    func open(_ postId: String) { add(Interaction(kind: "open", postId: postId)) }
+    func open(_ postId: String? = nil, eventId: String? = nil, surface: String? = nil,
+              serveId: String? = nil, position: Int? = nil) {
+        add(Interaction(kind: "open", postId: postId, eventId: eventId, surface: surface,
+                        serveId: serveId, position: position))
+    }
 
     /// Someone shared a post or party: a strong signal for ranking.
     func share(postId: String? = nil, eventId: String? = nil) {

@@ -1,14 +1,39 @@
 <script lang="ts">
-	import type { Event } from '#lib/api/types.js';
+	import type { Event, Placement } from '#lib/api/types.js';
 	import { calendarTile, clockTime, count, coverFor, dayLabel, distance, nameOf } from '#lib/format.js';
+	import { interactions } from '#lib/interactions.js';
 	import Avatar from './Avatar.svelte';
 
-	let { event, eager = false }: { event: Event; eager?: boolean } = $props();
+	let {
+		event,
+		eager = false,
+		placement
+	}: {
+		event: Event;
+		eager?: boolean;
+		/** Which list the party is in, and where: impressions and opens are logged to measure For you. */
+		placement?: Placement;
+	} = $props();
+
+	let card = $state<HTMLElement>();
+	// An impression once half the card is on screen.
+	$effect(() => {
+		if (!card || !placement) return;
+		const where = placement;
+		const observer = new IntersectionObserver(
+			([entry]) => {
+				if (entry.isIntersecting) interactions.eventImpression(event.id, where);
+			},
+			{ threshold: 0.5 }
+		);
+		observer.observe(card);
+		return () => observer.disconnect();
+	});
 	const [month, day] = $derived(calendarTile(event.starts_at));
 	const friends = $derived(event.friends_going ?? []);
 </script>
 
-<a class="card" href="/e/{event.id}">
+<a class="card" href="/e/{event.id}" bind:this={card} onclick={() => placement && interactions.openEvent(event.id, placement)}>
 	<div class="cover" style:background={event.cover_url ? undefined : coverFor(event.title)}>
 		{#if event.cover_url}
 			<img src={event.cover_url} alt="" loading={eager ? 'eager' : 'lazy'} decoding="async" />
@@ -18,6 +43,9 @@
 	</div>
 	<div class="body">
 		<p class="overline">{dayLabel(event.starts_at)} · {clockTime(event.starts_at)}</p>
+		{#if event.reason && (event.reason.kind !== 'friends_going' || !friends.length)}
+			<p class="reason">{event.reason.text}</p>
+		{/if}
 		<h3>{event.title}</h3>
 		<p class="muted line">
 			{#if event.details_hidden}Venue shared with guests{:else}{event.venue_name ?? 'Venue on the map'}{/if}
@@ -40,6 +68,12 @@
 </a>
 
 <style>
+	.reason {
+		margin: 0;
+		font-size: 0.8125rem;
+		font-weight: 650;
+		color: var(--primary);
+	}
 	.card {
 		display: grid;
 		border-radius: var(--radius-lg);

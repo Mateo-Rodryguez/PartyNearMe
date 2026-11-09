@@ -19,11 +19,14 @@
 	// Once someone knows the app, ask if they'd recommend it (see lib/recommend.ts).
 	let askRecommend = $state(visitAndCheck());
 
+	/** The ranked list on screen, sent with impressions so the ranking can be measured. */
+	let serveId = $state<string | null>(null);
 	const feed = new Paged<Post>(async (cursor) => {
 		const here = lastLocation();
 		try {
 			const page = await api.feed(here?.lat ?? null, here?.lng ?? null, cursor);
 			if (!cursor) {
+				serveId = page.serve_id ?? null;
 				try {
 					localStorage.setItem(CACHE, JSON.stringify(page.posts.slice(0, 10)));
 				} catch {
@@ -78,7 +81,7 @@
 
 <div class="feed">
 	{#each feed.items as post, i (post.id)}
-		<PostCard bind:post={feed.items[i]} eager={i === 0} ongone={() => (feed.items = feed.items.filter((p) => p.id !== post.id))} />
+		<PostCard bind:post={feed.items[i]} eager={i === 0} placement={{ surface: 'feed', serve_id: serveId, position: i }} ongone={() => (feed.items = feed.items.filter((p) => p.id !== post.id))} />
 	{/each}
 </div>
 

@@ -5,6 +5,8 @@ import SwiftUI
 @Observable
 final class FeedModel {
     let paged: Paged<Post>
+    /// The ranked list on screen, sent with impressions so the ranking can be measured; nil for the saved copy.
+    private(set) var serveId: String?
     @ObservationIgnored private var asked = false
     @ObservationIgnored private var here: (Double, Double)?
 
@@ -26,7 +28,10 @@ final class FeedModel {
         }
         // A nil page means the ranked list behind the cursor is gone; pull to refresh starts a new one.
         guard let page = try await app.api.feed(lat: here?.0, lng: here?.1, cursor: cursor) else { return ([], nil) }
-        if cursor == nil { app.feedCache?.save(userId: app.myId, posts: page.posts) }
+        if cursor == nil {
+            app.feedCache?.save(userId: app.myId, posts: page.posts)
+            serveId = page.serveId
+        }
         return (page.posts, page.nextCursor)
     }
 }
@@ -35,6 +40,8 @@ final class FeedModel {
 struct FeedView: View {
     @Environment(AppModel.self) private var app
     @Bindable var paged: Paged<Post>
+    /// The ranked list the posts came from, for measuring the ranking.
+    var serveId: String?
     /// Parties near the user, for the row at the top.
     var parties: [Event] = []
     /// Opens the new party form.
@@ -87,7 +94,8 @@ struct FeedView: View {
                         app.interactions.notInterested(post.id)
                         app.show("Got it. You'll see fewer posts like this.")
                     })
-                    .modifier(TrackView(postId: post.id))
+                    .modifier(TrackView(postId: post.id, serveId: serveId,
+                                        position: paged.items.firstIndex { $0.id == post.id } ?? 0))
                     .onAppear {
                         paged.onAppear(post)
                         prefetch(after: post)
@@ -199,17 +207,20 @@ private struct RailItem<Picture: View>: View {
 struct TrackView: ViewModifier {
     @Environment(AppModel.self) private var app
     let postId: String
+    var serveId: String?
+    var position: Int?
     @State private var shownAt: Date?
 
     func body(content: Content) -> some View {
         content
             .onAppear {
-                app.interactions.impression(postId)
+                app.interactions.impression(postId, surface: "feed", serveId: serveId, position: position)
                 shownAt = Date()
             }
             .onDisappear {
                 if let shownAt {
-                    app.interactions.dwell(postId, milliseconds: Int(Date().timeIntervalSince(shownAt) * 1000))
+                    app.interactions.dwell(postId, milliseconds: Int(Date().timeIntervalSince(shownAt) * 1000),
+                                           surface: "feed", serveId: serveId)
                 }
                 shownAt = nil
             }

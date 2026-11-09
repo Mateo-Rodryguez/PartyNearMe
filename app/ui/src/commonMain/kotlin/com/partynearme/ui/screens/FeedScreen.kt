@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -56,7 +57,6 @@ import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
 import com.partynearme.core.api.FeedExpiredException
 import com.partynearme.core.api.ReportTarget
-import com.partynearme.core.model.Event
 import com.partynearme.core.model.LatLng
 import com.partynearme.core.model.Post
 import com.partynearme.ui.Brand
@@ -80,6 +80,9 @@ class FeedState(private val ui: Ui, private val scope: CoroutineScope) {
     private var here: LatLng? = null
     private var asked = false
     val list = LazyListState()
+    /** The ranked list on screen, sent with impressions so the ranking can be measured; null for the saved copy. */
+    var serveId: String? = null
+        private set
     val paged = Paged(scope) { cursor ->
         if (!asked) {
             asked = true
@@ -87,7 +90,10 @@ class FeedState(private val ui: Ui, private val scope: CoroutineScope) {
         }
         try {
             ui.api.feed(here?.lat, here?.lng, cursor).also { page ->
-                if (cursor == null) ui.app.feedCache.save(ui.myId, page.posts)
+                if (cursor == null) {
+                    ui.app.feedCache.save(ui.myId, page.posts)
+                    serveId = page.serveId
+                }
             }.let { it.posts to it.nextCursor }
         } catch (e: FeedExpiredException) {
             // The ranked list behind this cursor is gone; pull to refresh starts a new one.
@@ -225,7 +231,7 @@ fun FeedScreen(ui: Ui, state: FeedState, nearby: NearbyState) {
                         item(key = "recommend") { RecommendCard(ui) { ui.askRecommend = false } }
                     }
                     if (nearby.paged.items.isNotEmpty()) {
-                        item(key = "parties") { PartyRail(ui, nearby.paged.items) }
+                        item(key = "parties") { PartyRail(ui, nearby) }
                     }
                     if (paged.saved && paged.error != null) {
                         item(key = "saved") {
@@ -237,8 +243,8 @@ fun FeedScreen(ui: Ui, state: FeedState, nearby: NearbyState) {
                             )
                         }
                     }
-                    items(paged.items, key = { it.id }) { post ->
-                        TrackView(ui, post.id)
+                    itemsIndexed(paged.items, key = { _, post -> post.id }) { index, post ->
+                        TrackView(ui, post.id, state.serveId, index)
                         PostCard(
                             post = post,
                             isMine = post.author.id == ui.myId,
@@ -292,14 +298,14 @@ private fun PrefetchImages(list: LazyListState, posts: List<Post>) {
 
 /** Records that a post was on screen, and for how long, while it stays composed. */
 @Composable
-private fun TrackView(ui: Ui, postId: String) {
+private fun TrackView(ui: Ui, postId: String, serveId: String?, position: Int) {
     LaunchedEffect(postId) {
-        ui.app.interactions.impression(postId)
+        ui.app.interactions.impression(postId = postId, surface = "feed", serveId = serveId, position = position)
         val shown = TimeSource.Monotonic.markNow()
         try {
             awaitCancellation()
         } finally {
-            withContext(NonCancellable) { ui.app.interactions.dwell(postId, shown.elapsedNow().inWholeMilliseconds) }
+            withContext(NonCancellable) { ui.app.interactions.dwell(postId, shown.elapsedNow().inWholeMilliseconds, "feed", serveId) }
         }
     }
 }
@@ -330,7 +336,7 @@ private fun Bell(unread: Int, onClick: () -> Unit) {
 
 /** Parties coming up near you as a row of rings above the feed, like Instagram stories. */
 @Composable
-private fun PartyRail(ui: Ui, events: List<Event>) {
+private fun PartyRail(ui: Ui, nearby: NearbyState) {
     Column(Modifier.padding(bottom = 16.dp)) {
         Text(
             "HAPPENING NEAR YOU",
@@ -347,8 +353,8 @@ private fun PartyRail(ui: Ui, events: List<Event>) {
                     ) { Icon(Icons.Filled.Add, null, Modifier.size(28.dp), tint = MaterialTheme.colorScheme.onSurface) }
                 }
             }
-            items(events, key = { it.id }) { event ->
-                RailItem(event.title, ring = true, onClick = { ui.nav.open(Route.Event(event.id)) }) {
+            items(nearby.paged.items, key = { it.id }) { event ->
+                RailItem(event.title, ring = true, onClick = { nearby.open(event, position = null) }) {
                     Cover(event.coverUrl, event.title, Modifier.fillMaxSize())
                 }
             }

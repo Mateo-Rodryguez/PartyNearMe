@@ -27,10 +27,46 @@
 	let radiusKm = $state(10);
 	let interestId = $state<number | null>(null);
 	let interests = $state<Interest[]>([]);
+	// For you ranks parties by what this person likes; Soonest is by date. Remembered in this browser.
+	const SORT = 'pnm.partiesSort';
+	let forYou = $state(readSort());
+	/** The ranked list on screen (For you only), sent with impressions and opens so it can be measured. */
+	let serveId = $state<string | null>(null);
+
+	function readSort() {
+		try {
+			return localStorage.getItem(SORT) !== 'soonest';
+		} catch {
+			return true;
+		}
+	}
+
+	function sortBy(ranked: boolean) {
+		forYou = ranked;
+		try {
+			localStorage.setItem(SORT, ranked ? 'for_you' : 'soonest');
+		} catch {
+			// Lasts for this visit.
+		}
+	}
 
 	const parties = new Paged<Event>(async (cursor) => {
 		if (!here) return { items: [], next: null };
 		const window = when === 'tonight' ? tonightWindow() : when === 'weekend' ? weekendWindow() : null;
+		if (forYou) {
+			// One ranked page: there are rarely more parties in range than that.
+			const ranked = await api.forYouEvents({
+				lat: here.lat,
+				lng: here.lng,
+				radiusKm,
+				from: window?.[0].toISOString(),
+				to: window?.[1].toISOString(),
+				interestId
+			});
+			serveId = ranked.serve_id;
+			return { items: ranked.events, next: null };
+		}
+		serveId = null;
 		const page = await api.nearbyEvents({
 			lat: here.lat,
 			lng: here.lng,
@@ -60,7 +96,7 @@
 
 	// Reload when the place or a filter changes.
 	$effect(() => {
-		void [here, when, radiusKm, interestId];
+		void [here, when, radiusKm, interestId, forYou];
 		if (here) void parties.refresh();
 	});
 </script>
@@ -89,6 +125,10 @@
 		{/if}
 	</div>
 {:else}
+	<div class="filters" role="group" aria-label="Sort">
+		<button class="chip" aria-pressed={forYou} onclick={() => sortBy(true)}>For you</button>
+		<button class="chip" aria-pressed={!forYou} onclick={() => sortBy(false)}>Soonest</button>
+	</div>
 	<div class="filters" role="group" aria-label="When">
 		{#each whens as w (w.id)}
 			<button class="chip" aria-pressed={when === w.id} onclick={() => (when = w.id)}>{w.label}</button>
@@ -111,7 +151,7 @@
 
 	<div class="list">
 		{#each parties.items as event, i (event.id)}
-			<EventCard {event} eager={i < 2} />
+			<EventCard {event} eager={i < 2} placement={{ surface: forYou ? 'for_you_parties' : 'nearby', serve_id: serveId, position: i }} />
 		{/each}
 	</div>
 
