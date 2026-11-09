@@ -166,6 +166,16 @@ for (const scheme of ['dark', 'light']) {
 	await context.route(/tiles\.openfreemap\.org/, (route) =>
 		route.fulfill({ json: { version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#2a2633' } }] } })
 	);
+	// Place search on the party map.
+	await context.route(/photon\.komoot\.io/, (route) =>
+		route.fulfill({
+			json: {
+				features: [
+					{ geometry: { coordinates: [-0.0759, 51.5246] }, properties: { osm_type: 'N', osm_id: 7, name: 'Shoreditch Rooftop', street: 'Great Eastern Street', city: 'London', country: 'United Kingdom' } }
+				]
+			}
+		})
+	);
 	const page = await context.newPage();
 	page.on('console', (m) => m.type() === 'error' && errors.push(`${scheme} ${page.url()}: ${m.text()}`));
 	page.on('pageerror', (e) => errors.push(`${scheme} ${page.url()}: ${e.message}`));
@@ -234,6 +244,7 @@ for (const scheme of ['dark', 'light']) {
 	await page.getByRole('button', { name: 'Save (1)' }).click();
 	await page.getByRole('dialog', { name: 'Tag people' }).waitFor({ state: 'hidden' });
 	await shot('profile', `/u/${ana.id}`, 'Out every weekend');
+	await page.getByRole('img', { name: 'Single and looking' }).waitFor();
 	await page.getByRole('link', { name: /Followers/ }).first().click();
 	await page.waitForURL(/\/followers$/);
 	await page.getByRole('button', { name: 'Following' }).first().waitFor();
@@ -248,10 +259,21 @@ for (const scheme of ['dark', 'light']) {
 	await page.getByText('Be there at 10').waitFor();
 	await shot('host', '/host', 'Publish party');
 	await page.getByLabel("What's the party?").fill('Garden Disco');
-	await page.getByRole('button', { name: 'Tap to pick the spot on the map' }).click();
-	await page.locator('.maplibregl-canvas').waitFor({ timeout: 15_000 });
+	await page.getByRole('button', { name: 'Tap to search or pick the spot on the map' }).click();
+	const canvas = page.locator('.maplibregl-canvas');
+	await canvas.waitFor({ timeout: 15_000 });
+	// Zooming out must keep the same map: it used to be rebuilt at the start zoom on every move.
+	await canvas.evaluate((el) => el.setAttribute('data-first', ''));
+	for (let i = 0; i < 3; i++) {
+		await page.getByRole('button', { name: 'Zoom out' }).click();
+		await page.waitForTimeout(400);
+	}
+	if (!(await page.locator('.maplibregl-canvas[data-first]').count())) throw new Error('The map was rebuilt after zooming out');
+	await page.getByLabel('Search a place or address').fill('shoreditch');
+	await page.getByRole('option', { name: /Shoreditch Rooftop/ }).click();
 	await page.screenshot({ path: `${out}/host-map-${scheme}.png` });
 	await page.getByRole('button', { name: 'Done' }).click();
+	await page.getByText('Shoreditch Rooftop').first().waitFor();
 	await page.getByRole('button', { name: 'Publish party' }).click();
 	await page.waitForURL(/\/e\/33333333/);
 	await shot('guests', `/e/${party.id}/guests`, 'Asked to come');
@@ -259,6 +281,8 @@ for (const scheme of ['dark', 'light']) {
 	await page.getByText('Going (2)').waitFor();
 	await shot('notifications', '/notifications', 'Amazing!');
 	await shot('settings', '/settings', 'Who can message you');
+	await page.getByText('Heart on your profile').scrollIntoViewIfNeeded();
+	await page.screenshot({ path: `${out}/settings-hearts-${scheme}.png` });
 	await page.getByRole('button', { name: 'Delete account' }).click();
 	await page.getByText('Why are you leaving?').waitFor();
 	await page.screenshot({ path: `${out}/delete-account-${scheme}.png` });

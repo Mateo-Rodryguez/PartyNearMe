@@ -43,6 +43,19 @@
 	let time = $state(localTime(initialStart));
 	let hours = $state(hadHours ? DURATIONS.reduce((a, b) => (Math.abs(b - hadHours) < Math.abs(a - hadHours) ? b : a)) : 4);
 	let spot = $state<LatLng | null>(initial ? { lat: initial.lat, lng: initial.lng } : lastLocation());
+	// The place picked from search, to name the spot; moving the map by hand keeps it.
+	let spotName = $state<string | null>(null);
+	// Without a location the map opens on the whole of Europe, to search from.
+	const EUROPE = { lat: 48.5, lng: 9 };
+	let spotZoom = $state(15);
+	const spotUnpicked = $derived(spot?.lat === EUROPE.lat && spot?.lng === EUROPE.lng);
+	function pickSpot() {
+		if (!spot) {
+			spot = { ...EUROPE };
+			spotZoom = 4;
+		}
+		pickingSpot = true;
+	}
 	let pickingSpot = $state(false);
 	let cover = $state<{ blob: Blob; url: string } | null>(null);
 	let interests = $state<Interest[]>([]);
@@ -78,6 +91,7 @@
 		if (Number.isNaN(start.getTime())) return (error = 'Pick a date and time.');
 		if (!editing && start.getTime() < Date.now() - 3600_000) return (error = 'Pick a time that hasn\'t passed.');
 		if (tickets && !tickets.startsWith('https://')) return (error = 'The ticket link starts with https://');
+		if (spotUnpicked) return (error = 'Search for the place or move the map to put the pin on the party.');
 		const where = spot ?? (await currentLocation());
 		if (!where) return (error = 'Turn on location or pick the spot on the map, so people can find your party.');
 		busy = true;
@@ -165,14 +179,22 @@
 	<div class="block">
 		<span class="overline">Where</span>
 		{#if pickingSpot && spot}
-			<MapPicker bind:value={spot} night={prefs.night} />
+			<MapPicker
+				bind:value={spot}
+				night={prefs.night}
+				zoom={spotZoom}
+				onplace={(place) => {
+					spotName = place.name;
+					if (!venue.trim()) venue = place.name;
+				}}
+			/>
 			<button type="button" class="btn" onclick={() => (pickingSpot = false)}>Done</button>
 		{:else}
-			<button type="button" class="where" onclick={() => (pickingSpot = true)} disabled={!spot}>
+			<button type="button" class="where" onclick={pickSpot}>
 				<Icon name="place" />
 				<span>
-					<strong>{editing ? (editing.venue_name ?? "The party's spot") : spot ? 'Where you are now' : 'Finding where you are…'}</strong>
-					<span class="muted">Tap to pick the spot on the map</span>
+					<strong>{spotName ?? (spotUnpicked ? 'Pick the spot on the map' : editing ? (editing.venue_name ?? "The party's spot") : spot ? 'Where you are now' : 'Finding where you are…')}</strong>
+					<span class="muted">Tap to search or pick the spot on the map</span>
 				</span>
 			</button>
 		{/if}
