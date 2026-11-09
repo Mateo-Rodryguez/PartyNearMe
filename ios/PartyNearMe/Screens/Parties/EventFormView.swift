@@ -28,6 +28,8 @@ struct EventFormView: View {
     @State private var coverItem: PhotosPickerItem?
     @State private var cover: PickedPhoto?
     @State private var pickingSpot = false
+    /// The place picked from search, to show instead of "The spot you picked".
+    @State private var spotName: String?
     @State private var busy = false
     @State private var error: String?
 
@@ -137,7 +139,12 @@ struct EventFormView: View {
         .task { if kinds.isEmpty, let loaded = try? await app.api.interests() { kinds = loaded } }
         .onChange(of: coverItem) { _, item in if let item { Task { await loadCover(item) } } }
         .sheet(isPresented: $pickingSpot) {
-            NavigationStack { MapPinPicker(start: spot, chosen: $spot) }
+            NavigationStack {
+                MapPinPicker(start: spot, chosen: $spot) { name in
+                    spotName = name
+                    if let name, venue.trimmingCharacters(in: .whitespaces).isEmpty { venue = String(name.prefix(120)) }
+                }
+            }
         }
         .interactiveDismissDisabled(busy)
         .analyticsScreen(editing == nil ? "new_party" : "edit_party")
@@ -181,7 +188,7 @@ struct EventFormView: View {
                 .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.appRaised))
             VStack(alignment: .leading, spacing: 2) {
                 Text(spotTitle).font(.subheadline.weight(.semibold)).foregroundStyle(Color.appText)
-                Text(spot == nil ? "Tap to pick a different spot on the map" : "Tap to change it on the map")
+                Text(spot == nil ? "Tap to search or pick a different spot" : "Tap to change it")
                     .font(.caption).foregroundStyle(Color.appSecondaryText)
             }
             Spacer()
@@ -194,7 +201,7 @@ struct EventFormView: View {
     private var spotTitle: String {
         guard let spot else { return "Where you are now" }
         if let editing, spot.latitude == editing.lat, spot.longitude == editing.lng { return editing.venueName ?? "The party's spot" }
-        return "The spot you picked"
+        return spotName ?? "The spot you picked"
     }
 
     private func label(_ text: String) -> some View {
@@ -291,16 +298,25 @@ struct EventFormView: View {
     }
 }
 
-/// Uber-style spot picking: move the map under a fixed pin, then confirm.
+/// Uber-style spot picking: search for a place or address, or move the map
+/// under a fixed pin, then confirm. Search uses Apple Maps on the phone (free,
+/// no key); the web and Android apps search OpenStreetMap.
 struct MapPinPicker: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var chosen: CLLocationCoordinate2D?
+    /// Called on confirm with the searched place's name, or nil when the pin was placed by hand.
+    var onName: (String?) -> Void = { _ in }
     @State private var position: MapCameraPosition
     @State private var center: CLLocationCoordinate2D?
+    @State private var region: MKCoordinateRegion?
     @State private var moving = false
+    @State private var query = ""
+    @State private var results: [MKMapItem] = []
+    @State private var picked: (name: String, at: CLLocationCoordinate2D)?
 
-    init(start: CLLocationCoordinate2D?, chosen: Binding<CLLocationCoordinate2D?>) {
+    init(start: CLLocationCoordinate2D?, chosen: Binding<CLLocationCoordinate2D?>, onName: @escaping (String?) -> Void = { _ in }) {
         _chosen = chosen
+        self.onName = onName
         _center = State(initialValue: start)
         if let start {
             _position = State(initialValue: .region(MKCoordinateRegion(center: start, latitudinalMeters: 600, longitudinalMeters: 600)))
@@ -318,6 +334,7 @@ struct MapPinPicker: View {
         .onMapCameraChange(frequency: .continuous) { _ in moving = true }
         .onMapCameraChange(frequency: .onEnd) { context in
             center = context.region.center
+            region = context.region
             moving = false
         }
         .overlay {
@@ -331,9 +348,10 @@ struct MapPinPicker: View {
         }
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 6) {
-                Text("Move the map to put the pin on the party").font(.footnote).foregroundStyle(Color.appSecondaryText)
+                Text("Search above, or move the map to put the pin on the party").font(.footnote).foregroundStyle(Color.appSecondaryText)
                 PrimaryButton("Use this spot", systemImage: "checkmark") {
                     chosen = center
+                    onName(nameIfStillThere)
                     dismiss()
                 }
                 .disabled(center == nil)
@@ -343,10 +361,69 @@ struct MapPinPicker: View {
             .padding(.bottom, 8)
             .background(.bar)
         }
+        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search a place or address")
+        .searchSuggestions {
+            ForEach(results, id: \.self) { item in
+                Button { pick(item) } label: {
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.name ?? "Place").foregroundStyle(Color.appText)
+                            if let detail = Self.detail(of: item) {
+                                Text(detail).font(.footnote).foregroundStyle(Color.appSecondaryText).lineLimit(1)
+                            }
+                        }
+                    } icon: {
+                        Image(systemName: "mappin.circle.fill")
+                    }
+                }
+            }
+        }
+        .onSubmit(of: .search) { if let first = results.first { pick(first) } }
+        .task(id: query) { await search(query) }
         .navigationTitle("Pick the spot")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
         }
+    }
+
+    /// Searches after a short pause in typing, near where the map is.
+    private func search(_ text: String) async {
+        let text = text.trimmingCharacters(in: .whitespaces)
+        guard text.count >= 3 else { results = []; return }
+        try? await Task.sleep(for: .milliseconds(350))
+        guard !Task.isCancelled else { return }
+        let request = MKLocalSearch.Request()
+        request.naturalLanguageQuery = text
+        request.resultTypes = [.pointOfInterest, .address]
+        if let region { request.region = region }
+        let found = (try? await MKLocalSearch(request: request).start())?.mapItems ?? []
+        guard !Task.isCancelled else { return }
+        results = Array(found.prefix(6))
+    }
+
+    private func pick(_ item: MKMapItem) {
+        let spot = item.placemark.coordinate
+        position = .region(MKCoordinateRegion(center: spot, latitudinalMeters: 400, longitudinalMeters: 400))
+        center = spot
+        picked = item.name.map { ($0, spot) }
+        results = []
+        query = ""
+    }
+
+    /// The searched place's name, if the pin is still on it (moved less than about 50 m).
+    private var nameIfStillThere: String? {
+        guard let picked, let center else { return nil }
+        let moved = CLLocation(latitude: center.latitude, longitude: center.longitude)
+            .distance(from: CLLocation(latitude: picked.at.latitude, longitude: picked.at.longitude))
+        return moved < 50 ? picked.name : nil
+    }
+
+    /// Street, town and country, without repeating the name.
+    private static func detail(of item: MKMapItem) -> String? {
+        let p = item.placemark
+        let street = [p.thoroughfare, p.subThoroughfare].compactMap { $0 }.joined(separator: " ")
+        let parts = [street, p.locality, p.country].compactMap { $0 }.filter { !$0.isEmpty && $0 != item.name }
+        return parts.isEmpty ? nil : parts.joined(separator: ", ")
     }
 }

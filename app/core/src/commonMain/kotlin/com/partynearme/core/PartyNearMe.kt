@@ -3,6 +3,7 @@ package com.partynearme.core
 import com.partynearme.core.analytics.Analytics
 import com.partynearme.core.api.ApiClient
 import com.partynearme.core.api.InteractionLog
+import com.partynearme.core.api.PlaceSearch
 import com.partynearme.core.api.Realtime
 import com.partynearme.core.auth.AuthClient
 import com.partynearme.core.auth.SessionManager
@@ -61,6 +62,8 @@ class PartyNearMe(
     )
     val api = ApiClient(http, config, sessions, onResult = analytics::apiResult)
     val interactions = InteractionLog(api::logInteractions)
+    /** Place and address search for the party map. */
+    val places = PlaceSearch(http)
 
     // A separate client: the request timeout above would cut long-lived sockets.
     private val sockets = HttpClient(engine) { install(WebSockets) }

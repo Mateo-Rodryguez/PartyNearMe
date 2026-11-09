@@ -49,6 +49,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -133,6 +134,8 @@ fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, editing: Event? = null, o
     var spot by remember { mutableStateOf(editing?.let { LatLng(it.lat, it.lng) }) }
     var picking by remember { mutableStateOf(pickOnMap) }
     var mapStart by remember { mutableStateOf<LatLng?>(null) }
+    // The name of the place picked from search, to show instead of "The spot you picked".
+    var spotName by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) { mapStart = ui.location.current() }
     var error by remember { mutableStateOf<String?>(null) }
     var kind by remember { mutableStateOf(editing?.interestId) }
@@ -146,7 +149,13 @@ fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, editing: Event? = null, o
     if (picking) {
         MapPicker(
             start = spot ?: mapStart,
-            onPicked = { spot = it; picking = false },
+            findPlaces = { text, near -> ui.app.places.search(text, near, Locale.current.language) },
+            onPicked = { picked, name ->
+                spot = picked
+                spotName = name
+                if (name != null && venue.isBlank()) venue = name
+                picking = false
+            },
             onCancel = { picking = false },
         )
         return
@@ -318,9 +327,9 @@ fun NewEventScreen(ui: Ui, pickOnMap: Boolean = false, editing: Event? = null, o
                     when {
                         spot == null -> "Where you are now"
                         editing != null && spot == LatLng(editing.lat, editing.lng) -> editing.venueName ?: "The party's spot"
-                        else -> "The spot you picked"
+                        else -> spotName ?: "The spot you picked"
                     },
-                    detail = if (spot == null) "Tap to pick a different spot on the map" else "Tap to change it on the map",
+                    detail = if (spot == null) "Tap to search or pick a different spot" else "Tap to change it",
                     onClick = { picking = true },
                     trailing = {
                         Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
