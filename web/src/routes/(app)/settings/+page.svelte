@@ -1,4 +1,5 @@
 <script lang="ts">
+	import RelationshipHeart, { HEART_MEANING } from '#lib/ui/RelationshipHeart.svelte';
 	import { goto } from '$app/navigation';
 	import { analytics, isSharingUsage, setShareUsage } from '#lib/analytics.js';
 	import { api } from '#lib/api/client.js';
@@ -30,11 +31,12 @@
 	let confirmText = $state('');
 	let deleteBusy = $state(false);
 
+	// Same order and wording as the apps; only here do people see what each heart means.
 	const hearts = [
-		{ id: null, label: 'Not shown' },
-		{ id: 'single', label: '💖 Single' },
-		{ id: 'talking', label: '💬 Talking to someone' },
-		{ id: 'taken', label: '❤️ Taken' }
+		{ id: null, label: "Don't show", look: 'Nothing next to your name' },
+		{ id: 'taken', label: HEART_MEANING.taken, look: 'Full red heart' },
+		{ id: 'talking', label: HEART_MEANING.talking, look: 'Half-filled heart' },
+		{ id: 'single', label: HEART_MEANING.single, look: 'Outlined heart' }
 	] as const;
 	const themes: { id: Theme; label: string }[] = [
 		{ id: 'system', label: 'Same as device' },
@@ -167,9 +169,12 @@
 
 		<section>
 			<h2>Heart on your profile</h2>
-			<div class="chips" role="radiogroup" aria-label="Relationship status">
+			<div class="hearts" role="radiogroup" aria-label="Relationship status">
 				{#each hearts as h (h.label)}
-					<button class="chip" role="radio" aria-checked={me.relationship_status === h.id || (!me.relationship_status && h.id === null)} onclick={() => setHeart(h.id)}>{h.label}</button>
+					<button class="heart-row" role="radio" aria-checked={me.relationship_status === h.id || (!me.relationship_status && h.id === null)} onclick={() => setHeart(h.id)}>
+						<span class="heart-icon">{#if h.id}<RelationshipHeart status={h.id} size={26} />{:else}—{/if}</span>
+						<span><strong>{h.label}</strong><span class="muted">{h.look}</span></span>
+					</button>
 				{/each}
 			</div>
 		</section>
@@ -310,6 +315,39 @@
 		align-items: center;
 		gap: 12px;
 		flex-wrap: wrap;
+	}
+	.hearts {
+		display: grid;
+		gap: 6px;
+	}
+	.heart-row {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		min-height: 56px;
+		padding: 8px 14px;
+		border: 1px solid var(--outline-variant);
+		border-radius: var(--radius-sm);
+		background: none;
+		color: inherit;
+		font: inherit;
+		text-align: left;
+		cursor: pointer;
+	}
+	.heart-row[aria-checked='true'] {
+		border-color: var(--primary);
+		background: var(--surface-high);
+	}
+	.heart-row > span:last-child {
+		display: grid;
+	}
+	.heart-row .muted {
+		font-size: 13px;
+	}
+	.heart-icon {
+		display: grid;
+		place-items: center;
+		width: 28px;
 	}
 	.chips {
 		display: flex;

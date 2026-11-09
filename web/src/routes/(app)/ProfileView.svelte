@@ -1,4 +1,5 @@
 <script lang="ts">
+	import RelationshipHeart from '#lib/ui/RelationshipHeart.svelte';
 	import { goto } from '$app/navigation';
 	import { api } from '#lib/api/client.js';
 	import type { Event, Post, PublicProfile } from '#lib/api/types.js';
@@ -25,7 +26,6 @@
 	let tab = $state<'photos' | 'parties'>('photos');
 	let parties = $state<Event[] | null>(null);
 
-	const hearts: Record<string, string> = { taken: '❤️ Taken', talking: '💬 Talking', single: '💖 Single' };
 
 	$effect(() => {
 		const uid = userId;
@@ -133,10 +133,7 @@
 		</div>
 	</section>
 	<section class="about">
-		<h1>{nameOf(profile)}</h1>
-		{#if profile.relationship_status && hearts[profile.relationship_status]}
-			<p class="muted">{hearts[profile.relationship_status]}</p>
-		{/if}
+		<h1>{nameOf(profile)} <RelationshipHeart status={profile.relationship_status} size={18} /></h1>
 		{#if profile.bio}<p class="bio">{profile.bio}</p>{/if}
 		{#if !own && profile.is_blocked}
 			<button class="btn block outline" onclick={toggleBlock}>Unblock</button>
@@ -227,6 +224,9 @@
 		padding: 8px 16px 16px;
 	}
 	.about h1 {
+		display: flex;
+		align-items: center;
+		gap: 6px;
 		font-size: 18px;
 		letter-spacing: 0;
 	}
