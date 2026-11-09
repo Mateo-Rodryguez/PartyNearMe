@@ -59,7 +59,8 @@ export const recommendRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: stri
       lat: q.lat, lng: q.lng, radiusKm: q.radius_km, from, to, interestId: q.interest_id,
     })).slice(0, q.limit);
 
-    const items = ranked.map((r) => ({
+    // The host's own parties lead the list but aren't recommendations, so they stay out of the stats.
+    const items = ranked.filter((r) => r.organiser_id !== me).map((r) => ({
       id: r.id,
       score: round(r.score),
       reason: r.reason?.kind ?? null,

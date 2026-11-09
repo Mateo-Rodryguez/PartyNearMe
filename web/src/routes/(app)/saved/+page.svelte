@@ -14,7 +14,7 @@
 	const posts = new Paged<Post>(async (cursor) => {
 		const page = await api.savedPosts(cursor);
 		return { items: page.posts, next: page.next_cursor ?? null };
-	});
+	}, () => 'saved');
 
 	$effect(() => {
 		void posts.refresh();

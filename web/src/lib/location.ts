@@ -5,6 +5,33 @@ export interface LatLng {
 
 const KEY = 'pnm.location';
 const FRESH_MS = 10 * 60 * 1000;
+// The rough area last seen, kept between visits so lists can show at once
+// while the browser finds a fresh fix. Rounded to about a kilometre.
+const AREA_KEY = 'pnm.area';
+
+/** Where the browser was last time, roughly, however long ago. Only for showing saved lists early. */
+export function lastArea(): LatLng | null {
+	try {
+		return JSON.parse(localStorage.getItem(AREA_KEY) ?? 'null') as LatLng | null;
+	} catch {
+		return null;
+	}
+}
+
+function keepArea({ lat, lng }: LatLng) {
+	try {
+		localStorage.setItem(AREA_KEY, JSON.stringify({ lat: Math.round(lat * 100) / 100, lng: Math.round(lng * 100) / 100 }));
+	} catch {
+		// Fine without it.
+	}
+}
+
+/** Roughly how far apart two points are, in metres. */
+export function metresBetween(a: LatLng, b: LatLng): number {
+	const dLat = (b.lat - a.lat) * 111_320;
+	const dLng = (b.lng - a.lng) * 111_320 * Math.cos(((a.lat + b.lat) / 2) * (Math.PI / 180));
+	return Math.hypot(dLat, dLng);
+}
 
 /** The last fix, if it's recent enough to reuse without asking the browser again. */
 export function lastLocation(): LatLng | null {
@@ -25,6 +52,7 @@ export function currentLocation(): Promise<LatLng | null> {
 		navigator.geolocation.getCurrentPosition(
 			({ coords }) => {
 				const fix = { lat: coords.latitude, lng: coords.longitude };
+				keepArea(fix);
 				try {
 					sessionStorage.setItem(KEY, JSON.stringify({ ...fix, at: Date.now() }));
 				} catch {

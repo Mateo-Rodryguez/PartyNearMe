@@ -4,12 +4,14 @@
 	import { coverFor } from '#lib/format.js';
 	import { currentLocation, lastLocation, locationAllowed } from '#lib/location.js';
 	import { prefs } from '#lib/prefs.svelte.js';
+	import { readSaved, writeSaved } from '#lib/saved.js';
 	import Icon from './Icon.svelte';
 
 	// Parties coming up near you as a row of rings above the feed, like Instagram
 	// stories and the apps' Home. Only when the browser already shares location:
 	// Home never asks for it.
-	let events = $state<Event[]>([]);
+	// Last visit's rail shows at once; the fresh one replaces it when it arrives.
+	let events = $state<Event[]>(readSaved<Event[]>('rail') ?? []);
 
 	$effect(() => {
 		let gone = false;
@@ -17,7 +19,9 @@
 			const here = lastLocation() ?? ((await locationAllowed()) ? await currentLocation() : null);
 			if (!here || gone) return;
 			const page = await api.nearbyEvents({ lat: here.lat, lng: here.lng, radiusKm: prefs.display.radiusKm });
-			if (!gone) events = page.events;
+			if (gone) return;
+			events = page.events;
+			writeSaved('rail', page.events.slice(0, 20));
 		})().catch(() => undefined);
 		return () => (gone = true);
 	});

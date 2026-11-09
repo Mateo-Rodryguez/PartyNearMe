@@ -4,7 +4,7 @@
 	import { api } from '#lib/api/client.js';
 	import type { Event, Interest } from '#lib/api/types.js';
 	import { radiusLabel, tonightWindow, weekendWindow } from '#lib/format.js';
-	import { currentLocation, lastLocation, locationAllowed, type LatLng } from '#lib/location.js';
+	import { currentLocation, lastArea, lastLocation, locationAllowed, metresBetween, type LatLng } from '#lib/location.js';
 	import { Paged } from '#lib/paged.svelte.js';
 	import { prefs, RADIUS_CHOICES } from '#lib/prefs.svelte.js';
 	import Empty from '#lib/ui/Empty.svelte';
@@ -22,7 +22,10 @@
 	];
 
 
-	let here = $state<LatLng | null>(lastLocation());
+	// A fresh fix if there is one; otherwise last visit's area, so saved parties show at
+	// once while the browser finds where we are (only if it's allowed to; see onMount).
+	const fresh = lastLocation();
+	let here = $state<LatLng | null>(fresh);
 	let asking = $state(false);
 	let denied = $state(false);
 	let when = $state<When>('soon');
@@ -84,7 +87,7 @@
 		});
 		if (!cursor && !page.events.length) analytics.capture('nearby_empty', { radius_km: radiusKm, time: when, kind_filter: interestId != null });
 		return { items: page.events, next: page.next_cursor ?? null };
-	});
+	}, () => (here ? `parties.${forYou ? 'for_you' : 'soonest'}.${when}.${radiusKm}.${interestId ?? 'all'}.${here.lat.toFixed(2)},${here.lng.toFixed(2)}` : null));
 
 	async function locate() {
 		asking = true;
@@ -96,8 +99,13 @@
 
 	// Only ask for location straight away if the user already said yes before.
 	onMount(() => {
-		if (!here) void locationAllowed().then((ok) => {
-			if (ok) void locate();
+		if (!fresh) void locationAllowed().then(async (ok) => {
+			if (!ok) return;
+			const area = lastArea();
+			// Show last visit's parties straight away, then move only if we've really moved.
+			if (area && !here) here = area;
+			const fix = await currentLocation();
+			if (fix && (!here || metresBetween(here, fix) > 500)) here = fix;
 		});
 		api.interests().then((list) => (interests = list), () => undefined);
 	});

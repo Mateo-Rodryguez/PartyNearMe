@@ -85,6 +85,12 @@ class SessionState {
 	async signOut() {
 		const current = this.current;
 		this.set(null);
+		// Saved copies of screens (see saved.ts and the feed) aren't left for the next person.
+		try {
+			for (const key of Object.keys(localStorage)) if (/^pnm\.(saved\.|feed\.|area$)/.test(key)) localStorage.removeItem(key);
+		} catch {
+			// Nothing to clear.
+		}
 		if (current) await auth.signOut(current.accessToken);
 	}
 }

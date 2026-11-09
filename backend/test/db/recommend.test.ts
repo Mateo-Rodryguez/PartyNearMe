@@ -82,11 +82,10 @@ describe("GET /events/for-you", () => {
     expect(reasons[followed]).toBe("following_host");
   });
 
-  it("leaves out my own, private, blocked, far and past parties", async () => {
+  it("leaves out private, blocked, far and past parties", async () => {
     const me = await ctx.createUser();
     const [a, blocked] = [await ctx.createUser(), await ctx.createUser()];
     const shown = await party(a);
-    await party(me);
     await party(a, { isPrivate: true });
     await party(blocked);
     await party(a, { km: 40 });
@@ -95,6 +94,19 @@ describe("GET /events/for-you", () => {
 
     expect(ids(await forYou(me))).toEqual([shown]);
     expect(ids(await forYou(me, { radius_km: 50 }))).toHaveLength(2);
+  });
+
+  it("puts my own party first, without a reason, and leaves it out of the stats", async () => {
+    const me = await ctx.createUser();
+    const a = await ctx.createUser();
+    const theirs = await party(a, { hours: 2 });
+    const mine = await party(me, { hours: 72, km: 5 });
+
+    const res = await forYou(me);
+    expect(ids(res)).toEqual([mine, theirs]);
+    expect(res.events[0]?.reason).toBeNull();
+    const [serve] = await ctx.db`select items from public.recommendation_serves where id = ${res.serve_id}`;
+    expect((serve?.items as { id: string }[]).map((i) => i.id)).toEqual([theirs]);
   });
 
   it("filters by kind and logs what it served, for measuring", async () => {
