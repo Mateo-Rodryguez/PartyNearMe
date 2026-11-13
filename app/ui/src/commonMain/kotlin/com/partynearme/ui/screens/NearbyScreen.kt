@@ -28,7 +28,6 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -186,7 +185,7 @@ fun NearbyScreen(ui: Ui, state: NearbyState) {
                 modifier = Modifier.fillMaxSize(),
             ) {
                 when {
-                    !paged.loadedOnce -> Box(Modifier.fillMaxSize()) { CircularProgressIndicator(Modifier.align(Alignment.Center)) }
+                    !paged.loadedOnce -> PartiesSkeleton()
                     state.noLocation -> EmptyState(
                         Icons.Filled.LocationOn,
                         "Where are you?",

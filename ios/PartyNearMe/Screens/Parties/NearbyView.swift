@@ -222,6 +222,9 @@ struct NearbyView: View {
     private var list: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 20, pinnedViews: .sectionHeaders) {
+                if model.paged.items.isEmpty && !model.paged.loadedOnce && !model.noLocation {
+                    ForEach(0..<3, id: \.self) { _ in PartySkeleton() }
+                }
                 if model.forYou {
                     // Best first, each with the reason it's here.
                     ForEach(model.paged.items) { event in row(event) }
@@ -257,8 +260,8 @@ struct NearbyView: View {
     @ViewBuilder private var emptyState: some View {
         let paged = model.paged
         if paged.items.isEmpty {
-            if !paged.loadedOnce {
-                ProgressView()
+            if !paged.loadedOnce && !model.noLocation {
+                EmptyView()
             } else if model.noLocation {
                 ContentUnavailableView {
                     Label("Where are you?", systemImage: "location.slash")

@@ -5,7 +5,7 @@
 	import { unread } from '#lib/unread.svelte.js';
 	import Avatar from '#lib/ui/Avatar.svelte';
 	import Empty from '#lib/ui/Empty.svelte';
-	import Spinner from '#lib/ui/Spinner.svelte';
+	import Skeleton from '#lib/ui/Skeleton.svelte';
 	import PageHeader from '../PageHeader.svelte';
 
 	const known = new Set(['like', 'comment', 'tag', 'follow', 'rsvp', 'request', 'reminder']);
@@ -37,7 +37,7 @@
 {#if error}
 	<Empty title="Couldn't load notifications">{error}</Empty>
 {:else if !items}
-	<Spinner />
+	<Skeleton count={8} />
 {:else if !items.length}
 	<Empty title="Nothing yet">Likes, comments, new followers and party reminders show up here.</Empty>
 {:else}

@@ -7,6 +7,7 @@
 	import { unread } from '#lib/unread.svelte.js';
 	import Icon from '#lib/ui/Icon.svelte';
 	import Empty from '#lib/ui/Empty.svelte';
+	import Skeleton from '#lib/ui/Skeleton.svelte';
 	import LoadMore from '#lib/ui/LoadMore.svelte';
 	import PartyRail from '#lib/ui/PartyRail.svelte';
 	import PostCard from '#lib/ui/PostCard.svelte';
@@ -88,7 +89,9 @@
 	{/each}
 </div>
 
-{#if feed.loadedOnce && !feed.items.length && !feed.error}
+{#if !feed.loadedOnce && !feed.items.length}
+	<Skeleton kind="post" count={2} />
+{:else if feed.loadedOnce && !feed.items.length && !feed.error}
 	<Empty title="Nothing here yet">
 		Follow people and say you're going to parties, and their photos show up here.
 		<p><a class="btn primary" href="/nearby">Find parties</a></p>

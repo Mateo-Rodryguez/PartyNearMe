@@ -26,7 +26,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -88,7 +87,7 @@ fun InboxScreen(ui: Ui, state: InboxState) {
             modifier = Modifier.fillMaxSize(),
         ) {
             when {
-                !paged.loadedOnce -> Box(Modifier.fillMaxSize()) { CircularProgressIndicator(Modifier.align(Alignment.Center)) }
+                !paged.loadedOnce -> ListSkeleton(picture = 56.dp)
                 paged.items.isEmpty() && paged.error != null -> Message(paged.error!!) { paged.refresh() }
                 paged.items.isEmpty() -> EmptyState(
                     Icons.Filled.Email,

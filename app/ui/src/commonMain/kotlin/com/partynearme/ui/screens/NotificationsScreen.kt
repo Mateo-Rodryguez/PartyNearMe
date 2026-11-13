@@ -16,7 +16,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -75,7 +74,7 @@ fun NotificationsScreen(ui: Ui) {
         val list = items
         when {
             list == null && error != null -> Message(error.orEmpty()) { scope.launch { load() } }
-            list == null -> Box(Modifier.fillMaxSize()) { CircularProgressIndicator(Modifier.align(Alignment.Center)) }
+            list == null -> ListSkeleton(picture = 44.dp)
             list.isEmpty() -> EmptyState(
                 Icons.Outlined.Notifications,
                 "Nothing yet",

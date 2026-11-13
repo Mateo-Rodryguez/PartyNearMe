@@ -15,6 +15,7 @@
 	import LoadMore from '#lib/ui/LoadMore.svelte';
 	import Photo from '#lib/ui/Photo.svelte';
 	import Spinner from '#lib/ui/Spinner.svelte';
+	import Skeleton from '#lib/ui/Skeleton.svelte';
 	import ReportSheet from '#lib/ui/ReportSheet.svelte';
 	import Sheet from '#lib/ui/Sheet.svelte';
 	import PageHeader from './PageHeader.svelte';
@@ -126,7 +127,7 @@
 {#if error}
 	<Empty title="Couldn't open this profile">{error}</Empty>
 {:else if !profile}
-	<Spinner />
+	<Skeleton kind="profile" />
 {:else}
 	<section class="top">
 		<Avatar person={profile} size={88} ring />

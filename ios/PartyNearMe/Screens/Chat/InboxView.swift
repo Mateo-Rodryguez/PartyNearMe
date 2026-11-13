@@ -52,7 +52,7 @@ struct InboxView: View {
         .overlay {
             if paged.items.isEmpty {
                 if !paged.loadedOnce {
-                    ProgressView()
+                    ListSkeleton(size: 56)
                 } else if let error = paged.error {
                     ListMessage(text: error) { Task { await paged.refresh() } }
                 } else {
