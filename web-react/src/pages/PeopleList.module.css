@@ -1,0 +1,45 @@
+.tabs {
+	display: flex;
+	border-bottom: 1px solid var(--outline-variant);
+	margin: 0 0 8px;
+}
+.tabs a {
+	flex: 1;
+	padding: 12px;
+	text-align: center;
+	font-weight: 600;
+	color: var(--on-surface-variant);
+	border-bottom: 2px solid transparent;
+}
+.tabs a[aria-current='page'] {
+	color: var(--on-background);
+	border-color: var(--primary);
+}
+.list {
+	list-style: none;
+	margin: 0;
+	padding: 0 12px;
+}
+.list li {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 6px 0;
+}
+.list li a {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+.list li a > span {
+	display: grid;
+	min-width: 0;
+}
+.list li strong,
+.list li :global(.muted) {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}

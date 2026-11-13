@@ -1,0 +1,97 @@
+.form {
+	display: grid;
+	gap: 18px;
+	padding: 8px 16px 24px;
+}
+.cover {
+	position: relative;
+	aspect-ratio: 16 / 9;
+	border: 0;
+	border-radius: var(--radius-lg);
+	overflow: hidden;
+	color: #fff;
+	text-align: left;
+}
+.cover::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(transparent 40%, rgb(0 0 0 / 0.7));
+}
+.cover-label {
+	position: absolute;
+	top: 12px;
+	right: 12px;
+	z-index: 1;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 12px;
+	border-radius: 999px;
+	background: rgb(0 0 0 / 0.5);
+	font-size: 13px;
+	font-weight: 600;
+}
+.cover-text {
+	position: absolute;
+	left: 16px;
+	right: 16px;
+	bottom: 14px;
+	z-index: 1;
+	display: grid;
+	font-size: 22px;
+}
+.cover-text :global(.overline) {
+	color: rgb(255 255 255 / 0.85);
+}
+.group {
+	display: grid;
+	gap: 8px;
+}
+.chips,
+.durations {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+.durations :global(.chip) {
+	flex: 1;
+	justify-content: center;
+}
+.two {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+}
+.where {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 14px 16px;
+	border: 1px solid var(--outline-variant);
+	border-radius: var(--radius-md);
+	background: var(--surface);
+	text-align: left;
+}
+.where :global(svg) {
+	color: var(--primary);
+	flex: none;
+}
+.where span {
+	display: grid;
+}
+.toggle {
+	display: flex;
+	gap: 12px;
+	align-items: flex-start;
+}
+.toggle input {
+	width: 20px;
+	height: 20px;
+	margin-top: 2px;
+	accent-color: var(--primary);
+	flex: none;
+}
+.toggle span {
+	display: grid;
+}

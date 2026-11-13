@@ -1,0 +1,28 @@
+.host {
+	min-height: 36px;
+	padding: 0 14px 0 10px;
+	gap: 4px;
+}
+.ask {
+	display: grid;
+	justify-items: center;
+	padding: 0 16px;
+}
+.filters {
+	display: flex;
+	gap: 8px;
+	overflow-x: auto;
+	padding: 4px 12px 8px;
+	scrollbar-width: none;
+}
+.radius select {
+	border: 0;
+	background: none;
+	font-weight: 600;
+	color: inherit;
+}
+.list {
+	display: grid;
+	gap: 16px;
+	padding: 8px 12px;
+}

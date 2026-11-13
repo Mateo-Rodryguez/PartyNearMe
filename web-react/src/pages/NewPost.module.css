@@ -1,0 +1,93 @@
+.host {
+	color: var(--primary);
+	font-weight: 600;
+	font-size: 14px;
+	padding: 8px;
+}
+.form {
+	display: grid;
+	gap: 18px;
+	padding: 8px 16px 24px;
+}
+.drop {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+	gap: 8px;
+	padding: 8px;
+	border: 2px dashed var(--outline-variant);
+	border-radius: var(--radius-md);
+}
+.drop.dragging {
+	border-color: var(--primary);
+}
+.thumb {
+	position: relative;
+	aspect-ratio: 1;
+}
+.thumb img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	border-radius: var(--radius-sm);
+}
+.remove {
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	display: grid;
+	place-items: center;
+	width: 28px;
+	height: 28px;
+	border: 0;
+	border-radius: 50%;
+	background: rgb(0 0 0 / 0.6);
+	color: #fff;
+}
+.pick {
+	display: grid;
+	place-items: center;
+	align-content: center;
+	gap: 4px;
+	aspect-ratio: 1;
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: var(--surface);
+	color: var(--on-surface-variant);
+	font-weight: 600;
+	font-size: 13px;
+}
+.group {
+	display: grid;
+	gap: 8px;
+}
+.tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+.tags :global(.chip) {
+	gap: 4px;
+}
+.person {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 6px 4px;
+	border: 0;
+	background: none;
+	text-align: left;
+}
+.toggle {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+.toggle input {
+	width: 20px;
+	height: 20px;
+	accent-color: var(--primary);
+}
+.form progress {
+	width: 100%;
+	accent-color: var(--primary);
+}

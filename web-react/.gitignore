@@ -1,0 +1,6 @@
+node_modules
+/build
+/screenshots
+# Generated from design/tokens.json
+/src/lib/tokens.css
+/src/lib/tokens.ts

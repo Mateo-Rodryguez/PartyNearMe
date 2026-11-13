@@ -1,0 +1,10 @@
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(self), camera=(), microphone=()
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https://partynearme-api.onrender.com https://vvkckzrhzgdrazhjitse.supabase.co wss://vvkckzrhzgdrazhjitse.supabase.co https://630c8ac9872f11e09ffed9fe3cb05b0c.r2.cloudflarestorage.com https://tiles.openfreemap.org https://photon.komoot.io https://eu.i.posthog.com; worker-src 'self' blob:; base-uri 'self'; form-action 'self'; object-src 'none'
+
+# Built files have a content hash in their names, so they never change.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

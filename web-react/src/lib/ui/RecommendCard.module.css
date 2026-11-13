@@ -1,0 +1,58 @@
+.card {
+	display: grid;
+	gap: 10px;
+	margin: 8px 16px;
+	padding: 16px;
+	border-radius: 20px;
+	background: var(--surface);
+}
+.top {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+}
+.top h2 {
+	flex: 1;
+	margin: 4px 0 0;
+	font-size: 15px;
+}
+.close {
+	display: grid;
+	place-items: center;
+	width: 32px;
+	height: 32px;
+	border: 0;
+	border-radius: 50%;
+	background: none;
+	color: var(--on-surface-variant);
+	cursor: pointer;
+}
+.scale {
+	display: grid;
+	grid-template-columns: repeat(11, minmax(0, 1fr));
+	gap: 4px;
+}
+.scale button {
+	height: 36px;
+	padding: 0;
+	border: 0;
+	border-radius: 8px;
+	background: var(--surface-high);
+	color: var(--on-background);
+	font: inherit;
+	font-size: 13px;
+	cursor: pointer;
+}
+.scale button[aria-checked='true'] {
+	background: var(--gradient);
+	color: #fff;
+	font-weight: 700;
+}
+.ends {
+	display: flex;
+	justify-content: space-between;
+	font-size: 12px;
+}
+.send {
+	justify-self: end;
+}

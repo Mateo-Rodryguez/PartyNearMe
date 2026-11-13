@@ -1,0 +1,56 @@
+.picker {
+	display: grid;
+	gap: 12px;
+}
+.list {
+	display: grid;
+	align-content: start;
+	gap: 2px;
+	min-height: 120px;
+	max-height: 55dvh;
+	overflow-y: auto;
+}
+.none {
+	text-align: center;
+	padding: 24px 8px;
+	margin: 0;
+}
+.row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	padding: 6px 4px;
+	border: 0;
+	border-radius: var(--radius-sm);
+	background: none;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+.row:hover {
+	background: var(--surface);
+}
+.name {
+	flex: 1;
+	display: grid;
+	min-width: 0;
+}
+.name > * {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.tick {
+	display: grid;
+	place-items: center;
+	width: 28px;
+	height: 28px;
+	border-radius: 50%;
+	background: var(--surface-high);
+	color: #fff;
+}
+.row[aria-pressed='true'] .tick {
+	background: var(--gradient);
+}

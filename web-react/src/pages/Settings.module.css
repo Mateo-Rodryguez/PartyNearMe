@@ -1,0 +1,98 @@
+.page {
+	display: grid;
+	gap: 28px;
+	padding: 8px 16px 32px;
+}
+.page section {
+	display: grid;
+	gap: 12px;
+}
+.page form {
+	display: grid;
+	gap: 12px;
+}
+.page label,
+.delete label {
+	display: grid;
+	gap: 6px;
+}
+.avatar-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+}
+.hearts {
+	display: grid;
+	gap: 6px;
+}
+.heart-row {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	min-height: 56px;
+	padding: 8px 14px;
+	border: 1px solid var(--outline-variant);
+	border-radius: var(--radius-sm);
+	background: none;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+.heart-row[aria-checked='true'] {
+	border-color: var(--primary);
+	background: var(--surface-high);
+}
+.heart-row > span:last-child {
+	display: grid;
+}
+.heart-row :global(.muted) {
+	font-size: 13px;
+}
+.heart-icon {
+	display: grid;
+	place-items: center;
+	width: 28px;
+}
+.chips {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+.row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-height: 44px;
+	padding: 0 4px;
+	border-bottom: 1px solid var(--outline-variant);
+}
+.person span {
+	flex: 1;
+}
+.account {
+	gap: 10px;
+}
+.page .toggle {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+.toggle > span {
+	flex: 1;
+	display: grid;
+	gap: 2px;
+}
+.toggle input {
+	width: 22px;
+	height: 22px;
+	accent-color: var(--primary);
+}
+.delete {
+	display: grid;
+	gap: 12px;
+}
+.delete p {
+	margin: 0;
+}
