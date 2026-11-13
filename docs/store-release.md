@@ -11,38 +11,32 @@ Play takes. It runs on every merge to `PartyApp` and can be run by hand from
 **Actions > Android release > Run workflow**. Each run's bundle is under the run's
 **Artifacts** as `partynearme-release-aab`.
 
-### 1. Make the upload key (once)
+### 1. Make the upload key (once, all in the browser)
 
-Play signs the app for phones itself (Play App Signing); you sign uploads with your own
-*upload key*. On any computer with Java (Android Studio includes it), run:
+Play signs the app for phones itself (Play App Signing); uploads are signed with an
+*upload key*. The **Make Play upload key** workflow creates it on a GitHub runner and
+saves it straight into this repo's secrets. Nobody sees the key or its password.
 
-```
-keytool -genkeypair -v -keystore upload.jks -alias upload -keyalg RSA -keysize 4096 -validity 10000
-```
+1. Make a token that may write this repo's secrets: github.com > Settings > Developer
+   settings > **Fine-grained tokens > Generate new token**
+   (https://github.com/settings/personal-access-tokens/new). Name it "secrets", expiry
+   7 days, **Only select repositories**: PartyNearMe, and under **Repository
+   permissions** set **Secrets** to **Read and write**. Generate and copy it.
+2. Repo > Settings > Secrets and variables > Actions > **New repository secret**: name
+   `SECRETS_TOKEN`, paste the token.
+3. Actions > **Make Play upload key** > **Run workflow**. When it's green, the secrets
+   `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD` and `ANDROID_KEY_ALIAS` exist.
+4. Delete the `SECRETS_TOKEN` secret and the token.
 
-Pick a strong password and answer the name questions (any values work). Keep
-`upload.jks` and the password somewhere safe, such as a password manager. If it is lost,
-Play support can reset it, but it takes days.
+If the key is ever lost, Play support can reset the upload key; the app's own signing
+key stays with Google. (With Java installed, `keytool` can make the key by hand instead:
+then add the three secrets yourself, with the key file base64-encoded.)
 
-Then turn the file into text for GitHub. On Windows PowerShell:
+### 2. Push notifications in store builds
 
-```
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("upload.jks")) | Set-Clipboard
-```
-
-On macOS or Linux: `base64 -i upload.jks | pbcopy` (or `base64 -w0 upload.jks`).
-
-### 2. Add the GitHub secrets
-
-| Secret | Value |
-|---|---|
-| `ANDROID_KEYSTORE_BASE64` | the text copied above |
-| `ANDROID_KEYSTORE_PASSWORD` | the keystore password |
-| `ANDROID_KEY_ALIAS` | `upload` |
-| `ANDROID_KEY_PASSWORD` | the key password (only if different from the keystore one) |
-| `GOOGLE_SERVICES_JSON` | the whole `google-services.json` from Firebase, for push |
-
-The next merge, or a manual run, then makes a signed bundle.
+Add one more secret, `GOOGLE_SERVICES_JSON`: the whole `google-services.json` from the
+Firebase console (Project settings > Your apps > the Android app > download), opened in
+a text editor and pasted.
 
 ### 3. Create the app in Play Console
 

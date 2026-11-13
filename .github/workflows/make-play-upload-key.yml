@@ -1,0 +1,67 @@
+name: Make Play upload key
+
+# One-time, from the browser: makes the Google Play upload key on a GitHub runner and
+# saves it straight into this repo's secrets (ANDROID_KEYSTORE_BASE64,
+# ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS), which android-release.yml signs with.
+# The key and its random password are never printed or kept anywhere else.
+#
+# Needs a secret SECRETS_TOKEN: a fine-grained personal access token for this repo with
+# "Secrets: Read and write" (GitHub's own token can't write secrets). Delete the token
+# afterwards. Steps: docs/store-release.md.
+#
+# If the key is ever lost, Play support can reset the upload key; Play itself keeps the
+# app signing key (Play App Signing), so nothing about the published app is lost.
+
+on:
+  workflow_dispatch:
+    inputs:
+      replace:
+        description: "Replace an existing upload key (only before the first Play upload, or after Play support reset it)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  make-key:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check the token
+        env:
+          GH_TOKEN: ${{ secrets.SECRETS_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Add the SECRETS_TOKEN secret first (docs/store-release.md, Google Play step 1)."
+            exit 1
+          fi
+          existing=$(gh secret list -R "$GITHUB_REPOSITORY" --json name -q '.[].name' | grep -c '^ANDROID_KEYSTORE_BASE64$' || true)
+          if [ "$existing" != "0" ] && [ "${{ inputs.replace }}" != "true" ]; then
+            echo "::error::An upload key already exists. Run again with 'Replace' ticked only if you really mean to replace it."
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Make the key and save it as secrets
+        env:
+          GH_TOKEN: ${{ secrets.SECRETS_TOKEN }}
+        run: |
+          set -euo pipefail
+          umask 077
+          dir=$(mktemp -d)
+          password=$(openssl rand -base64 36 | tr -d '/+=' | cut -c1-40)
+          echo "::add-mask::$password"
+          keytool -genkeypair -keystore "$dir/upload.jks" -storetype PKCS12 -alias upload \
+            -keyalg RSA -keysize 4096 -validity 10000 \
+            -storepass "$password" -keypass "$password" \
+            -dname "CN=PartyNearMe, O=PartyNearMe, C=GB" > /dev/null 2>&1
+          base64 -w0 "$dir/upload.jks" | gh secret set ANDROID_KEYSTORE_BASE64 -R "$GITHUB_REPOSITORY"
+          printf '%s' "$password" | gh secret set ANDROID_KEYSTORE_PASSWORD -R "$GITHUB_REPOSITORY"
+          printf '%s' "upload" | gh secret set ANDROID_KEY_ALIAS -R "$GITHUB_REPOSITORY"
+          rm -rf "$dir"
+          echo "Saved the upload key as ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD and ANDROID_KEY_ALIAS."
+          echo "You can now delete the SECRETS_TOKEN secret and the token itself."
