@@ -57,7 +57,9 @@ android {
                 storeFile = file(uploadKeystore)
                 storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
                 keyAlias = System.getenv("ANDROID_KEY_ALIAS")
-                keyPassword = System.getenv("ANDROID_KEY_PASSWORD") ?: System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                // An unset GitHub secret arrives as an empty string, not as no variable.
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")?.takeIf { it.isNotEmpty() }
+                    ?: System.getenv("ANDROID_KEYSTORE_PASSWORD")
             }
         }
     }
