@@ -1,0 +1,51 @@
+.stats {
+	display: grid;
+	gap: 8px;
+	padding: 8px 12px 32px;
+}
+.head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+.stats h2,
+.stats h3,
+.stats p {
+	margin: 0;
+}
+.stats h3 {
+	margin-top: 8px;
+	font-size: 15px;
+}
+.head select {
+	width: auto;
+}
+.small {
+	font-size: 13px;
+}
+.scroll {
+	overflow-x: auto;
+}
+.scroll table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 14px;
+	font-variant-numeric: tabular-nums;
+}
+.scroll th,
+.scroll td {
+	padding: 6px 8px;
+	text-align: right;
+	border-bottom: 1px solid var(--outline-variant);
+	white-space: nowrap;
+}
+.scroll th[scope='row'],
+.scroll thead th:first-child {
+	text-align: left;
+	font-weight: 600;
+}
+.scroll thead th {
+	font-weight: 600;
+	color: var(--on-surface-variant);
+}

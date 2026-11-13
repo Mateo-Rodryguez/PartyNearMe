@@ -1,0 +1,32 @@
+.header {
+	position: sticky;
+	top: 0;
+	z-index: 10;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 56px;
+	padding: 8px 12px;
+	background: color-mix(in srgb, var(--background) 88%, transparent);
+	backdrop-filter: blur(16px);
+}
+.header h1 {
+	flex: 1;
+	font-size: 22px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.back {
+	display: grid;
+	place-items: center;
+	width: 40px;
+	height: 40px;
+	border: 0;
+	border-radius: 50%;
+	background: none;
+}
+.actions {
+	display: flex;
+	gap: 4px;
+}

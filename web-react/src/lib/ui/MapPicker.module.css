@@ -1,0 +1,85 @@
+.picker {
+	display: grid;
+	gap: 8px;
+}
+.search {
+	position: relative;
+}
+.search .icon {
+	position: absolute;
+	left: 14px;
+	top: 50%;
+	transform: translateY(-50%);
+	display: flex;
+	color: var(--on-surface-variant);
+	pointer-events: none;
+}
+.search :global(.field) {
+	padding-left: 44px;
+}
+.results {
+	margin: 0;
+	padding: 4px 0;
+	list-style: none;
+	border: 1px solid var(--outline-variant);
+	border-radius: var(--radius-sm);
+	background: var(--surface);
+}
+.results button {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	min-height: 48px;
+	padding: 8px 14px;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+.results button:hover,
+.results button:focus-visible {
+	background: var(--surface-high);
+}
+.results button > span {
+	display: grid;
+	min-width: 0;
+}
+.results strong,
+.results :global(.muted) {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+.results :global(.muted) {
+	font-size: 13px;
+}
+.note {
+	margin: 0;
+	font-size: 14px;
+}
+.wrap {
+	position: relative;
+	height: 320px;
+	border-radius: var(--radius-md);
+	overflow: hidden;
+	background: var(--surface);
+}
+/* Beats maplibre-gl.css, which loads later and sets .maplibregl-map to relative. */
+.wrap .map {
+	position: absolute;
+	inset: 0;
+}
+.pin {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -100%);
+	pointer-events: none;
+	filter: drop-shadow(0 4px 8px rgb(0 0 0 / 0.35));
+}
+.wrap > :global(.muted) {
+	padding: 16px;
+}

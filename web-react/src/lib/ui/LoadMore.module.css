@@ -1,0 +1,7 @@
+.retry {
+	display: grid;
+	gap: 12px;
+	justify-items: center;
+	padding: 24px;
+	text-align: center;
+}

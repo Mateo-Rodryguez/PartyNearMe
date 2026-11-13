@@ -1,0 +1,39 @@
+.feed {
+	display: grid;
+	gap: 8px;
+}
+.bell {
+	position: relative;
+	display: grid;
+	place-items: center;
+	width: 40px;
+	height: 40px;
+}
+@media (min-width: 900px) {
+	.search {
+		display: none;
+	}
+}
+.badge {
+	position: absolute;
+	top: 2px;
+	right: 0;
+	min-width: 18px;
+	height: 18px;
+	padding: 0 5px;
+	border-radius: 9px;
+	background: var(--gradient);
+	color: var(--on-primary);
+	font-size: 11px;
+	font-weight: 700;
+	line-height: 18px;
+	text-align: center;
+}
+.waking {
+	text-align: center;
+	padding: 8px 16px;
+	font-size: 14px;
+}
+:global(.empty .btn) {
+	margin-top: 12px;
+}

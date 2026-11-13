@@ -1,0 +1,80 @@
+.main {
+	position: relative;
+	min-height: 100dvh;
+	display: grid;
+	place-items: center;
+	padding: 24px 16px;
+	overflow: hidden;
+}
+.glow {
+	position: absolute;
+	inset: 0;
+	background:
+		radial-gradient(closest-side at 25% 25%, var(--glow-a), transparent),
+		radial-gradient(closest-side at 80% 75%, var(--glow-b), transparent);
+	filter: blur(30px);
+	z-index: -1;
+}
+.card {
+	width: 100%;
+	max-width: 400px;
+	display: grid;
+	gap: 14px;
+}
+.brand {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-weight: 800;
+	font-size: 20px;
+}
+.brand img {
+	border-radius: 14px;
+}
+.card h1 {
+	margin: 8px 0;
+}
+.apple {
+	background: #000;
+	color: #fff;
+	border: 1px solid #000;
+}
+.google {
+	background: #fff;
+	color: #1f1f1f;
+	border: 1px solid var(--outline-variant);
+}
+.or {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	font-size: 13px;
+}
+.or::before,
+.or::after {
+	content: '';
+	flex: 1;
+	height: 1px;
+	background: var(--outline-variant);
+}
+.switch {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	gap: 8px;
+}
+.link {
+	border: 0;
+	background: none;
+	padding: 8px 0;
+	color: inherit;
+}
+.link strong {
+	color: var(--primary);
+}
+.small {
+	font-size: 13px;
+}
+.small a {
+	text-decoration: underline;
+}

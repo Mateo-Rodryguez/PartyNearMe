@@ -1,0 +1,41 @@
+.list {
+	display: grid;
+	gap: 12px;
+	padding: 0 12px 24px;
+}
+.card {
+	display: grid;
+	gap: 8px;
+	padding: 12px;
+	border-radius: var(--radius-md);
+	background: var(--surface);
+}
+.card p {
+	margin: 0;
+}
+.small {
+	font-size: 13px;
+}
+.card img {
+	width: 100%;
+	height: 220px;
+	object-fit: cover;
+	border-radius: var(--radius-sm);
+	background: var(--surface-high);
+}
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+.confirm {
+	display: grid;
+	gap: 12px;
+}
+.confirm p {
+	margin: 0;
+}
+.confirm label {
+	display: grid;
+	gap: 6px;
+}

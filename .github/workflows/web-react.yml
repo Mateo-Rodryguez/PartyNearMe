@@ -1,0 +1,44 @@
+name: Web (React)
+
+# The React rewrite of the web app (web-react/), checked on its own until it
+# replaces web/ in a follow-up change.
+on:
+  push:
+    branches: [PartyApp]
+    paths: ["web-react/**", "design/**", ".github/workflows/web-react.yml"]
+  pull_request:
+    paths: ["web-react/**", "design/**", ".github/workflows/web-react.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: web-react
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web-react/package-lock.json
+      - run: npm ci
+      - name: Types
+        run: npm run check
+      - name: Unit tests
+        run: npm test
+      - name: Build
+        run: npm run build
+      - name: Install Chromium
+        run: npm install --no-save playwright@1.63.0 && npx playwright install --with-deps chromium
+      - name: Open every page in a browser
+        run: node scripts/smoke.mjs screenshots
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: web-react-screenshots
+          path: web-react/screenshots
+          retention-days: 14

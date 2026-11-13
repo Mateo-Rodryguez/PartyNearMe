@@ -1,0 +1,14 @@
+.heart {
+	flex: none;
+	vertical-align: -0.15em;
+}
+.taken {
+	fill: #e5132a;
+}
+.talking {
+	fill: #f2788a;
+}
+/* White on the dark theme, black on the light one, like the apps. */
+.single {
+	fill: currentColor;
+}

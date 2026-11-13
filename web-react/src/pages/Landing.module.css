@@ -1,0 +1,70 @@
+.landing {
+	position: relative;
+	min-height: 100dvh;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	align-content: center;
+	gap: 48px;
+	padding: 48px 16px;
+	overflow: hidden;
+}
+.glow {
+	position: absolute;
+	inset: -20% -20% auto;
+	height: 70%;
+	background:
+		radial-gradient(closest-side at 30% 50%, var(--glow-a), transparent),
+		radial-gradient(closest-side at 70% 40%, var(--glow-b), transparent);
+	filter: blur(40px);
+	z-index: -1;
+}
+.hero {
+	display: grid;
+	justify-items: center;
+	gap: 16px;
+	text-align: center;
+	max-width: 560px;
+	margin: 0 auto;
+}
+.logo {
+	border-radius: 22px;
+	box-shadow: 0 12px 40px var(--glow-a);
+}
+.wordmark {
+	font-size: clamp(40px, 9vw, 64px);
+	background: var(--sunset);
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+}
+.lead {
+	font-size: 18px;
+	color: var(--on-surface-variant);
+}
+.cta {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+	gap: 12px;
+	margin-top: 8px;
+}
+.points {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 16px;
+	max-width: 900px;
+	margin: 0 auto;
+	width: 100%;
+}
+.points > div {
+	display: grid;
+	gap: 6px;
+	padding: 20px;
+	border-radius: var(--radius-lg);
+	background: var(--surface);
+	border: 1px solid var(--outline-variant);
+}
+.landing > footer {
+	text-align: center;
+	font-size: 14px;
+}

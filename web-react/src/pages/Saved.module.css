@@ -1,0 +1,28 @@
+.tabs {
+	display: flex;
+	border-bottom: 1px solid var(--outline-variant);
+}
+.tabs button {
+	flex: 1;
+	min-height: 44px;
+	border: 0;
+	background: none;
+	font-weight: 600;
+	color: var(--on-surface-variant);
+	border-bottom: 2px solid transparent;
+}
+.tabs button[aria-selected='true'] {
+	color: var(--on-background);
+	border-bottom-color: var(--primary);
+}
+.grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 3px;
+	margin-top: 3px;
+}
+.list {
+	display: grid;
+	gap: 16px;
+	padding: 16px 12px;
+}

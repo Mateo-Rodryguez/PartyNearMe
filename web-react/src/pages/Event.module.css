@@ -1,0 +1,96 @@
+.icon {
+	display: grid;
+	place-items: center;
+	width: 40px;
+	height: 40px;
+	border: 0;
+	border-radius: 50%;
+	background: none;
+}
+.cover {
+	aspect-ratio: 16 / 9;
+	background-size: cover;
+}
+.cover img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+@media (min-width: 640px) {
+	.cover {
+		border-radius: var(--radius-lg);
+		overflow: hidden;
+		margin: 0 12px;
+	}
+}
+.content {
+	display: grid;
+	gap: 16px;
+	padding: 16px;
+}
+.cancelled {
+	padding: 10px 14px;
+	border-radius: var(--radius-sm);
+	background: color-mix(in srgb, var(--error) 18%, transparent);
+	color: var(--error);
+	font-weight: 600;
+}
+.host {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+.facts {
+	display: grid;
+	gap: 12px;
+	padding: 16px;
+	border-radius: var(--radius-md);
+	background: var(--surface);
+}
+.fact {
+	display: flex;
+	gap: 12px;
+}
+.fact > :global(svg) {
+	flex: none;
+	color: var(--primary);
+}
+.fact a {
+	color: var(--primary);
+	font-weight: 600;
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+}
+.friends {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	margin-top: 6px;
+	font-size: 13px;
+}
+.rsvp {
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: 1fr;
+	gap: 10px;
+}
+.host-actions {
+	display: grid;
+	grid-auto-flow: column;
+	grid-auto-columns: 1fr;
+	gap: 10px;
+}
+.content section {
+	display: grid;
+	gap: 10px;
+}
+.description {
+	white-space: pre-line;
+	overflow-wrap: anywhere;
+}
+.grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 3px;
+}

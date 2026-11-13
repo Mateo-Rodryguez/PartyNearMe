@@ -1,0 +1,110 @@
+.chat {
+	display: flex;
+	flex-direction: column;
+	height: calc(100dvh - 80px - env(safe-area-inset-bottom));
+}
+@media (min-width: 900px) {
+	.chat {
+		height: calc(100dvh - 72px);
+	}
+}
+.open {
+	color: var(--primary);
+	font-weight: 600;
+	padding: 8px;
+}
+.messages {
+	flex: 1;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 12px;
+}
+.messages > :first-child {
+	margin-top: auto;
+}
+.center {
+	text-align: center;
+}
+.sender {
+	margin: 8px 0 2px 12px;
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--on-surface-variant);
+}
+.row {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+.row.mine {
+	justify-content: flex-end;
+}
+.bubble {
+	max-width: 78%;
+	padding: 9px 14px;
+	border-radius: 20px;
+	background: var(--surface-high);
+	white-space: pre-line;
+	overflow-wrap: anywhere;
+}
+.mine .bubble {
+	background: var(--gradient);
+	color: var(--on-primary);
+}
+.invite {
+	display: grid;
+	gap: 2px;
+}
+.invite :global(.overline),
+.invite .hint {
+	color: inherit;
+	opacity: 0.75;
+	font-size: 11px;
+}
+.report {
+	opacity: 0;
+	border: 0;
+	background: none;
+	color: var(--on-surface-variant);
+	padding: 4px;
+}
+.row:hover .report,
+.report:focus-visible {
+	opacity: 1;
+}
+@media (hover: none) {
+	.report {
+		opacity: 0.6;
+	}
+}
+.compose {
+	display: flex;
+	align-items: flex-end;
+	gap: 8px;
+	padding: 8px 12px;
+	border-top: 1px solid var(--outline-variant);
+}
+.compose textarea {
+	min-height: 44px;
+	max-height: 140px;
+	border-radius: 22px;
+	resize: none;
+	field-sizing: content;
+}
+.send {
+	flex: none;
+	display: grid;
+	place-items: center;
+	width: 44px;
+	height: 44px;
+	border: 0;
+	border-radius: 50%;
+	background: var(--gradient);
+	color: var(--on-primary);
+}
+.send:disabled {
+	background: var(--surface-high);
+	color: var(--on-surface-variant);
+}
