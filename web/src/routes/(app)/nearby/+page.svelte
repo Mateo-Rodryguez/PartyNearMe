@@ -8,6 +8,7 @@
 	import { Paged } from '#lib/paged.svelte.js';
 	import { prefs, RADIUS_CHOICES } from '#lib/prefs.svelte.js';
 	import Empty from '#lib/ui/Empty.svelte';
+	import Skeleton from '#lib/ui/Skeleton.svelte';
 	import EventCard from '#lib/ui/EventCard.svelte';
 	import LoadMore from '#lib/ui/LoadMore.svelte';
 	import Icon from '#lib/ui/Icon.svelte';
@@ -171,7 +172,9 @@
 		{/each}
 	</div>
 
-	{#if parties.loadedOnce && !parties.items.length && !parties.error && !parties.loading}
+	{#if !parties.loadedOnce && !parties.items.length}
+		<Skeleton kind="party" count={3} />
+	{:else if parties.loadedOnce && !parties.items.length && !parties.error && !parties.loading}
 		<Empty title="No parties here yet">Try a wider distance or another night, or check back later.</Empty>
 	{:else}
 		<LoadMore list={parties} />

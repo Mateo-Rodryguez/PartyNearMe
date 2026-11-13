@@ -7,6 +7,7 @@
 	import { session } from '#lib/session.svelte.js';
 	import Avatar from '#lib/ui/Avatar.svelte';
 	import Empty from '#lib/ui/Empty.svelte';
+	import Skeleton from '#lib/ui/Skeleton.svelte';
 	import LoadMore from '#lib/ui/LoadMore.svelte';
 	import PageHeader from '../PageHeader.svelte';
 
@@ -35,7 +36,9 @@
 
 <PageHeader title="Messages" />
 
-{#if inbox.loadedOnce && !inbox.items.length && !inbox.error}
+{#if !inbox.loadedOnce && !inbox.items.length}
+	<Skeleton count={8} />
+{:else if inbox.loadedOnce && !inbox.items.length && !inbox.error}
 	<Empty title="No messages yet">Open someone's profile and tap Message to plan your next night out.</Empty>
 {:else}
 	<ul>
