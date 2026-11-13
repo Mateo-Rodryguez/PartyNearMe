@@ -29,13 +29,20 @@ jobs:
     steps:
       - name: Check the token
         env:
-          GH_TOKEN: ${{ secrets.SECRETS_TOKEN }}
+          RAW_TOKEN: ${{ secrets.SECRETS_TOKEN }}
         run: |
+          # A token pasted with a space or line break makes every API call fail, so strip them.
+          GH_TOKEN=$(printf '%s' "$RAW_TOKEN" | tr -d '[:space:]')
+          export GH_TOKEN
           if [ -z "$GH_TOKEN" ]; then
             echo "::error::Add the SECRETS_TOKEN secret first (docs/store-release.md, Google Play step 1)."
             exit 1
           fi
-          existing=$(gh secret list -R "$GITHUB_REPOSITORY" --json name -q '.[].name' | grep -c '^ANDROID_KEYSTORE_BASE64$' || true)
+          names=$(gh secret list -R "$GITHUB_REPOSITORY" --json name -q '.[].name') || {
+            echo "::error::GitHub refused the token. Check that SECRETS_TOKEN is the whole token, for this repo, with Secrets: Read and write."
+            exit 1
+          }
+          existing=$(printf '%s\n' "$names" | grep -c '^ANDROID_KEYSTORE_BASE64$' || true)
           if [ "$existing" != "0" ] && [ "${{ inputs.replace }}" != "true" ]; then
             echo "::error::An upload key already exists. Run again with 'Replace' ticked only if you really mean to replace it."
             exit 1
@@ -48,9 +55,11 @@ jobs:
 
       - name: Make the key and save it as secrets
         env:
-          GH_TOKEN: ${{ secrets.SECRETS_TOKEN }}
+          RAW_TOKEN: ${{ secrets.SECRETS_TOKEN }}
         run: |
           set -euo pipefail
+          GH_TOKEN=$(printf '%s' "$RAW_TOKEN" | tr -d '[:space:]')
+          export GH_TOKEN
           umask 077
           dir=$(mktemp -d)
           password=$(openssl rand -base64 36 | tr -d '/+=' | cut -c1-40)
