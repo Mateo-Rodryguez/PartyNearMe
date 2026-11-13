@@ -31,7 +31,7 @@ struct ProfileView: View {
             } else if let error {
                 ListMessage(text: error) { Task { await load() } }
             } else {
-                ProgressView().padding(64)
+                ProfileSkeleton()
             }
         }
         .refreshable { await load() }

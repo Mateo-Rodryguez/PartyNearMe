@@ -30,7 +30,6 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -217,7 +216,7 @@ fun FeedScreen(ui: Ui, state: FeedState, nearby: NearbyState) {
             modifier = Modifier.fillMaxSize(),
         ) {
             when {
-                !paged.loadedOnce && paged.items.isEmpty() -> Box(Modifier.fillMaxSize()) { CircularProgressIndicator(Modifier.align(Alignment.Center)) }
+                !paged.loadedOnce && paged.items.isEmpty() -> FeedSkeleton()
                 paged.items.isEmpty() && paged.error != null -> Message(paged.error!!) { paged.refresh() }
                 paged.items.isEmpty() -> EmptyState(
                     Icons.Filled.Home,

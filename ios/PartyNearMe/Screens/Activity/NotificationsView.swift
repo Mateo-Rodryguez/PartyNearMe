@@ -28,7 +28,7 @@ struct NotificationsView: View {
             if items == nil, let error {
                 ListMessage(text: error) { Task { await load() } }
             } else if items == nil {
-                ProgressView()
+                ListSkeleton(size: 44)
             } else if items?.isEmpty == true {
                 ContentUnavailableView {
                     Label("Nothing yet", systemImage: "bell")

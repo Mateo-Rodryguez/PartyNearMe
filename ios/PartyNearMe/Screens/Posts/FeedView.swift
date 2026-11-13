@@ -88,6 +88,9 @@ struct FeedView: View {
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
                 PartyRail(parties: parties, onStart: onStartParty)
+                if paged.items.isEmpty && !paged.loadedOnce {
+                    ForEach(0..<2, id: \.self) { _ in PostSkeleton() }
+                }
                 ForEach($paged.items) { $post in
                     PostCard(post: $post, onDeleted: { paged.remove { $0.id == post.id } }, onNotInterested: {
                         withAnimation { paged.remove { $0.id == post.id } }
@@ -120,7 +123,7 @@ struct FeedView: View {
     @ViewBuilder private var emptyState: some View {
         if paged.items.isEmpty {
             if !paged.loadedOnce {
-                ProgressView()
+                EmptyView()
             } else if let error = paged.error {
                 ListMessage(text: error) { Task { await paged.refresh() } }
             } else {
