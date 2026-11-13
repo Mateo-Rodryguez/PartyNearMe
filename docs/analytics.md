@@ -4,7 +4,7 @@ PartyNearMe is meant to grow by word of mouth, so the product has to be good
 enough that people tell their friends. This document says how the app learns
 what people like, dislike, struggle with and never use, and is the **contract
 every version follows**: Android (Compose, `app/`), the native iPhone app
-(SwiftUI, `ios/`) and the website (SvelteKit, `web/`, `src/lib/analytics.ts`)
+(SwiftUI, `ios/`) and the website (React, `web/`, `src/lib/analytics.ts`)
 send the same events with the same names and properties, so one PostHog
 dashboard covers all three. On the web a "screen" is a page, "backgrounded" is
 the tab being hidden or closed, and there are no cookies: the session id lives

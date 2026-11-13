@@ -1,6 +1,6 @@
 import { analytics } from '#lib/analytics.js';
 import { config } from '#lib/config.js';
-import { session, SignedOutError } from '#lib/session.svelte.js';
+import { session, SignedOutError } from '#lib/session.js';
 import type {
 	AccountSettings,
 	Comment,

@@ -26,7 +26,7 @@ jobs:
       - name: Brand colours match on Android, iPhone and web
         run: node ../design/check.mjs
       - run: npm ci
-      - name: Types and Svelte checks
+      - name: Types
         run: npm run check
       - name: Unit tests
         run: npm test

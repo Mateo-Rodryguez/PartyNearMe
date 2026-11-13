@@ -1,6 +1,6 @@
 import { config } from '#lib/config.js';
 import type { Message } from '#lib/api/types.js';
-import { session, SignedOutError } from '#lib/session.svelte.js';
+import { session, SignedOutError } from '#lib/session.js';
 
 // Live chat through Supabase Realtime (the Phoenix channel protocol), as the
 // apps do. The socket signs in with the user's own token, so row-level security

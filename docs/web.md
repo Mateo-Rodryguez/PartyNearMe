@@ -1,6 +1,7 @@
 # Web app
 
-`web/` is PartyNearMe for the browser: its own code (SvelteKit and Svelte 5), not
+`web/` is PartyNearMe for the browser: its own code (React 19, Vite and TypeScript, with
+React Router), not
 the Android app run on the web, so it loads fast and feels like a website. It
 talks to the same API and Supabase project as the phone apps.
 
@@ -18,9 +19,10 @@ A new feature means a small change in each, because these are shared:
 ## How it's built
 
 - **Plain files on Cloudflare Pages (free).** No server: the landing page is
-  built ahead as HTML for search engines; every app page boots from
-  `200.html` (see `static/_redirects`) and draws in the browser.
-- **Small:** about 70 KB of JavaScript in total, split per page.
+  built ahead as HTML for search engines (`src/prerender.tsx`); every app
+  page boots from `200.html` (see `public/_redirects`) and draws in the browser.
+- **Small:** about 125 KB of JavaScript (gzipped) for the whole app; the map
+  library loads only when the map picker opens.
 - **Photos** use the server's sizes (`srcset`), lazy loading and the blurred
   BlurHash preview, like the apps.
 - **The last feed shows at once** while the free server wakes up.
@@ -39,6 +41,7 @@ cd web
 npm install
 npm run dev        # http://localhost:5173 (already allowed by the API's CORS)
 npm run check      # types
+node scripts/check-redirects.mjs   # every page opens when visited directly
 npm test           # unit tests
 npm run build && node scripts/smoke.mjs   # every page in Chromium with a fake API
 ```

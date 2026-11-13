@@ -12,7 +12,7 @@ This branch is the relaunch for Android and iOS. The original university prototy
 | `supabase/` | Database migrations (Postgres + PostGIS + pgvector) and database tests |
 | `app/` | Android app (Kotlin, Compose) |
 | `ios/` | iPhone app (Swift, SwiftUI) |
-| `web/` | Web app (SvelteKit), see `docs/web.md` |
+| `web/` | Web app (React), see `docs/web.md` |
 | `design/` | Brand colours shared by all three apps (`tokens.json`) |
 | `docs/` | Relaunch plan, target architecture, cost estimate, analysis of the old code |
 
