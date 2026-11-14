@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { analytics, screenOf } from '#lib/analytics.js';
 import { api } from '#lib/api/client.js';
 import type { Interest, OwnProfile } from '#lib/api/types.js';
 import { currentLocation } from '#lib/location.js';
+import { session } from '#lib/session.js';
 import { Icon } from '#lib/ui/Icon.js';
 import s from './Setup.module.css';
 
@@ -24,6 +26,7 @@ const heardFrom = [
  * the username is required.
  */
 export function Setup({ profile, onDone }: { profile: OwnProfile; onDone: (profile: OwnProfile) => void }) {
+	const navigate = useNavigate();
 	const [step, setStep] = useState(0);
 	const [saved, setSaved] = useState<OwnProfile | null>(null);
 	const [username, setUsername] = useState('');
@@ -93,6 +96,12 @@ export function Setup({ profile, onDone }: { profile: OwnProfile; onDone: (profi
 		if (saved) onDone(saved);
 	}
 
+	/** The way out, as in the apps: signed up with the wrong account, or changed your mind. */
+	async function signOut() {
+		await session.signOut();
+		await navigate('/', { replace: true });
+	}
+
 	function toggle(id: number) {
 		setPicked(picked.includes(id) ? picked.filter((i) => i !== id) : picked.length < 10 ? [...picked, id] : picked);
 	}
@@ -137,6 +146,9 @@ export function Setup({ profile, onDone }: { profile: OwnProfile; onDone: (profi
 					</div>
 					<button className="btn primary block" disabled={!valid || busy}>
 						{busy ? 'Saving…' : 'Continue'}
+					</button>
+					<button type="button" className={`btn block ${s.link}`} disabled={busy} onClick={signOut}>
+						Sign out
 					</button>
 				</form>
 			) : step === 1 ? (
