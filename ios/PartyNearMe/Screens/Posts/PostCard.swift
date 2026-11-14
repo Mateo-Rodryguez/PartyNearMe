@@ -11,6 +11,9 @@ struct PostCard: View {
     var onNotInterested: (() -> Void)?
 
     @State private var bursts = 0
+    /// Pinch to zoom on the photo, drawn here so it can grow past the card's rounded corners.
+    @State private var zoom: CGFloat = 1
+    @State private var zoomAnchor: UnitPoint = .center
     @State private var confirmDelete = false
     @State private var editingCaption = false
     @State private var showTags = false
@@ -23,7 +26,7 @@ struct PostCard: View {
         VStack(alignment: .leading, spacing: 0) {
             header
             ZStack(alignment: .topLeading) {
-                PhotoPager(media: post.media, pending: !post.isVisible, bursts: bursts) {
+                PhotoPager(media: post.media, pending: !post.isVisible, bursts: bursts, zoom: $zoom, zoomAnchor: $zoomAnchor) {
                     guard post.isVisible else { return }
                     bursts += 1
                     if !post.likedByMe { setLiked(true) }
@@ -40,11 +43,16 @@ struct PostCard: View {
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .scaleEffect(zoom, anchor: zoomAnchor)
+            // Follows the fingers while pinching; springs back once they lift.
+            .animation(.spring(response: 0.3, dampingFraction: 0.75), value: zoom == 1)
+            .zIndex(zoom > 1 ? 1 : 0)
             .padding(.horizontal, 12)
             actions
             details
         }
         .padding(.bottom, 24)
+        .zIndex(zoom > 1 ? 1 : 0)
         .confirmationDialog("Delete this post?", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("Delete", role: .destructive, action: delete)
         } message: {
@@ -264,10 +272,15 @@ private struct PhotoPager: View {
     let media: [Media]
     let pending: Bool
     let bursts: Int
+    /// How far a pinch has zoomed the photo, and around which point; the card draws it.
+    @Binding var zoom: CGFloat
+    @Binding var zoomAnchor: UnitPoint
     let onDoubleTap: () -> Void
 
     @State private var page = 0
     @State private var heart: CGFloat = 0
+    /// Pinch to zoom, Instagram style: the photo grows under the fingers and goes back on release.
+    @GestureState private var pinch: CGFloat = 1
 
     var body: some View {
         let ratio = media.first?.aspectRatio ?? 1
@@ -318,6 +331,12 @@ private struct PhotoPager: View {
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
         .onTapGesture(count: 2, perform: onDoubleTap)
+        .simultaneousGesture(
+            MagnifyGesture()
+                .updating($pinch) { value, state, _ in state = min(max(value.magnification, 1), 4) }
+                .onChanged { value in zoomAnchor = value.startAnchor }
+        )
+        .onChange(of: pinch) { _, now in zoom = now }
         .onChange(of: bursts) {
             heart = 0.4
             withAnimation(.spring(response: 0.35, dampingFraction: 0.5)) {

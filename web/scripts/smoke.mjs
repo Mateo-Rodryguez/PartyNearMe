@@ -13,7 +13,7 @@ const build = new URL('../build/', import.meta.url).pathname;
 const out = process.argv[2] ?? 'screenshots';
 mkdirSync(out, { recursive: true });
 
-// Serves build/ the way Cloudflare Pages does with static/_redirects: files as
+// Serves build/ the way Cloudflare Pages does with public/_redirects: files as
 // they are, the landing page at /, and the app shell for everything else.
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
 const server = createServer((req, res) => {

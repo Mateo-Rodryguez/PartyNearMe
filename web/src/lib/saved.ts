@@ -1,4 +1,4 @@
-import { session } from '#lib/session.svelte.js';
+import { session } from '#lib/session.js';
 
 /**
  * The last copy of what a screen showed, kept in this browser so the screen

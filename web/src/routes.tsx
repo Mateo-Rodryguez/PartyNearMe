@@ -16,6 +16,7 @@ import Landing from './pages/Landing.js';
 import Moderation from './pages/Moderation.js';
 import Nearby from './pages/Nearby.js';
 import NewPost from './pages/NewPost.js';
+import NotFound from './pages/NotFound.js';
 import Notifications from './pages/Notifications.js';
 import PeopleList from './pages/PeopleList.js';
 import PostPage from './pages/PostPage.js';
@@ -25,7 +26,6 @@ import Saved from './pages/Saved.js';
 import Search from './pages/Search.js';
 import Settings from './pages/Settings.js';
 import SignIn from './pages/SignIn.js';
-import Soon from './pages/Soon.js';
 
 /** Remounts [Page] when the :id changes, so its state starts fresh, like a new screen. */
 function Keyed({ page: Page }: { page: () => React.ReactNode }) {
@@ -79,7 +79,7 @@ export const router = createBrowserRouter([
 					{ path: '/settings', element: <Settings /> },
 					{ path: '/feedback', element: <Feedback /> },
 					{ path: '/moderation', element: <Moderation /> },
-					{ path: '*', element: <Soon /> }
+					{ path: '*', element: <NotFound /> }
 				]
 			}
 		]
