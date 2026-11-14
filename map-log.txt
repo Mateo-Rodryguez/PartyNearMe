@@ -1,0 +1,24 @@
+11-14 11:19:52.694  4513  4513 D nativeloader: Load /data/app/~~PxBvpu9SGgF-ae1Tgf-17g==/com.partynearme.app-sYyvpO0EbvEkXffQTf82vw==/base.apk!/lib/x86_64/libmaplibre-native-c.so using ns clns-7 from class loader (caller=/data/app/~~PxBvpu9SGgF-ae1Tgf-17g==/com.partynearme.app-sYyvpO0EbvEkXffQTf82vw==/base.apk!classes13.dex): ok
+11-14 11:19:52.711  4513  4513 D nativeloader: Load /data/app/~~PxBvpu9SGgF-ae1Tgf-17g==/com.partynearme.app-sYyvpO0EbvEkXffQTf82vw==/base.apk!/lib/x86_64/libjniMaplibreNativeC.so using ns clns-7 from class loader (caller=/data/app/~~PxBvpu9SGgF-ae1Tgf-17g==/com.partynearme.app-sYyvpO0EbvEkXffQTf82vw==/base.apk!classes13.dex): ok
+11-14 11:19:52.955  4513  4577 I maplibre-compose: Created the MapLibre runtime on maplibre-compose-runtime
+11-14 11:19:53.557  4513  4577 D maplibre-compose: Ambient cache size set to 52428800 bytes
+11-14 11:19:54.430  4513  4646 I maplibre-compose: [General] GPU Identifier: Android Emulator OpenGL ES Translator (Google SwiftShader)
+11-14 11:19:54.532  4513  4578 I maplibre-compose: Rendered the first map frame with OpenGl on maplibre-compose-render, extent MapExtent(logical=412x200, physical=1080x525, scale=2.625)
+11-14 11:20:29.894  4833  4833 D nativeloader: Load /data/app/~~PxBvpu9SGgF-ae1Tgf-17g==/com.partynearme.app-sYyvpO0EbvEkXffQTf82vw==/base.apk!/lib/x86_64/libmaplibre-native-c.so using ns clns-7 from class loader (caller=/data/app/~~PxBvpu9SGgF-ae1Tgf-17g==/com.partynearme.app-sYyvpO0EbvEkXffQTf82vw==/base.apk!classes13.dex): ok
+11-14 11:20:29.900  4833  4833 D nativeloader: Load /data/app/~~PxBvpu9SGgF-ae1Tgf-17g==/com.partynearme.app-sYyvpO0EbvEkXffQTf82vw==/base.apk!/lib/x86_64/libjniMaplibreNativeC.so using ns clns-7 from class loader (caller=/data/app/~~PxBvpu9SGgF-ae1Tgf-17g==/com.partynearme.app-sYyvpO0EbvEkXffQTf82vw==/base.apk!classes13.dex): ok
+11-14 11:20:30.110  4833  4889 I maplibre-compose: Created the MapLibre runtime on maplibre-compose-runtime
+11-14 11:20:30.112  4833  4889 D maplibre-compose: Ambient cache size set to 52428800 bytes
+11-14 11:20:31.243  4833  4908 I maplibre-compose: [General] GPU Identifier: Android Emulator OpenGL ES Translator (Google SwiftShader)
+11-14 11:20:31.444  4833  4891 I maplibre-compose: Rendered the first map frame with OpenGl on maplibre-compose-render, extent MapExtent(logical=412x778, physical=1080x2042, scale=2.625)
+11-14 11:24:06.045  6586  6586 D nativeloader: Load /data/app/~~PxBvpu9SGgF-ae1Tgf-17g==/com.partynearme.app-sYyvpO0EbvEkXffQTf82vw==/base.apk!/lib/x86_64/libmaplibre-native-c.so using ns clns-7 from class loader (caller=/data/app/~~PxBvpu9SGgF-ae1Tgf-17g==/com.partynearme.app-sYyvpO0EbvEkXffQTf82vw==/base.apk!classes13.dex): ok
+11-14 11:24:06.051  6586  6586 D nativeloader: Load /data/app/~~PxBvpu9SGgF-ae1Tgf-17g==/com.partynearme.app-sYyvpO0EbvEkXffQTf82vw==/base.apk!/lib/x86_64/libjniMaplibreNativeC.so using ns clns-7 from class loader (caller=/data/app/~~PxBvpu9SGgF-ae1Tgf-17g==/com.partynearme.app-sYyvpO0EbvEkXffQTf82vw==/base.apk!classes13.dex): ok
+11-14 11:24:06.239  6586  6639 I maplibre-compose: Created the MapLibre runtime on maplibre-compose-runtime
+11-14 11:24:06.259  6586  6639 D maplibre-compose: Ambient cache size set to 52428800 bytes
+11-14 11:24:07.540  6586  6698 I maplibre-compose: [General] GPU Identifier: Android Emulator OpenGL ES Translator (Google SwiftShader)
+11-14 11:24:07.618  6586  6640 I maplibre-compose: Rendered the first map frame with OpenGl on maplibre-compose-render, extent MapExtent(logical=412x200, physical=1080x525, scale=2.625)
+11-14 11:24:24.337  6720  6720 D nativeloader: Load /data/app/~~PxBvpu9SGgF-ae1Tgf-17g==/com.partynearme.app-sYyvpO0EbvEkXffQTf82vw==/base.apk!/lib/x86_64/libmaplibre-native-c.so using ns clns-7 from class loader (caller=/data/app/~~PxBvpu9SGgF-ae1Tgf-17g==/com.partynearme.app-sYyvpO0EbvEkXffQTf82vw==/base.apk!classes13.dex): ok
+11-14 11:24:24.340  6720  6720 D nativeloader: Load /data/app/~~PxBvpu9SGgF-ae1Tgf-17g==/com.partynearme.app-sYyvpO0EbvEkXffQTf82vw==/base.apk!/lib/x86_64/libjniMaplibreNativeC.so using ns clns-7 from class loader (caller=/data/app/~~PxBvpu9SGgF-ae1Tgf-17g==/com.partynearme.app-sYyvpO0EbvEkXffQTf82vw==/base.apk!classes13.dex): ok
+11-14 11:24:24.534  6720  6771 I maplibre-compose: Created the MapLibre runtime on maplibre-compose-runtime
+11-14 11:24:24.538  6720  6771 D maplibre-compose: Ambient cache size set to 52428800 bytes
+11-14 11:24:25.711  6720  6790 I maplibre-compose: [General] GPU Identifier: Android Emulator OpenGL ES Translator (Google SwiftShader)
+11-14 11:24:25.859  6720  6772 I maplibre-compose: Rendered the first map frame with OpenGl on maplibre-compose-render, extent MapExtent(logical=412x778, physical=1080x2042, scale=2.625)
