@@ -6,6 +6,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,15 +47,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -59,12 +70,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import coil3.compose.AsyncImage
 import com.partynearme.core.model.Media
 import com.partynearme.core.model.Post
 import com.partynearme.ui.LocalAppPrefs
 import com.partynearme.ui.timeAgo
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /** One post: author, swipeable photos with rounded corners, likes, comments and caption. */
 @Composable
@@ -94,7 +107,17 @@ fun PostCard(
     var showTags by remember { mutableStateOf(false) }
     var bursts by remember { mutableIntStateOf(0) }
     val visible = post.status == "visible"
-    Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+    // Pinch to zoom, Instagram style: the photo grows under the fingers and springs back on release.
+    val zoom = remember { Animatable(1f) }
+    var zoomOrigin by remember { mutableStateOf(TransformOrigin.Center) }
+    val scope = rememberCoroutineScope()
+    // A light tap of the phone's vibration on a like, as on iPhone.
+    val haptics = LocalHapticFeedback.current
+    val like = { on: Boolean ->
+        if (on) haptics.performHapticFeedback(HapticFeedbackType.ToggleOn)
+        onLike(on)
+    }
+    Column(Modifier.zIndex(if (zoom.value > 1f) 1f else 0f).fillMaxWidth().padding(bottom = 24.dp)) {
         Row(
             Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -134,11 +157,26 @@ fun PostCard(
                 }
             }
         }
-        Box(Modifier.padding(horizontal = 12.dp).clip(RoundedCornerShape(24.dp))) {
+        Box(
+            Modifier.zIndex(if (zoom.value > 1f) 1f else 0f).padding(horizontal = 12.dp)
+                .graphicsLayer {
+                    scaleX = zoom.value
+                    scaleY = zoom.value
+                    transformOrigin = zoomOrigin
+                }
+                .clip(RoundedCornerShape(24.dp))
+                .pinchToZoom(
+                    onZoom = { scale, origin ->
+                        zoomOrigin = origin
+                        scope.launch { zoom.snapTo(scale) }
+                    },
+                    onEnd = { scope.launch { zoom.animateTo(1f, spring(dampingRatio = 0.75f, stiffness = 500f)) } },
+                ),
+        ) {
             Photos(post.media, pending = !visible, bursts = bursts, onDoubleTap = {
                 if (visible) {
                     bursts++
-                    if (!post.likedByMe) onLike(true)
+                    if (!post.likedByMe) like(true)
                 }
             })
             val eventId = post.eventId
@@ -154,7 +192,7 @@ fun PostCard(
             }
         }
         Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { onLike(!post.likedByMe) }, enabled = visible) {
+            IconButton(onClick = { like(!post.likedByMe) }, enabled = visible) {
                 Icon(
                     if (post.likedByMe) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
                     if (post.likedByMe) "Unlike" else "Like",
@@ -388,3 +426,34 @@ fun Post.withSave(saved: Boolean) = copy(savedByMe = saved)
 fun Post.withLike(liked: Boolean) =
     if (liked == likedByMe) this else copy(likedByMe = liked, likeCount = (likeCount + if (liked) 1 else -1).coerceAtLeast(0))
 
+/**
+ * Two-finger pinch: reports the zoom (1 to 4) and the point between the fingers,
+ * and when the fingers lift. One finger passes through, so swiping between
+ * photos and double-tapping still work.
+ */
+private fun Modifier.pinchToZoom(onZoom: (Float, TransformOrigin) -> Unit, onEnd: () -> Unit): Modifier =
+    pointerInput(Unit) {
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed = false)
+            var scale = 1f
+            var pinching = false
+            do {
+                // Before the photo pager sees it, so a pinch doesn't also swipe to the next photo.
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                val fingers = event.changes.count { it.pressed }
+                if (fingers >= 2) {
+                    pinching = true
+                    scale = (scale * event.calculateZoom()).coerceIn(1f, 4f)
+                    val centre = event.calculateCentroid()
+                    val origin = if (centre == Offset.Unspecified || size.width == 0 || size.height == 0) {
+                        TransformOrigin.Center
+                    } else {
+                        TransformOrigin(centre.x / size.width, centre.y / size.height)
+                    }
+                    onZoom(scale, origin)
+                    event.changes.forEach { if (it.positionChanged()) it.consume() }
+                }
+            } while (event.changes.any { it.pressed })
+            if (pinching) onEnd()
+        }
+    }
