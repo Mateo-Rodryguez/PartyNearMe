@@ -44,6 +44,7 @@ describe("PATCH /me", () => {
     await ctx.as(alice, { method: "PATCH", url: "/me", payload: { username: "party" } });
     const res = await ctx.as(bob, { method: "PATCH", url: "/me", payload: { username: "party" } });
     expect(res.statusCode).toBe(409);
+    expect(res.json().message).toBe("That username is taken. Try another one.");
   });
 
   it("validates input", async () => {

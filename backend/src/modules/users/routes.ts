@@ -139,9 +139,17 @@ export const usersRoutes: FastifyPluginAsyncZod<{ db: Db; mediaBaseUrl: string |
   app.patch("/me", { schema: { body: profileUpdate, response: { 200: ownProfile } } }, async (request) => {
     const changes = request.body;
     const columns = Object.keys(changes) as (keyof typeof changes)[];
-    await asUser(db, request.userId, (tx) =>
-      tx`update public.profiles set ${tx(changes, columns)} where id = ${request.userId}`,
-    );
+    try {
+      await asUser(db, request.userId, (tx) =>
+        tx`update public.profiles set ${tx(changes, columns)} where id = ${request.userId}`,
+      );
+    } catch (err) {
+      // The only unique column people set themselves; say what's wrong rather than "Already exists".
+      if ((err as { code?: string }).code === "23505" && changes.username) {
+        throw new HttpError(409, "That username is taken. Try another one.");
+      }
+      throw err;
+    }
     return loadOwnProfile(request.userId);
   });
 
