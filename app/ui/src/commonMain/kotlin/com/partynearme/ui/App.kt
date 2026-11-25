@@ -358,11 +358,11 @@ private fun RowScope.TabItem(
     }
 }
 
-/** "PartyNearMe" in the brand gradient. */
+/** "Meetbry" in the brand gradient. */
 @Composable
 fun Wordmark(modifier: Modifier = Modifier, size: TextUnit = 34.sp) {
     Text(
-        "PartyNearMe",
+        "Meetbry",
         modifier = modifier,
         style = MaterialTheme.typography.headlineLarge.copy(brush = Brand.sunset, fontSize = size),
         fontWeight = FontWeight.Black,

@@ -1,6 +1,6 @@
 {
-	"name": "PartyNearMe",
-	"short_name": "PartyNearMe",
+	"name": "Meetbry",
+	"short_name": "Meetbry",
 	"description": "See what's on tonight, find parties near you, and share the night.",
 	"start_url": "/feed",
 	"display": "standalone",

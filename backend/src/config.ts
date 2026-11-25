@@ -17,8 +17,9 @@ export function databaseUrlProblem(value: string): string | null {
   return null;
 }
 
-/** The web app on Cloudflare Pages, its preview builds, and local development. */
-export const DEFAULT_WEB_ORIGINS = "https://partynearme.pages.dev,https://*.partynearme.pages.dev,http://localhost:5173";
+/** The web app at meetbry.com, on Cloudflare Pages (and its preview builds), and local development. */
+export const DEFAULT_WEB_ORIGINS =
+  "https://meetbry.com,https://www.meetbry.com,https://partynearme.pages.dev,https://*.partynearme.pages.dev,http://localhost:5173";
 
 const configSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),

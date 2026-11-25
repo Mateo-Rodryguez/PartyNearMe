@@ -1,8 +1,17 @@
-# PartyNearMe
+# Meetbry (formerly PartyNearMe)
 
 App to connect event organizers and guests: find parties near you, RSVP, share photos, message people.
 
 This branch is the relaunch for Android and iOS. The original university prototype is on the `main` branch.
+
+## Name
+
+People see **Meetbry** everywhere (apps, website at https://meetbry.com, store
+listings). Technical names stay `partynearme` on purpose: the Android
+applicationId and iOS bundle id `com.partynearme.app`, the `partynearme://` link
+scheme, the Firebase, Supabase, Render, R2 and Sentry projects, and code names
+like the `PartyNearMe` class and Xcode target. Changing those would break push,
+sign-in redirects and store continuity for no visible gain.
 
 ## Layout
 

@@ -6,8 +6,8 @@ import { PageHeader } from './PageHeader.js';
 export default function NotFound() {
 	return (
 		<>
-			<title>Not found · PartyNearMe</title>
-			<PageHeader title="PartyNearMe" back />
+			<title>Not found · Meetbry</title>
+			<PageHeader title="Meetbry" back />
 			<Empty title="This page doesn't exist">
 				The link may be old or mistyped.{' '}
 				<Link to="/feed" style={{ color: 'var(--primary)', fontWeight: 600 }}>

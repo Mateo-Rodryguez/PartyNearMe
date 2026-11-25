@@ -108,7 +108,7 @@ export default function Nearby() {
 
 	return (
 		<>
-			<title>Parties near you · PartyNearMe</title>
+			<title>Parties near you · Meetbry</title>
 			<PageHeader
 				title="Parties near you"
 				actions={
@@ -126,7 +126,7 @@ export default function Nearby() {
 							<Empty title="Where are you?">
 								{denied
 									? "Your browser didn't share your location. Allow it for this site in the browser's settings, then try again."
-									: "PartyNearMe uses your location to show parties around you. It isn't saved or shown to anyone."}
+									: "Meetbry uses your location to show parties around you. It isn't saved or shown to anyone."}
 							</Empty>
 							<button className="btn primary" onClick={locate}>
 								Use my location

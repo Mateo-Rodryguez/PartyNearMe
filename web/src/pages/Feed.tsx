@@ -71,9 +71,9 @@ export default function Feed() {
 
 	return (
 		<>
-			<title>PartyNearMe</title>
+			<title>Meetbry</title>
 			<PageHeader
-				title="PartyNearMe"
+				title="Meetbry"
 				actions={
 					<>
 						<Link className={`${s.bell} ${s.search}`} to="/search" aria-label="Search people">

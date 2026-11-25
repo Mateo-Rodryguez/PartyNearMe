@@ -71,7 +71,7 @@ export default function Notifications() {
 
 	return (
 		<>
-			<title>Notifications · PartyNearMe</title>
+			<title>Notifications · Meetbry</title>
 			<PageHeader title="Notifications" back />
 			{error ? (
 				<Empty title="Couldn't load notifications">{error}</Empty>

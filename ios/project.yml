@@ -34,7 +34,7 @@ targets:
     info:
       path: PartyNearMe/Info.plist
       properties:
-        CFBundleDisplayName: PartyNearMe
+        CFBundleDisplayName: Meetbry
         UILaunchScreen:
           UIColorName: LaunchBackground
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
@@ -44,8 +44,8 @@ targets:
             CFBundleURLSchemes: [partynearme]
         # Only HTTPS, which is exempt, so TestFlight doesn't ask about export compliance each upload.
         ITSAppUsesNonExemptEncryption: false
-        NSCameraUsageDescription: PartyNearMe uses the camera so you can take photos to post.
-        NSLocationWhenInUseUsageDescription: PartyNearMe uses your location to show parties near you and to place the parties you create.
+        NSCameraUsageDescription: Meetbry uses the camera so you can take photos to post.
+        NSLocationWhenInUseUsageDescription: Meetbry uses your location to show parties near you and to place the parties you create.
     settings:
       base:
         # Permanent once the app is on the App Store; matches the Android app.

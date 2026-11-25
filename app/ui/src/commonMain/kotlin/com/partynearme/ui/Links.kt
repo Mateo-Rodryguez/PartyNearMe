@@ -26,14 +26,14 @@ private val LINK = Regex(
 
 /** Opens the share sheet with a party's link, and notes the share for ranking. */
 fun shareParty(ui: Ui, scope: CoroutineScope, event: Event) {
-    ui.platform.share("${event.title} on PartyNearMe", ui.app.config.partyLink(event.id))
+    ui.platform.share("${event.title} on Meetbry", ui.app.config.partyLink(event.id))
     scope.launch { ui.app.interactions.share(eventId = event.id) }
     ui.track("link_shared", "kind" to "party")
 }
 
 /** Opens the share sheet with a post's link, and notes the share for ranking. */
 fun sharePost(ui: Ui, scope: CoroutineScope, post: Post) {
-    ui.platform.share("${post.author.name} on PartyNearMe", ui.app.config.postLink(post.id))
+    ui.platform.share("${post.author.name} on Meetbry", ui.app.config.postLink(post.id))
     scope.launch { ui.app.interactions.share(postId = post.id) }
     ui.track("link_shared", "kind" to "post")
 }

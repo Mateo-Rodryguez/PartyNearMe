@@ -160,7 +160,7 @@ struct SignInView: View {
 
     private var legal: some View {
         VStack(spacing: 8) {
-            Text("PartyNearMe is for people aged 18 and over. By continuing you agree to our Terms and Privacy policy.")
+            Text("Meetbry is for people aged 18 and over. By continuing you agree to our Terms and Privacy policy.")
                 .font(.footnote)
                 .foregroundStyle(Color.appSecondaryText)
                 .multilineTextAlignment(.center)

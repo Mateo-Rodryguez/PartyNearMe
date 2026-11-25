@@ -125,7 +125,7 @@ export default function Chat() {
 
 	return (
 		<>
-			<title>{`${title} · PartyNearMe`}</title>
+			<title>{`${title} · Meetbry`}</title>
 			<div className={s.chat}>
 				<PageHeader
 					title={title}

@@ -16,7 +16,7 @@ export function resetPasswordPage(supabaseUrl: string, publishableKey: string | 
     "Reset your password",
     `
 <form id="form" hidden>
-  <p>Choose a new password for your PartyNearMe account.</p>
+  <p>Choose a new password for your Meetbry account.</p>
   <p><label>New password<br><input id="password" type="password" minlength="8" autocomplete="new-password" required></label></p>
   <p><label>Type it again<br><input id="again" type="password" minlength="8" autocomplete="new-password" required></label></p>
   <p><button type="submit">Save new password</button></p>
@@ -53,7 +53,7 @@ export function resetPasswordPage(supabaseUrl: string, publishableKey: string | 
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.msg || body.message || body.error_description || "That didn't work.");
       form.hidden = true;
-      status.textContent = "Done. Go back to PartyNearMe and sign in with your new password.";
+      status.textContent = "Done. Go back to Meetbry and sign in with your new password.";
     } catch (err) {
       form.querySelector("button").disabled = false;
       status.textContent = err.message + " Try again, or ask for a new link from the app.";

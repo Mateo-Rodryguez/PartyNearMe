@@ -62,7 +62,7 @@ export default function EventPage() {
 
 	async function shareParty() {
 		if (!event) return;
-		const result = await share(`${event.title} on PartyNearMe`, partyLink(event.id), { eventId: event.id });
+		const result = await share(`${event.title} on Meetbry`, partyLink(event.id), { eventId: event.id });
 		if (result) analytics.capture('link_shared', { kind: 'party' });
 		if (result === 'copied') toast.show('Link copied');
 	}
@@ -72,7 +72,7 @@ export default function EventPage() {
 
 	return (
 		<>
-			<title>{`${event?.title ?? 'Party'} · PartyNearMe`}</title>
+			<title>{`${event?.title ?? 'Party'} · Meetbry`}</title>
 			<PageHeader
 				title={event?.title ?? 'Party'}
 				back

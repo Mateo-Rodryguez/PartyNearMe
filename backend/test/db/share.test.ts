@@ -47,7 +47,7 @@ describe("share link pages", () => {
     await ctx.db`insert into public.post_media (post_id, position, storage_key) values (${id}, 0, ${`media/${id}/0-1080.webp`})`;
     const res = await get(`/p/${id}`);
     expect(res.statusCode).toBe(200);
-    expect(res.body).toContain(`content="Alice on PartyNearMe"`);
+    expect(res.body).toContain(`content="Alice on Meetbry"`);
     expect(res.body).toContain(`<meta property="og:image" content="https://media.test/media/${id}/0-1080.webp">`);
     expect(res.body).toContain("What a night");
 

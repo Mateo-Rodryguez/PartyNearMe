@@ -40,12 +40,12 @@ a text editor and pasted.
 
 ### 3. Create the app in Play Console
 
-1. **Create app**: name PartyNearMe, app, free, accept the declarations.
+1. **Create app**: name Meetbry, app, free, accept the declarations.
 2. Fill in **App content** (privacy policy URL
-   `https://partynearme-api.onrender.com/privacy`, app access with the reviewer demo
+   `https://meetbry.com/privacy`, app access with the reviewer demo
    account, ads: none, content rating, target audience 18+, data safety, account
-   deletion URL `https://partynearme-api.onrender.com/privacy#delete`) using the
-   answers in the "PartyNearMe store forms" doc.
+   deletion URL `https://meetbry.com/privacy#delete`) using the
+   answers in the "PartyNearMe store forms" doc (now titled "Meetbry store forms").
 3. **Store listing**: text from the same doc, icon, feature graphic and screenshots
    (made by CI, see below).
 4. **Testing > Closed testing > Create track**. Add the countries the testers are in,
@@ -78,7 +78,7 @@ below exist it only checks that the Release build compiles.
 1. **Certificates, Identifiers & Profiles > Identifiers > +**, App IDs, App. Bundle ID
    **explicit** `com.partynearme.app`, description PartyNearMe. Tick
    **Push Notifications** and **Sign in with Apple** (enable as a primary App ID).
-2. In App Store Connect: **Apps > + > New App**, iOS, name PartyNearMe, primary
+2. In App Store Connect: **Apps > + > New App**, iOS, name Meetbry, primary
    language, bundle ID `com.partynearme.app`, SKU `partynearme`.
 
 ### 2. App Store Connect API key (lets GitHub sign and upload)
@@ -125,8 +125,8 @@ must be on before the app is sent for review.
 1. In TestFlight, add yourself under **Internal Testing**, install the TestFlight app on
    the iPhone and accept the invite.
 2. When it works, fill in the App Store page (text, screenshots, privacy label and age
-   rating from the "PartyNearMe store forms" doc; privacy policy URL
-   `https://partynearme-api.onrender.com/privacy`, support URL the same site).
+   rating from the "PartyNearMe store forms" doc (now titled "Meetbry store forms"); privacy policy URL
+   `https://meetbry.com/privacy`, support URL `https://meetbry.com`).
 3. Under **App Review Information**, give the reviewer demo account (see below) and a
    note: "Party listings near you. Users can report posts, parties, comments and people
    from the ⋮ menus and block people; reports are reviewed within 24 hours. Account

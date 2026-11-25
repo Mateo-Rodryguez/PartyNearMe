@@ -448,7 +448,7 @@ private fun MessagesSheet(current: String, onDismiss: () -> Unit, onPick: (Strin
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
         SheetBody("Who can message you", "Chats you already have carry on either way.") {
             listOf(
-                "everyone" to ("Everyone" to "Anyone on PartyNearMe can start a chat"),
+                "everyone" to ("Everyone" to "Anyone on Meetbry can start a chat"),
                 "following" to ("People you follow" to "Others can't start a new chat with you"),
             ).forEach { (value, text) ->
                 OptionRow(current == value, { onPick(value) }) {

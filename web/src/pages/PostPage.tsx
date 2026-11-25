@@ -70,7 +70,7 @@ export default function PostPage() {
 
 	return (
 		<>
-			<title>{post ? `${nameOf(post.author)} on PartyNearMe` : 'Post · PartyNearMe'}</title>
+			<title>{post ? `${nameOf(post.author)} on Meetbry` : 'Post · Meetbry'}</title>
 			<PageHeader title="Post" back />
 			{error ? (
 				<Empty title="Couldn't open this post">{error}</Empty>

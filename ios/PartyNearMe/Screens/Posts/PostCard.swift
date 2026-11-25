@@ -139,7 +139,7 @@ struct PostCard: View {
             .accessibilityLabel("Comments")
 
             if let link = URL(string: "\(AppConfig.apiBase)/p/\(post.id)") {
-                ShareLink(item: link, message: Text("\(post.author.name) on PartyNearMe")) {
+                ShareLink(item: link, message: Text("\(post.author.name) on Meetbry")) {
                     Image(systemName: "paperplane")
                         .font(.system(size: 21))
                         .foregroundStyle(Color.appText)

@@ -65,7 +65,7 @@ fun FeedbackScreen(ui: Ui) {
         ) {
             Text(
                 "We read every message. Tell us what you love, what got in your way, or what you wish " +
-                    "PartyNearMe did, and we'll keep making it better.",
+                    "Meetbry did, and we'll keep making it better.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -78,7 +78,7 @@ fun FeedbackScreen(ui: Ui) {
                 { text = it.take(2000) },
                 when (kind) {
                     FeedbackKind.Problem -> "What happened, and what were you trying to do?"
-                    FeedbackKind.Idea -> "What should PartyNearMe do?"
+                    FeedbackKind.Idea -> "What should Meetbry do?"
                     else -> "What do you love?"
                 },
                 singleLine = false,
@@ -104,7 +104,7 @@ fun FeedbackScreen(ui: Ui) {
 }
 
 /**
- * "Would you recommend PartyNearMe to a friend?" (0-10), the Net Promoter
+ * "Would you recommend Meetbry to a friend?" (0-10), the Net Promoter
  * Score, shown at the top of Home at most every 90 days once someone knows the
  * app (LocalPrefs.recommendDue). The app grows by word of mouth, so this is the
  * number that matters most. A score can come with an optional reason.
@@ -138,7 +138,7 @@ fun RecommendCard(ui: Ui, onDone: () -> Unit) {
     ) {
         Row(verticalAlignment = Alignment.Top) {
             Text(
-                "How likely are you to recommend PartyNearMe to a friend?",
+                "How likely are you to recommend Meetbry to a friend?",
                 style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.weight(1f).padding(top = 4.dp),
             )
@@ -185,7 +185,7 @@ fun RecommendCard(ui: Ui, onDone: () -> Unit) {
     }
 }
 
-/** The answers to "How did you hear about PartyNearMe?"; the wire values match the backend's HEARD_FROM. */
+/** The answers to "How did you hear about Meetbry?"; the wire values match the backend's HEARD_FROM. */
 val HEARD_FROM = listOf(
     "friend" to "A friend told me",
     "shared_link" to "Someone shared a party or post",
@@ -201,7 +201,7 @@ fun HeardFromStep(app: PartyNearMe, scope: CoroutineScope, onNext: () -> Unit) {
     var picked by remember { mutableStateOf<String?>(null) }
     Column(Modifier.fillMaxSize()) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("How did you hear about PartyNearMe?", style = MaterialTheme.typography.headlineMedium)
+            Text("How did you hear about Meetbry?", style = MaterialTheme.typography.headlineMedium)
             Text("It helps us know what's working.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 HEARD_FROM.forEach { (wire, label) ->

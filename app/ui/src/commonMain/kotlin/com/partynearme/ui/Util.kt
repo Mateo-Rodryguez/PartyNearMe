@@ -35,7 +35,7 @@ suspend fun <T> attempt(block: suspend () -> T): Result<T> =
 val Throwable.userMessage: String
     get() = when (this) {
         is ApiException, is SignedOutException -> message ?: "Something went wrong"
-        else -> "Can't reach PartyNearMe. Check your connection and try again."
+        else -> "Can't reach Meetbry. Check your connection and try again."
     }
 
 /** A list that loads page by page; [load] gets the cursor and returns items plus the next cursor. */

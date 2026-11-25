@@ -51,7 +51,7 @@ export function sharePage(o: {
   const d = escapeHtml(o.description);
   const meta = [
     `<meta property="og:type" content="website">`,
-    `<meta property="og:site_name" content="PartyNearMe">`,
+    `<meta property="og:site_name" content="Meetbry">`,
     `<meta property="og:title" content="${t}">`,
     `<meta property="og:description" content="${d}">`,
     `<meta property="og:url" content="${escapeHtml(o.url)}">`,
@@ -64,7 +64,7 @@ export function sharePage(o: {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${t} · PartyNearMe</title>
+<title>${t} · Meetbry</title>
 ${meta}
 <style>
   :root { color-scheme: dark; }
@@ -75,6 +75,7 @@ ${meta}
   img { width: 100%; border-radius: 1.25rem; margin: 1rem 0; display: block; }
   h1 { font-size: 1.6rem; line-height: 1.2; margin: .5rem 0; }
   .muted { color: #b3a9c6; }
+  .muted a { color: #f4f0fa; }
   .pill { display: inline-block; padding: .2rem .7rem; border-radius: 99px; background: #2a2238; font-size: .85rem; }
   .open { display: block; text-align: center; margin-top: 1.5rem; padding: .9rem; border-radius: 99px; color: #fff;
           font-weight: 700; text-decoration: none; background: linear-gradient(90deg, #ff3d8b, #8b5cf6); }
@@ -82,11 +83,11 @@ ${meta}
 </head>
 <body>
 <main>
-<div class="brand">PartyNearMe</div>
+<div class="brand">Meetbry</div>
 ${o.image ? `<img src="${escapeHtml(o.image)}" alt="">` : ""}
 ${o.body}
-<a class="open" href="${escapeHtml(o.appLink)}">Open in PartyNearMe</a>
-<p class="muted">Don't have the app yet? PartyNearMe is coming soon to Android and iPhone.</p>
+<a class="open" href="${escapeHtml(o.appLink)}">Open in Meetbry</a>
+<p class="muted">Don't have the app yet? Use Meetbry on the web at <a href="https://meetbry.com">meetbry.com</a>. The Android and iPhone apps are coming soon.</p>
 </main>
 </body>
 </html>`;
@@ -112,7 +113,7 @@ export function partyPage(p: SharedParty, url: string): string {
 export function postPage(p: SharedPost, url: string): string {
   const caption = p.caption ? shorten(p.caption, 200) : null;
   return sharePage({
-    title: `${p.author_name} on PartyNearMe`,
+    title: `${p.author_name} on Meetbry`,
     description: caption ?? "A photo from a night out",
     image: p.photo_url,
     url,

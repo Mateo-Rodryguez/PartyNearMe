@@ -10,7 +10,9 @@ const rules = lines.map(([from]) => from);
 
 // Pages turns a rewrite to "/x.html" into a redirect to "/x", which changes the
 // address the app sees; the shell must be addressed as /200.
-const wrong = lines.filter(([, to, status]) => to !== '/200' || status !== '200');
+// Rules that send the browser to another site (like /privacy) are allowed too.
+const external = ([, to, status]) => /^https:\/\//.test(to) && (status === '301' || status === '302');
+const wrong = lines.filter((line) => !external(line) && (line[1] !== '/200' || line[2] !== '200'));
 if (wrong.length) {
 	console.error(`Each rule must rewrite to "/200 200":\n${wrong.map((l) => l.join(' ')).join('\n')}`);
 	process.exit(1);

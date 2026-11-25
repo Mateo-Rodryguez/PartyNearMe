@@ -81,7 +81,7 @@ export default function Moderation() {
 	const deleting = confirming?.choice.action === 'delete_account';
 	return (
 		<>
-			<title>Reports to review · PartyNearMe</title>
+			<title>Reports to review · Meetbry</title>
 			<PageHeader title="Reports to review" back />
 			{error && !items ? (
 				<Empty title="Couldn't load reports">

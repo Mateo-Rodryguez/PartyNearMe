@@ -18,7 +18,7 @@ final class AppModel {
     let analytics: Analytics
     /// Home's last first page, shown while the fresh one loads; nil in the demo.
     let feedCache: FeedCache?
-    /// Set when it's time to ask "would you recommend PartyNearMe?" at the top of Home.
+    /// Set when it's time to ask "would you recommend Meetbry?" at the top of Home.
     var askRecommend = false
     /// Chats with unread messages, for the Messages tab's badge.
     var unreadChats = 0

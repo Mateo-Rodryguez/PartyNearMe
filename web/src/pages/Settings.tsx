@@ -149,7 +149,7 @@ export default function Settings() {
 
 	return (
 		<>
-			<title>Settings · PartyNearMe</title>
+			<title>Settings · Meetbry</title>
 			<PageHeader title="Settings" back />
 			{!me ? (
 				<Spinner />
@@ -339,10 +339,10 @@ export default function Settings() {
 
 					<section>
 						<h2>About</h2>
-						<a className={s.row} href={`${config.apiBaseUrl}/privacy`}>
+						<a className={s.row} href="/privacy">
 							Privacy policy
 						</a>
-						<a className={s.row} href={`${config.apiBaseUrl}/terms`}>
+						<a className={s.row} href="/terms">
 							Terms
 						</a>
 					</section>

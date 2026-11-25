@@ -74,7 +74,7 @@ final class AppPrefs {
         activeDays += 1
     }
 
-    /// True when it's time to ask "would you recommend PartyNearMe to a friend?":
+    /// True when it's time to ask "would you recommend Meetbry to a friend?":
     /// only once someone knows the app (used on 3+ days over at least a week), and
     /// then at most every 90 days, so it never nags. Same rule as Android.
     func recommendDue(_ today: Int) -> Bool {

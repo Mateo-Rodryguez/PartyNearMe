@@ -1,4 +1,4 @@
-# PartyNearMe web
+# Meetbry web
 
 The web app in React 19 + Vite + TypeScript, with React Router for pages.
 Cloudflare Pages builds this folder (see `docs/web.md`). The landing page is

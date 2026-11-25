@@ -49,7 +49,7 @@ export default function Search() {
 
 	return (
 		<>
-			<title>Search · PartyNearMe</title>
+			<title>Search · Meetbry</title>
 			<PageHeader title="Search" />
 			<div className={s.box}>
 				<label className="visually-hidden" htmlFor="q">

@@ -76,7 +76,25 @@ npm run build && node scripts/smoke.mjs   # every page in Chromium with a fake A
    `WEB_ORIGINS` on Render to that address (see `backend/src/config.ts`) and
    use it in step 2.
 
-A custom domain comes last; Pages adds one for free once there is a domain.
+## meetbry.com (one-time, Mateo)
+
+The site's address is **meetbry.com** (bought on Cloudflare Registrar, so the
+DNS is already on Cloudflare). The API stays at partynearme-api.onrender.com.
+
+1. **Cloudflare Pages:** Workers & Pages > `partynearme` > Custom domains >
+   Set up a custom domain > `meetbry.com` > Activate. Repeat for
+   `www.meetbry.com`. Cloudflare adds the DNS records and the certificate itself.
+2. **Supabase:** Authentication > URL Configuration: set **Site URL** to
+   `https://meetbry.com`, and add `https://meetbry.com/auth/callback` and
+   `https://www.meetbry.com/auth/callback` to Redirect URLs (keep the
+   pages.dev and `partynearme://auth-callback` entries).
+3. **R2 CORS** (step 3 above): add `https://meetbry.com` and
+   `https://www.meetbry.com` to `AllowedOrigins`.
+4. Render needs nothing: meetbry.com is in the API's default `WEB_ORIGINS`
+   (unless `WEB_ORIGINS` was set by hand on Render; then add both addresses there).
+
+`meetbry.com/privacy` and `/terms` redirect to the API's pages (`public/_redirects`);
+those are the addresses for the store listings.
 
 ## Sign in with Apple on the web (optional, after the Apple Developer account)
 
@@ -85,7 +103,7 @@ need "Continue with Apple" too. The iPhone's native sign-in doesn't need any of
 this; the web flow goes through Supabase and needs a **Services ID**:
 
 1. developer.apple.com > **Identifiers > + > Services IDs**: identifier
-   `com.partynearme.web`, description PartyNearMe web. Tick **Sign in with
+   `com.partynearme.web`, description Meetbry web. Tick **Sign in with
    Apple** > Configure: primary App ID `com.partynearme.app`, domain
    `vvkckzrhzgdrazhjitse.supabase.co`, return URL
    `https://vvkckzrhzgdrazhjitse.supabase.co/auth/v1/callback`.

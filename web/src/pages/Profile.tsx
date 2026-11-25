@@ -100,7 +100,7 @@ export default function Profile({ userId }: { userId: string }) {
 
 	return (
 		<>
-			<title>{`${profile ? nameOf(profile) : 'Profile'} · PartyNearMe`}</title>
+			<title>{`${profile ? nameOf(profile) : 'Profile'} · Meetbry`}</title>
 			<PageHeader
 				title={profile?.username ? `@${profile.username}` : profile ? nameOf(profile) : 'Profile'}
 				back={!own}

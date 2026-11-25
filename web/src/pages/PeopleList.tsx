@@ -42,7 +42,7 @@ export default function PeopleList({ userId, kind }: { userId: string; kind: 'fo
 	const title = kind === 'followers' ? 'Followers' : 'Following';
 	return (
 		<>
-			<title>{`${title} · PartyNearMe`}</title>
+			<title>{`${title} · Meetbry`}</title>
 			<PageHeader title={owner ? `${title} · ${nameOf(owner)}` : title} back />
 			<nav className={s.tabs} aria-label="Followers and following">
 				<Link to={`/u/${userId}/followers`} aria-current={kind === 'followers' ? 'page' : undefined}>
