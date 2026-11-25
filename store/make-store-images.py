@@ -98,7 +98,7 @@ def feature_graphic(icon):
     icon = rounded(icon.resize((220, 220), Image.LANCZOS), 50)
     canvas.alpha_composite(icon, (90, 140))
     draw = ImageDraw.Draw(canvas)
-    draw.text((350, 175), "PartyNearMe", font=font(82), fill="white")
+    draw.text((350, 175), "Meetbry", font=font(82), fill="white")
     draw.text((354, 280), "Find the party. Share the night.", font=font(36), fill=(255, 255, 255, 230))
     return canvas.convert("RGB")
 

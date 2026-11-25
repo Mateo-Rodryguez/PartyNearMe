@@ -38,7 +38,7 @@ export default function Invite() {
 
 	return (
 		<>
-			<title>Invite friends · PartyNearMe</title>
+			<title>Invite friends · Meetbry</title>
 			<PageHeader title={event ? `Invite to ${event.title}` : 'Invite friends'} back />
 			<div style={{ padding: '0 16px 24px' }}>
 				<PeoplePicker button="Send invites" busy={sending} onDone={send} />

@@ -14,14 +14,16 @@ export default function Landing() {
 
 	return (
 		<main className={s.landing}>
-			<title>PartyNearMe: find parties near you tonight</title>
-			<meta property="og:title" content="PartyNearMe" />
+			<title>Meetbry: find parties near you tonight</title>
+			<meta property="og:title" content="Meetbry" />
 			<meta property="og:description" content="See what's on tonight, find parties near you, and share the night." />
 			<meta property="og:type" content="website" />
+			<meta property="og:url" content="https://meetbry.com/" />
+			<link rel="canonical" href="https://meetbry.com/" />
 			<div className={s.glow} aria-hidden="true" />
 			<section className={s.hero}>
 				<img src="/icon.svg" alt="" width="72" height="72" className={s.logo} />
-				<h1 className={s.wordmark}>PartyNearMe</h1>
+				<h1 className={s.wordmark}>Meetbry</h1>
 				<p className={s.lead}>See what's on tonight, find parties near you, and share the night with your friends.</p>
 				<div className={s.cta}>
 					<Link className="btn primary" to="/signin?mode=signup">
@@ -47,7 +49,7 @@ export default function Landing() {
 				</div>
 			</section>
 			<footer className="muted">
-				<a href="https://partynearme-api.onrender.com/privacy">Privacy</a> · <a href="https://partynearme-api.onrender.com/terms">Terms</a>
+				<a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
 			</footer>
 		</main>
 	);

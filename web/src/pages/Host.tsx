@@ -5,7 +5,7 @@ import { PartyForm } from './PartyForm.js';
 export default function Host() {
 	return (
 		<>
-			<title>Host a party · PartyNearMe</title>
+			<title>Host a party · Meetbry</title>
 			<PageHeader title="New party" back />
 			<PartyForm />
 		</>

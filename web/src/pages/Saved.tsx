@@ -30,7 +30,7 @@ export default function Saved() {
 
 	return (
 		<>
-			<title>Saved · PartyNearMe</title>
+			<title>Saved · Meetbry</title>
 			<PageHeader title="Saved" back />
 			<div className={s.tabs} role="tablist">
 				<button role="tab" aria-selected={tab === 'posts'} onClick={() => setTab('posts')}>

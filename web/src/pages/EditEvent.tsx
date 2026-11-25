@@ -43,7 +43,7 @@ export default function EditEvent() {
 
 	return (
 		<>
-			<title>Edit party · PartyNearMe</title>
+			<title>Edit party · Meetbry</title>
 			<PageHeader title="Edit party" back />
 			{error ? (
 				<Empty title="Couldn't open this party">{error}</Empty>

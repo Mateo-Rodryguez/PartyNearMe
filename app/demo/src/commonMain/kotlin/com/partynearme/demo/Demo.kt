@@ -239,7 +239,7 @@ private object FakeApi {
 
     fun handle(method: HttpMethod, path: String): Pair<HttpStatusCode, String> = when {
         path == "/me" -> HttpStatusCode.OK to """{"id":"$ME","username":"mateo","display_name":"Mateo",
-            "bio":"Building PartyNearMe","avatar_url":null,"relationship_status":"talking",
+            "bio":"Building Meetbry","avatar_url":null,"relationship_status":"talking",
             "created_at":"${ago(30.days)}","interest_ids":[1,3],"is_moderator":true}"""
         path == "/me/settings" -> HttpStatusCode.OK to """{"messages_from":"everyone","push_messages":true,
             "push_rsvps":true,"push_reminders":false}"""
@@ -260,7 +260,7 @@ private object FakeApi {
         path == "/users/$ME/posts" -> HttpStatusCode.OK to """{"posts":[$myPosts],"next_cursor":null}"""
         path.matches(Regex("/users/[^/]+/posts")) -> HttpStatusCode.OK to """{"posts":[$feedPosts],"next_cursor":null}"""
         path == "/users/$ME" -> HttpStatusCode.OK to """{"id":"$ME","username":"mateo","display_name":"Mateo",
-            "bio":"Building PartyNearMe","avatar_url":null,"relationship_status":"talking","parties":37,
+            "bio":"Building Meetbry","avatar_url":null,"relationship_status":"talking","parties":37,
             "followers":214,"following":180,"is_following":false}"""
         path.startsWith("/users/") -> HttpStatusCode.OK to """{"id":"$SAM","username":"sam","display_name":"Sam Rivera",
             "bio":"DJ and party host in London","avatar_url":"$SAM_AVATAR","relationship_status":"taken","parties":142,

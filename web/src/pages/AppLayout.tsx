@@ -65,9 +65,9 @@ export default function AppLayout() {
 	return (
 		<div className={s.shell}>
 			<nav className={s.nav} aria-label="Main">
-				<Link to="/feed" className={s.brand} aria-label="PartyNearMe home">
+				<Link to="/feed" className={s.brand} aria-label="Meetbry home">
 					<img src="/icon.svg" alt="" width="32" height="32" />
-					<span>PartyNearMe</span>
+					<span>Meetbry</span>
 				</Link>
 				{tabs.map((tab) => (
 					<Link key={tab.href} to={tab.href} className={`${s.tab} ${tab.wideOnly ? s['wide-only'] : ''}`} aria-current={current(tab.href) ? 'page' : undefined}>

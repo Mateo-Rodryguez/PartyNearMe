@@ -6,7 +6,7 @@ import { Icon } from './Icon.js';
 import s from './RecommendCard.module.css';
 
 /**
- * "How likely are you to recommend PartyNearMe to a friend?" (0-10), the Net
+ * "How likely are you to recommend Meetbry to a friend?" (0-10), the Net
  * Promoter Score, at the top of Home when lib/recommend.ts says it's time. The
  * app grows by word of mouth, so this is the number that matters most.
  */
@@ -31,9 +31,9 @@ export function RecommendCard({ onDone }: { onDone: () => void }) {
 	}
 
 	return (
-		<section className={s.card} aria-label="Would you recommend PartyNearMe?">
+		<section className={s.card} aria-label="Would you recommend Meetbry?">
 			<div className={s.top}>
-				<h2>How likely are you to recommend PartyNearMe to a friend?</h2>
+				<h2>How likely are you to recommend Meetbry to a friend?</h2>
 				<button
 					className={s.close}
 					aria-label="Not now"

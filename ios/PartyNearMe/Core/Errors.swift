@@ -18,7 +18,7 @@ extension Error {
         switch self {
         case let error as APIError: return error.message
         case is SignedOutError: return "Please sign in again"
-        default: return "Can't reach PartyNearMe. Check your connection and try again."
+        default: return "Can't reach Meetbry. Check your connection and try again."
         }
     }
 }

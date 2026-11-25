@@ -1,5 +1,5 @@
 /**
- * When to ask "How likely are you to recommend PartyNearMe to a friend?", the
+ * When to ask "How likely are you to recommend Meetbry to a friend?", the
  * same rule as the apps (LocalPrefs.recommendDue): only once someone knows the
  * app (used on 3+ different days over at least a week), then at most every 90
  * days, so it never nags. Kept in this browser.

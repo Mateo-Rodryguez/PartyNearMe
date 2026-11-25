@@ -117,7 +117,7 @@ export function Setup({ profile, onDone }: { profile: OwnProfile; onDone: (profi
 			{step === 0 ? (
 				<form className={s.step} onSubmit={saveName}>
 					<div className={s.grow}>
-						<p className={s.wordmark}>PartyNearMe</p>
+						<p className={s.wordmark}>Meetbry</p>
 						<h1>Pick a username</h1>
 						<p className="muted">It's how people find you and see who posted.</p>
 						<label>
@@ -176,7 +176,7 @@ export function Setup({ profile, onDone }: { profile: OwnProfile; onDone: (profi
 			) : step === 2 ? (
 				<div className={s.step}>
 					<div className={s.grow}>
-						<h1>How did you hear about PartyNearMe?</h1>
+						<h1>How did you hear about Meetbry?</h1>
 						<p className="muted">It helps us know what's working.</p>
 						<div className={s.choices} role="radiogroup" aria-label="How you heard about us">
 							{heardFrom.map(([wire, label]) => (
@@ -197,7 +197,7 @@ export function Setup({ profile, onDone }: { profile: OwnProfile; onDone: (profi
 							<Icon name="place" size={48} />
 						</span>
 						<h1>Find parties near you</h1>
-						<p className="muted">PartyNearMe uses your location only while you use it, to show what's on nearby. It never keeps a history of where you go.</p>
+						<p className="muted">Meetbry uses your location only while you use it, to show what's on nearby. It never keeps a history of where you go.</p>
 					</div>
 					<button className="btn primary block" disabled={busy} onClick={() => finish(true)}>
 						{busy ? 'Asking…' : 'Allow location'}

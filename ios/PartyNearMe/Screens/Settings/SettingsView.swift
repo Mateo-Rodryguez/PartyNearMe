@@ -67,7 +67,7 @@ struct SettingsView: View {
                     }
                 }
             } header: {
-                Text("Help make PartyNearMe better")
+                Text("Help make Meetbry better")
             }
             .listRowBackground(Color.appField)
             Section("About") {

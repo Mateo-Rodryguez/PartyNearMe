@@ -204,7 +204,7 @@ fun SignInScreen(app: PartyNearMe, platform: Platform) {
             Spacer(Modifier.height(24.dp))
             val legal = rememberLegalLinks(app)
             Text(
-                "PartyNearMe is for people aged 18 and over. By continuing you agree to our Terms and Privacy policy.",
+                "Meetbry is for people aged 18 and over. By continuing you agree to our Terms and Privacy policy.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

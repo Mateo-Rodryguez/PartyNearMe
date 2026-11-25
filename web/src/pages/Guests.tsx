@@ -49,7 +49,7 @@ export default function Guests() {
 
 	return (
 		<>
-			<title>Guest list · PartyNearMe</title>
+			<title>Guest list · Meetbry</title>
 			<PageHeader title="Guest list" back />
 			{error ? (
 				<Empty title="Couldn't load the guest list">{error}</Empty>

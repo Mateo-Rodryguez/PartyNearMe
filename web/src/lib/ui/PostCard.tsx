@@ -111,7 +111,7 @@ export function PostCard({
 	}
 
 	async function sharePost() {
-		const result = await share(`${nameOf(post.author)} on PartyNearMe`, postLink(post.id), { postId: post.id });
+		const result = await share(`${nameOf(post.author)} on Meetbry`, postLink(post.id), { postId: post.id });
 		if (result) analytics.capture('link_shared', { kind: 'post' });
 		if (result === 'copied') toast.show('Link copied');
 	}

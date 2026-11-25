@@ -145,7 +145,7 @@ private fun LocationStep(platform: Platform, onDone: (allowed: Boolean) -> Unit)
         }
         Text("Find parties near you", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 24.dp))
         Text(
-            "PartyNearMe uses your location only while you use it, to show what's on nearby. " +
+            "Meetbry uses your location only while you use it, to show what's on nearby. " +
                 "It never keeps a history of where you go.",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp),

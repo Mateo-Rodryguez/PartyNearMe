@@ -130,7 +130,7 @@ export default function NewPost() {
 
 	return (
 		<>
-			<title>New post · PartyNearMe</title>
+			<title>New post · Meetbry</title>
 			<PageHeader
 				title="New post"
 				back

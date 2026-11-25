@@ -8,6 +8,8 @@ describe("originMatcher", () => {
   const allow = originMatcher(DEFAULT_WEB_ORIGINS.split(","));
 
   it("allows the web app, its previews and local development", () => {
+    expect(allow("https://meetbry.com")).toBe(true);
+    expect(allow("https://www.meetbry.com")).toBe(true);
     expect(allow("https://partynearme.pages.dev")).toBe(true);
     expect(allow("https://3f2a1b9c.partynearme.pages.dev")).toBe(true);
     expect(allow("https://feature-x.partynearme.pages.dev")).toBe(true);
@@ -16,6 +18,9 @@ describe("originMatcher", () => {
 
   it("refuses other sites and look-alikes", () => {
     expect(allow("https://evil.example")).toBe(false);
+    expect(allow("http://meetbry.com")).toBe(false);
+    expect(allow("https://evilmeetbry.com")).toBe(false);
+    expect(allow("https://meetbry.com.evil.example")).toBe(false);
     expect(allow("http://partynearme.pages.dev")).toBe(false);
     expect(allow("https://evilpartynearme.pages.dev")).toBe(false);
     expect(allow("https://a.b.partynearme.pages.dev")).toBe(false);

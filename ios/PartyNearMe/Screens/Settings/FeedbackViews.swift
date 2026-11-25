@@ -17,7 +17,7 @@ struct FeedbackView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("We read every message. Tell us what you love, what got in your way, or what you wish PartyNearMe did, and we'll keep making it better.")
+                Text("We read every message. Tell us what you love, what got in your way, or what you wish Meetbry did, and we'll keep making it better.")
                     .secondaryStyle()
                 FlowLayout(spacing: 8) {
                     ChoiceChip(title: "I love something", selected: kind == .love) { kind = .love }
@@ -48,7 +48,7 @@ struct FeedbackView: View {
     private var prompt: String {
         switch kind {
         case .problem: return "What happened, and what were you trying to do?"
-        case .idea: return "What should PartyNearMe do?"
+        case .idea: return "What should Meetbry do?"
         default: return "What do you love?"
         }
     }
@@ -69,7 +69,7 @@ struct FeedbackView: View {
     }
 }
 
-/// "How likely are you to recommend PartyNearMe to a friend?" (0-10), the Net
+/// "How likely are you to recommend Meetbry to a friend?" (0-10), the Net
 /// Promoter Score, shown at the top of Home at most every 90 days once someone
 /// knows the app (AppPrefs.recommendDue). The app grows by word of mouth, so this
 /// is the number that matters most. A score can come with an optional reason.
@@ -83,7 +83,7 @@ struct RecommendCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
-                Text("How likely are you to recommend PartyNearMe to a friend?")
+                Text("How likely are you to recommend Meetbry to a friend?")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(Color.appText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -190,7 +190,7 @@ struct HeardFromStep: View {
         VStack(spacing: 16) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("How did you hear about PartyNearMe?").headingStyle()
+                    Text("How did you hear about Meetbry?").headingStyle()
                     Text("It helps us know what's working.").secondaryStyle()
                     VStack(spacing: 8) {
                         ForEach(Self.answers) { answer in

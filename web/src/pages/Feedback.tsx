@@ -10,12 +10,12 @@ type Kind = Extract<FeedbackKind, 'love' | 'problem' | 'idea'>;
 const kinds: { id: Kind; label: string; hint: string }[] = [
 	{ id: 'love', label: 'I love something', hint: 'What do you love?' },
 	{ id: 'problem', label: "Something's wrong", hint: 'What happened, and what were you trying to do?' },
-	{ id: 'idea', label: 'I have an idea', hint: 'What should PartyNearMe do?' }
+	{ id: 'idea', label: 'I have an idea', hint: 'What should Meetbry do?' }
 ];
 
 /**
  * Settings > Send feedback, as in the apps: what people love, what got in
- * their way, or what they wish PartyNearMe did. Only we can read it.
+ * their way, or what they wish Meetbry did. Only we can read it.
  */
 export default function Feedback() {
 	const navigate = useNavigate();
@@ -39,11 +39,11 @@ export default function Feedback() {
 
 	return (
 		<>
-			<title>Send feedback · PartyNearMe</title>
+			<title>Send feedback · Meetbry</title>
 			<PageHeader title="Send feedback" back />
 			<form className={s.page} onSubmit={send}>
 				<p className="muted">
-					We read every message. Tell us what you love, what got in your way, or what you wish PartyNearMe did, and we'll keep making it
+					We read every message. Tell us what you love, what got in your way, or what you wish Meetbry did, and we'll keep making it
 					better.
 				</p>
 				<div className={s.chips} role="radiogroup" aria-label="Kind of feedback">

@@ -126,7 +126,7 @@ private struct LocationStep: View {
                 .headingStyle()
                 .multilineTextAlignment(.center)
                 .padding(.top, 24)
-            Text("PartyNearMe uses your location only while you use it, to show what's on nearby. It never keeps a history of where you go.")
+            Text("Meetbry uses your location only while you use it, to show what's on nearby. It never keeps a history of where you go.")
                 .secondaryStyle()
                 .multilineTextAlignment(.center)
                 .padding(.top, 8)

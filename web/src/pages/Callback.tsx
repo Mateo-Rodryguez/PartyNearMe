@@ -47,7 +47,7 @@ export default function Callback() {
 
 	return (
 		<main className={s.main}>
-			<title>Signing in · PartyNearMe</title>
+			<title>Signing in · Meetbry</title>
 			{error ? (
 				<>
 					<h1>That didn't work</h1>

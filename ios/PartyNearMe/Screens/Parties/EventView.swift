@@ -309,7 +309,7 @@ struct EventView: View {
                 }
                 .accessibilityLabel(event.savedByMe ? "Unsave" : "Save")
                 ShareLink(item: AppConfig.partyLink(event.id), subject: Text(event.title),
-                          message: Text("\(event.title) on PartyNearMe")) {
+                          message: Text("\(event.title) on Meetbry")) {
                     Image(systemName: "square.and.arrow.up")
                 }
                 .simultaneousGesture(TapGesture().onEnded {

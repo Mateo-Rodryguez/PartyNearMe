@@ -86,12 +86,12 @@ export default function SignIn() {
 
 	return (
 		<main className={s.main}>
-			<title>{`${titles[mode]} · PartyNearMe`}</title>
+			<title>{`${titles[mode]} · Meetbry`}</title>
 			<div className={s.glow} aria-hidden="true" />
 			<form onSubmit={submit} className={s.card}>
 				<Link to="/" className={s.brand}>
 					<img src="/icon.svg" alt="" width="48" height="48" />
-					<span>PartyNearMe</span>
+					<span>Meetbry</span>
 				</Link>
 				<h1>{titles[mode]}</h1>
 
@@ -169,8 +169,8 @@ export default function SignIn() {
 				</div>
 				{mode === 'signup' && (
 					<p className={`${s.small} muted`}>
-						By signing up you agree to the <a href="https://partynearme-api.onrender.com/terms">terms</a> and{' '}
-						<a href="https://partynearme-api.onrender.com/privacy">privacy policy</a>. You must be 18 or older.
+						By signing up you agree to the <a href="/terms">terms</a> and{' '}
+						<a href="/privacy">privacy policy</a>. You must be 18 or older.
 					</p>
 				)}
 			</form>

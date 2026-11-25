@@ -4,7 +4,7 @@ import { asUser, type Db } from "../../db.js";
 import { HttpError } from "../../errors.js";
 import { checkLimit } from "../../limits.js";
 
-/** The answers to "How did you hear about PartyNearMe?" in onboarding. */
+/** The answers to "How did you hear about Meetbry?" in onboarding. */
 export const HEARD_FROM = ["friend", "shared_link", "social_media", "app_store", "venue_or_event", "other"] as const;
 
 const feedbackBody = z

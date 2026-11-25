@@ -2,12 +2,12 @@ import SwiftUI
 
 // The app's building blocks, so every screen shares one look. New screens reuse these.
 
-/// "PartyNearMe" in the brand gradient.
+/// "Meetbry" in the brand gradient.
 struct Wordmark: View {
     var size: CGFloat = 34
 
     var body: some View {
-        Text("PartyNearMe")
+        Text("Meetbry")
             .font(.system(size: size, weight: .black))
             .tracking(-size * 0.03)
             .foregroundStyle(Brand.sunset)

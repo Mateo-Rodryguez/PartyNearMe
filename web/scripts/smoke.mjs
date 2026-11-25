@@ -190,7 +190,7 @@ for (const scheme of ['dark', 'light']) {
 		await page.waitForTimeout(300);
 		await page.screenshot({ path: `${out}/${name}-${scheme}.png` });
 	};
-	await shot('landing', '/', 'PartyNearMe');
+	await shot('landing', '/', 'Meetbry');
 	await shot('signin', '/signin', 'Continue with Google');
 
 	// Signing in with email; a new account goes through setup first.

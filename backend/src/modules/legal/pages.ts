@@ -12,7 +12,7 @@ export const page = (title: string, body: string, head = "") => `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title} · PartyNearMe</title>
+<title>${title} · Meetbry</title>
 <style>
   :root { color-scheme: light dark; --accent: #d6246e; }
   body { font: 16px/1.6 system-ui, -apple-system, sans-serif; max-width: 42rem; margin: 0 auto; padding: 2rem 1rem 4rem; }
@@ -42,7 +42,7 @@ const contactLine = (email: string | undefined) =>
 export function privacyPage(contactEmail?: string): string {
   const contact = contactLine(contactEmail);
   return page("Privacy policy", `${updated}
-<p>PartyNearMe helps people find parties and events near them, share photos from them and chat.
+<p>Meetbry helps people find parties and events near them, share photos from them and chat.
 This page explains what the app collects, why, who else handles it, and how to delete it.
 Questions: ${contact}.</p>
 
@@ -69,7 +69,7 @@ Questions: ${contact}.</p>
     phone type and app version, counted under your account ID only. They never include your posts, messages,
     searches, location, name or email. You can turn them off under Settings &gt; Share usage stats.</li>
   <li><strong>Feedback you choose to send:</strong> messages from Settings &gt; Send feedback, your answer to "would
-    you recommend PartyNearMe?", how you heard about us, and why you left if you tell us when deleting your
+    you recommend Meetbry?", how you heard about us, and why you left if you tell us when deleting your
     account. Only we read it. It is kept, no longer linked to you, after you delete your account.</li>
   <li><strong>Share link visits:</strong> how many times a day a shared party or post link is opened, as a count
     only; we don't record who opened it.</li>
@@ -107,7 +107,7 @@ Server logs are kept for a short time to fix problems.</p>
 or to stop or limit processing, and you can complain to your data protection authority.</p>
 
 <h2>Age</h2>
-<p>PartyNearMe is for people aged ${MINIMUM_AGE} and over. We delete accounts we learn belong to anyone younger.</p>
+<p>Meetbry is for people aged ${MINIMUM_AGE} and over. We delete accounts we learn belong to anyone younger.</p>
 
 <h2>Changes</h2>
 <p>If this policy changes in a way that matters, we'll say so in the app before it takes effect.</p>
@@ -117,7 +117,7 @@ or to stop or limit processing, and you can complain to your data protection aut
 export function termsPage(contactEmail?: string): string {
   const contact = contactLine(contactEmail);
   return page("Terms of use", `${updated}
-<p>By using PartyNearMe you agree to these terms. Questions: ${contact}.</p>
+<p>By using Meetbry you agree to these terms. Questions: ${contact}.</p>
 
 <h2>Who can use it</h2>
 <p>You must be at least ${MINIMUM_AGE}. One account per person; keep your password to yourself.</p>

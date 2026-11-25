@@ -40,7 +40,7 @@ export default function Inbox() {
 
 	return (
 		<>
-			<title>Messages · PartyNearMe</title>
+			<title>Messages · Meetbry</title>
 			<PageHeader title="Messages" />
 			{!inbox.loadedOnce && !inbox.items.length ? (
 				<Skeleton count={8} />

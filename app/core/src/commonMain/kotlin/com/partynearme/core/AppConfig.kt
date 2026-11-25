@@ -2,7 +2,7 @@ package com.partynearme.core
 
 /** Where the app talks to. Both values are public; no secrets ship in the app. */
 data class AppConfig(
-    /** The PartyNearMe API on Render, without a trailing slash. */
+    /** The Meetbry API on Render, without a trailing slash. */
     val apiBaseUrl: String,
     /** The Supabase project URL, for sign-in. */
     val supabaseUrl: String,
@@ -21,7 +21,7 @@ data class AppConfig(
     /** The web page the password reset email leads to. */
     val resetPasswordPage: String get() = "$apiBaseUrl/reset-password"
 
-    /** Share links: public pages with a preview and an "Open in PartyNearMe" button. */
+    /** Share links: public pages with a preview and an "Open in Meetbry" button. */
     fun partyLink(id: String): String = "$apiBaseUrl/e/$id"
     fun postLink(id: String): String = "$apiBaseUrl/p/$id"
 }

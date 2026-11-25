@@ -21,3 +21,9 @@
 /host           /200       200
 /feedback       /200       200
 /moderation     /200       200
+
+# The privacy policy and terms live on the API (it fills in the contact email),
+# so meetbry.com/privacy and /terms send the browser there. These addresses go
+# on the store listings, so they must keep working whatever serves them.
+/privacy        https://partynearme-api.onrender.com/privacy  302
+/terms          https://partynearme-api.onrender.com/terms    302
